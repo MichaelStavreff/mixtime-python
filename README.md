@@ -1,4 +1,4 @@
-# pytime
+# mixtime-python
 
 A Rust + Python port of the Gregorian chronon arithmetic from R's
 [**mixtime**](https://github.com/mitchelloharawild/mixtime) package.
@@ -43,8 +43,8 @@ Prerequisites:
 - `just` (optional)
 
 ```sh
-git clone https://github.com/MichaelStavreff/pytime.git
-cd pytime/python
+git clone https://github.com/MichaelStavreff/mixtime-python.git
+cd mixtime-python/python
 uv sync --reinstall-package mixtime-rs
 ```
 
