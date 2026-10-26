@@ -7,8 +7,9 @@ The Rust crate provides the conversion kernels and a PyO3 extension. The
 Python package is imported as `mixtime` and accepts and returns NumPy arrays
 with zero-copy input and direct output fills.
 
-> **Status:** early-stage port. Only the four Gregorian `chronon_divmod` splits
-> are implemented; the rest of mixtime is out of scope. See [Scope](#scope).
+> **Status:** kernel-only port. The four Gregorian `chronon_divmod` splits are
+> implemented and tested; the rest of mixtime is intentionally out of scope.
+> See [Scope](#scope) and [`DECISION.md`](DECISION.md).
 
 ## Credits
 
@@ -31,7 +32,9 @@ chronons using the same Gregorian calendar arithmetic as the R package.
 
 It is a low-level kernel, not a full replacement for mixtime's R API. It does
 not provide time vectors, parsing, formatting, timezone handling, or calendars
-other than Gregorian.
+other than Gregorian. That is a deliberate scope decision: the port focuses on
+the numeric conversion kernel rather than the full R API. See
+[`DECISION.md`](DECISION.md) for the rationale and the alternatives considered.
 
 ## Quick start
 
