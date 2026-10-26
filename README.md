@@ -70,10 +70,10 @@ The whole loop is scripted in
 The clean-shell invocation used for the timing was:
 
 ```sh
-env -i HOME=/home/salad PATH=/tmp/opencode/bin:/usr/bin:/bin \
-  R_LIBS=/tmp/opencode/Rlib BEFORE_FIXTURES=/tmp/opencode/fixtures_before \
+env -i HOME="$HOME" PATH="/path/to/just:/usr/bin:/bin" \
+  R_LIBS=/path/to/Rlib BEFORE_FIXTURES=/tmp/mixtime-fixtures-before \
   bash --noprofile --norc -c \
-  'cd /home/salad/projects/r-ports/packages/mixtime && ./benchmarks/sync_timing.sh /tmp/opencode/mixtime-dev/mixtime-main'
+  'cd /path/to/mixtime && ./benchmarks/sync_timing.sh /path/to/mixtime-main'
 ```
 
 Measured wall-clock on the final 14-test suite: **24.41 s** total (install +
@@ -86,15 +86,15 @@ reverted to the pinned CRAN `0.4.0` baseline.
 
 | Dependency | Value / requirement | Why it matters |
 |---|---|---|
-| `R_LIBS` | `/tmp/opencode/Rlib` | mixtime and its R dependencies are not in the system library |
-| `just` | `/tmp/opencode/bin/just` | not on the default `PATH` in a clean shell |
-| `HOME` | `/home/salad` | cargo/uv caches and R's user library (cpp11 headers) |
+| `R_LIBS` | `/path/to/Rlib` | mixtime and its R dependencies are not in the system library |
+| `just` | on `PATH` | task entrypoint |
+| `HOME` | your home directory | cargo/uv caches and R's user library (cpp11 headers) |
 | R | 4.6.1, plus `jsonlite` | fixture generation |
 | Rust | 1.98.1 (`cargo`, `rustc`) | rebuilds the PyO3 extension |
 | Python / uv | 3.14.7 / 0.13.4 | pytest environment |
 | C++ compiler | `g++` (C++20) | mixtime's compiled timezone code |
 | Network | first run only | downloading the new R source and crates |
-| `BEFORE_FIXTURES` | `/tmp/opencode/fixtures_before` | reconciliation snapshot |
+| `BEFORE_FIXTURES` | `/tmp/mixtime-fixtures-before` | reconciliation snapshot |
 
 A fresh machine needs R + `jsonlite`, the mixtime dependency chain, a Rust
 toolchain, uv, just, and a C++20 compiler. CI can skip R unless it regenerates

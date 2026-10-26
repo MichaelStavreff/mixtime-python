@@ -81,10 +81,9 @@ with `microbenchmark`; the raw tables are in the accompanying reply.
 
 The full loop from a clean `env -i` shell took **24.41 s**: install + replace
 9.57 s, regenerate fixtures 1.15 s, Rust + Python suites 13.61 s, reconcile
-0.08 s. It needs an isolated `R_LIBS` (`/tmp/opencode/Rlib`), `just` on
-`PATH` (`/tmp/opencode/bin/just`), `HOME` for cargo/uv caches and R's user
-library, plus R 4.6.1, Rust 1.98.1, Python 3.14.7, uv 0.13.4, and a C++20
-compiler. A fresh machine needs the same toolchain; CI can skip R unless it
+0.08 s. It needs an isolated `R_LIBS` (`/path/to/Rlib`), `just` on `PATH`,
+`HOME` for cargo/uv caches and R's user library, plus R 4.6.1, Rust 1.98.1,
+Python 3.14.7, uv 0.13.4, and a C++20 compiler. A fresh machine needs the same toolchain; CI can skip R unless it
 regenerates fixtures.
 
 ## Options considered

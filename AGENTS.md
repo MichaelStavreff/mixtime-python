@@ -63,7 +63,7 @@ These cause silent wrong answers, not crashes:
 
 Regenerating fixtures requires a local R installation. If the package lives in
 a non-default R library, pass `R_LIBS` (e.g.
-`R_LIBS=/tmp/opencode/Rlib just fixtures`). CI does not need R unless it
+`R_LIBS=/path/to/Rlib just fixtures`). CI does not need R unless it
 regenerates fixtures.
 
 ## Commands

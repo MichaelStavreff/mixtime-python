@@ -2,7 +2,7 @@
 # Regenerate the golden fixtures for the mixtime Rust/Python port.
 #
 # Requires the CRAN package `mixtime` 0.4.0 to be installed, e.g.:
-#   R_LIBS=/tmp/opencode/Rlib Rscript fixtures/generate_fixtures.R
+#   R_LIBS=/path/to/Rlib Rscript fixtures/generate_fixtures.R
 #
 # Output: fixtures/fixtures.json and crosscheck.json (written
 # next to this script). crosscheck.json replays the randomized R cross-check.

@@ -5,7 +5,7 @@
 #   v = ((i * 1103515245 + 12345) mod 2^31) mod modulus - offset
 #
 # Run:
-#   R_LIBS=/tmp/opencode/Rlib Rscript benchmarks/bench.R
+#   R_LIBS=/path/to/Rlib Rscript benchmarks/bench.R
 #
 # Outputs the microbenchmark tables and writes /tmp/opencode/r_small.csv for
 # the Python/Rust crossover calculation.

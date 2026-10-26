@@ -2,7 +2,7 @@
 # Time the full upstream-sync loop for the mixtime port.
 #
 # Usage (from a clean shell, with R_LIBS and just on PATH):
-#   R_LIBS=/tmp/opencode/Rlib ./benchmarks/sync_timing.sh \
+#   R_LIBS=/path/to/Rlib ./benchmarks/sync_timing.sh \
 #       /path/to/new/mixtime/source
 #
 # Steps: install new R source -> replace upstream/mixtime -> regenerate
@@ -11,7 +11,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${1:?usage: sync_timing.sh /path/to/mixtime-source}"
-BEFORE="${BEFORE_FIXTURES:-/tmp/opencode/fixtures_before}"
+BEFORE="${BEFORE_FIXTURES:-/tmp/mixtime-fixtures-before}"
 : "${R_LIBS:?R_LIBS must be set}"
 
 cd "$ROOT"
