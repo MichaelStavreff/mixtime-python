@@ -16,4 +16,4 @@ outputs in place, so NumPy input and output are both zero-copy.
 
 The numbered procedure (install → replace upstream → regenerate fixtures →
 rerun both suites → reconcile) lives in
-[`../README.md#upstream-sync`](../README.md#upstream-sync).
+[`../CONTRIBUTING.md#upstream-sync`](../CONTRIBUTING.md#upstream-sync).
