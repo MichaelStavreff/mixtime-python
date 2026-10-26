@@ -10,7 +10,7 @@ against GitHub `main` (`mixtime 0.4.0.9000`), starting from the pinned CRAN
 1. **Snapshot the current fixtures.** Keep a copy for reconciliation:
    ```sh
    mkdir -p /tmp/opencode/fixtures_before
-   cp fixtures/{fixtures.json,crosscheck.json} /tmp/opencode/fixtures_before/
+   cp fixtures/{fixtures.json,crosscheck.json,time_model.json} /tmp/opencode/fixtures_before/
    ```
 2. **Install the new R source into an isolated library.** Do not touch the
    system R library:
@@ -41,11 +41,21 @@ against GitHub `main` (`mixtime 0.4.0.9000`), starting from the pinned CRAN
    from pathlib import Path
    before = Path("/tmp/opencode/fixtures_before")
    after = Path("fixtures")
-   for name in ("fixtures.json", "crosscheck.json"):
+   for name in ("fixtures.json", "crosscheck.json", "time_model.json"):
        b = json.loads((before / name).read_text())
        a = json.loads((after / name).read_text())
-       print(name, b["cases"] == a["cases"], b["inputs"] == a["inputs"],
-             b["package_version"], "->", a["package_version"])
+       if name == "time_model.json":
+           print(name, b["constructors"] == a["constructors"],
+                 b["parsing"] == a["parsing"],
+                 b["cyclical"] == a["cyclical"],
+                 b["durations"] == a["durations"],
+                 b["operations"] == a["operations"],
+                 b["comparisons"] == a["comparisons"],
+                 b["mixed"] == a["mixed"],
+                 b["package_version"], "->", a["package_version"])
+       else:
+           print(name, b["cases"] == a["cases"], b["inputs"] == a["inputs"],
+                 b["package_version"], "->", a["package_version"])
    PY
    ```
    If numeric cases differ, fix the port or document an intentional divergence;
@@ -66,7 +76,7 @@ env -i HOME="$HOME" PATH="/path/to/just:/usr/bin:/bin" \
   'cd /path/to/pytime && ./benchmarks/sync_timing.sh /path/to/mixtime-main'
 ```
 
-Measured wall-clock on the final suite (14 Rust tests, 19 Python tests):
+Measured wall-clock on the kernel-only suite at the time (14 Rust tests, 19 Python tests; the suite now also includes the time-model fixtures):
 **24.41 s** total (install + replace 9.57 s, regenerate fixtures 1.15 s,
 Rust + Python suites 13.61 s, reconciliation 0.08 s). Both fixture files had identical `cases` and `inputs`;
 only `package_version` changed (`0.4.0` → `0.4.0.9000`). The rehearsal was then
