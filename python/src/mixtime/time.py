@@ -100,6 +100,91 @@ class TimeVector:
         """Return the complement of :meth:`isna`."""
         return np.logical_not(self.isna())
 
+    # -- ordering ----------------------------------------------------------
+    def order_values(self) -> np.ndarray:
+        """Return the values used to order this vector.
+
+        Linear and duration vectors order by their chronon value. Cyclical
+        vectors order by their position within the cycle, matching R's
+        ``vec_proxy_order``. Missing values remain ``NaN``.
+        """
+        values = np.asarray(self.values, dtype=np.float64)
+        if self.kind != "cyclical":
+            return values
+        if self.cycle is None:
+            raise ValueError("cyclical time is missing its cycle")
+        return _cyclical_positions(
+            values,
+            self.chronon,
+            self.cycle,
+            self.calendar,
+            self.timezone,
+        )
+
+    def argsort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "last",
+    ) -> np.ndarray:
+        """Return positions that sort this vector chronologically.
+
+        ``na_position`` is ``"first"``, ``"last"``, or ``"drop"``. The default
+        keeps missing values last, matching R's ``order()``.
+        """
+        return _argsort_proxy(
+            self.order_values(),
+            decreasing=decreasing,
+            na_position=na_position,
+        )
+
+    def sort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "drop",
+    ) -> "TimeVector":
+        """Sort chronologically; missing values are dropped by default.
+
+        R's ``sort()`` drops missing values unless ``na.last`` is supplied, so
+        ``na_position="drop"`` is the default here.
+        """
+        order = self.argsort(
+            decreasing=decreasing,
+            na_position=na_position,
+        )
+        return self._new(np.asarray(self.values)[order])
+
+    def _extreme(self, which: str, *, skipna: bool = True) -> Any:
+        from .scalar import TimeScalar
+
+        values = np.asarray(self.values, dtype=np.float64)
+        if values.size == 0:
+            raise ValueError(f"{which}() arg is an empty sequence")
+        missing = np.isnan(values)
+        if missing.all() or (not skipna and missing.any()):
+            return TimeScalar.from_vector(self, np.nan)
+        extreme = np.nanmin(values) if which == "min" else np.nanmax(values)
+        return TimeScalar.from_vector(self, float(extreme))
+
+    def min(self, *, skipna: bool = True) -> Any:
+        """Return the earliest value as a :class:`~mixtime.scalar.TimeScalar`.
+
+        Missing values are skipped unless ``skipna=False``. For cyclical time
+        this uses the absolute chronon value, matching ``Mixtime.min()``;
+        use :meth:`sort` for cycle-position ordering.
+        """
+        return self._extreme("min", skipna=skipna)
+
+    def max(self, *, skipna: bool = True) -> Any:
+        """Return the latest value as a :class:`~mixtime.scalar.TimeScalar`.
+
+        Missing values are skipped unless ``skipna=False``. For cyclical time
+        this uses the absolute chronon value, matching ``Mixtime.max()``;
+        use :meth:`sort` for cycle-position ordering.
+        """
+        return self._extreme("max", skipna=skipna)
+
     def __array__(self, dtype: Any = None) -> np.ndarray:
         if dtype is None:
             return np.asarray(self.values)
@@ -874,23 +959,11 @@ class Mixtime:
         ``na_position`` is ``"first"``, ``"last"``, or ``"drop"``. The default
         keeps missing values last, matching R's ``order()``.
         """
-        if na_position not in {"first", "last", "drop"}:
-            raise ValueError(
-                "na_position must be 'first', 'last', or 'drop'"
-            )
-        proxy = self.order_values()
-        missing = np.isnan(proxy)
-        present = np.flatnonzero(~missing)
-        if decreasing:
-            order = present[np.argsort(-proxy[present], kind="stable")]
-        else:
-            order = present[np.argsort(proxy[present], kind="stable")]
-        na = np.flatnonzero(missing)
-        if na_position == "first":
-            return np.concatenate([na, order])
-        if na_position == "last":
-            return np.concatenate([order, na])
-        return order
+        return _argsort_proxy(
+            self.order_values(),
+            decreasing=decreasing,
+            na_position=na_position,
+        )
 
     def sort(
         self,
@@ -1402,6 +1475,30 @@ def _comparison_unit(left: Unit, right: Unit) -> Unit:
     from .granules import chronon_glb
 
     return chronon_glb(left, right)
+
+
+def _argsort_proxy(
+    proxy: Any,
+    *,
+    decreasing: bool,
+    na_position: str,
+) -> np.ndarray:
+    """Return stable sort positions for an order proxy."""
+    if na_position not in {"first", "last", "drop"}:
+        raise ValueError("na_position must be 'first', 'last', or 'drop'")
+    proxy = np.asarray(proxy, dtype=np.float64)
+    missing = np.isnan(proxy)
+    present = np.flatnonzero(~missing)
+    if decreasing:
+        order = present[np.argsort(-proxy[present], kind="stable")]
+    else:
+        order = present[np.argsort(proxy[present], kind="stable")]
+    na = np.flatnonzero(missing)
+    if na_position == "first":
+        return np.concatenate([na, order])
+    if na_position == "last":
+        return np.concatenate([order, na])
+    return order
 
 
 def _relation(

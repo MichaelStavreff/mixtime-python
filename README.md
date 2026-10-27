@@ -212,14 +212,16 @@ months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
 print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
 ```
 
-Mixed ordering uses R's order proxy: parts convert to their finest shared
-chronon, discrete values shift by half a chronon so a span sorts at its
-midpoint, and cyclical values order by position within the cycle. `Mixtime`
-comparisons broadcast a length-one operand and raise on other length
-mismatches. Missing values compare equal in `==` masks; ordering comparisons
-involving a missing value are `False`, where R would return `NA`.
-`min()`/`max()` skip missing values by default; pass `skipna=False` for R's
-`na.rm = FALSE` behaviour.
+`TimeVector.sort()`/`argsort()` order one granularity directly; cyclical
+vectors order by position within the cycle. `Mixtime.sort()`/`argsort()` use
+R's mixed order proxy: parts convert to their finest shared chronon, discrete
+values shift by half a chronon so a span sorts at its midpoint, and cyclical
+parts order by position within the cycle. `Mixtime` comparisons broadcast a
+length-one operand and raise on other length mismatches. Missing values
+compare equal in `==` masks; ordering comparisons involving a missing value
+are `False`, where R would return `NA`. `TimeVector.min()`/`max()` and
+`Mixtime.min()`/`max()` return a `TimeScalar`, skip missing values by default,
+and accept `skipna=False` for R's `na.rm = FALSE` behaviour.
 
 ### pandas columns
 

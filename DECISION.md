@@ -20,9 +20,11 @@ silently returning `False`.
 Mixed ordering follows R's `vec_proxy_order`: convert every part to the finest
 shared chronon, add half a chronon to discrete parts so a span sorts at its
 midpoint, and order cyclical parts by position within their shared cycle.
-`Mixtime.sort`/`argsort`/`min`/`max` expose this. `min`/`max` convert to the
-common chronon and return a `TimeScalar`; R returns a length-one mixtime with
-the same chronon.
+`Mixtime.sort`/`argsort`/`min`/`max` expose this. `TimeVector.sort`/`argsort`/
+`min`/`max` provide the same operations for one granularity; cyclical vectors
+order by cycle position, while reductions use the absolute chronon value as
+`Mixtime` does. `min`/`max` convert to the common chronon and return a
+`TimeScalar`; R returns a length-one mixtime with the same chronon.
 
 pandas columns now sort, filter, use `between`, reduce with `min`/`max`, and
 participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and

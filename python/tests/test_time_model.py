@@ -597,6 +597,68 @@ def test_time_vector_comparison_uses_intervals():
     assert not bool(mt.year(["1980"]) >= mt.yearmonth("1980-12"))
 
 
+def test_time_vector_ordering_and_reductions():
+    months = mt.yearmonth(["2024-03", "2024-01", "2024-02"])
+
+    assert months.argsort().tolist() == [1, 2, 0]
+    _assert_formatted(
+        months.sort().format(),
+        ["2024 Jan", "2024 Feb", "2024 Mar"],
+    )
+    _assert_formatted(
+        months.sort(decreasing=True).format(),
+        ["2024 Mar", "2024 Feb", "2024 Jan"],
+    )
+    assert months.min().format() == "2024 Jan"
+    assert months.max().format() == "2024 Mar"
+    assert months.min().chronon.name == "month"
+    assert months.max().discrete is True
+
+
+def test_time_vector_cyclical_ordering_matches_r_fixture():
+    case = next(
+        case for case in FIXTURES["ordering"]
+        if case["name"] == "cyclical_months"
+    )
+    months = mt.month_of_year(
+        ["2024-12-15", "2025-01-15", "2024-06-15", "2024-03-15"]
+    )
+
+    assert months.argsort().tolist() == [
+        int(value) - 1 for value in _listify(case["order"])
+    ]
+    _assert_formatted(months.sort().format(), case["sorted"])
+    assert months.min().format() == case["min"]
+    assert months.max().format() == case["max"]
+
+
+def test_time_vector_ordering_missing_values():
+    values = mt.yearmonth(["2024-02", None, "2024-01"])
+
+    assert values.argsort().tolist() == [2, 0, 1]
+    assert values.argsort(na_position="drop").tolist() == [2, 0]
+    assert values.argsort(na_position="first").tolist() == [1, 2, 0]
+    _assert_formatted(
+        values.sort().format(),
+        ["2024 Jan", "2024 Feb"],
+    )
+    _assert_formatted(
+        values.sort(na_position="last").format(),
+        ["2024 Jan", "2024 Feb", "NA"],
+    )
+    assert values.min().format() == "2024 Jan"
+    assert values.max().format() == "2024 Feb"
+    assert values.min(skipna=False).format() == "NA"
+    assert values.max(skipna=False).format() == "NA"
+
+
+def test_time_vector_reductions_on_empty_vector():
+    with pytest.raises(ValueError, match="empty sequence"):
+        mt.yearmonth([]).min()
+    with pytest.raises(ValueError, match="empty sequence"):
+        mt.yearmonth([]).max()
+
+
 PREDICATE_INPUTS = {
     "linear_yearmonth": lambda: mt.time_is_linear(
         mt.yearmonth(["2024-01-15", "2024-02-29"])

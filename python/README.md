@@ -120,12 +120,14 @@ months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
 print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
 ```
 
-`Mixtime.sort()` and `argsort()` use R's order proxy: every part is converted
-to the finest shared chronon, discrete values are nudged by half a chronon so a
-span sorts at its midpoint, and cyclical parts order by position within their
-shared cycle. `sort()` drops missing values by default (as R does); pass
-`na_position="first"` or `"last"` to keep them. `min()`/`max()` convert to the
-common chronon and return a `TimeScalar` with that chronon. They skip missing
+`TimeVector.sort()`/`argsort()` order one granularity directly; cyclical
+vectors order by position within the cycle. `Mixtime.sort()`/`argsort()` use
+R's mixed order proxy: every part is converted to the finest shared chronon,
+discrete values are nudged by half a chronon so a span sorts at its midpoint,
+and cyclical parts order by position within their shared cycle. `sort()` drops
+missing values by default (as R does); pass `na_position="first"` or `"last"`
+to keep them. `TimeVector.min()`/`max()` and `Mixtime.min()`/`max()` return a
+`TimeScalar`; `Mixtime` converts to the common chronon first. They skip missing
 values by default; pass `skipna=False` for R's `na.rm = FALSE` behaviour.
 
 ## pandas interop
