@@ -396,8 +396,9 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic; pandas Series/DataFrame columns are covered,
-  but full non-pandas columnar coercion remains incomplete
+- complete `Mixtime` arithmetic; pandas duration shifts are covered, but
+  mixed time-point differences and full non-pandas columnar coercion remain
+  incomplete
 - shifts requiring a fractional month and R's alternative `on_invalid` DST
   resolutions
 - shifts from calendar chronons to finer fixed units (for example,

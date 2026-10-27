@@ -1452,6 +1452,32 @@ def test_pandas_cyclical_sort_and_between():
     ).tolist() == [False, True, False, True]
 
 
+def test_pandas_extension_duration_arithmetic():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-01-31"]),
+    )
+    series = values.to_pandas_series()
+
+    shifted = series + mt.months(1)
+    assert shifted.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in shifted],
+        ["2024 Feb", "2024 Mar", "2024-02-29"],
+    )
+
+    restored = shifted - mt.months(1)
+    assert restored.dtype == mt.MixtimeDtype()
+    # Month-end clamping is not reversible: 2024-02-29 - months(1) is
+    # 2024-01-29, not the original 2024-01-31.
+    _assert_formatted(
+        [value.format() for value in restored],
+        ["2024 Jan", "2024 Feb", "2024-01-29"],
+    )
+
+
 def test_pandas_extension_string_conversion():
     pd = pytest.importorskip("pandas")
 

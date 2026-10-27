@@ -17,7 +17,7 @@ from .scalar import (
     _mixtime_from_scalars,
     _scalar_from_item,
 )
-from .time import Mixtime, TimeVector
+from .time import Duration, Mixtime, TimeVector
 
 try:  # pragma: no cover - the import path is environment-dependent
     import pandas as pd
@@ -386,6 +386,19 @@ class MixtimeArray(ExtensionArray):
 
     def __ge__(self, other: Any) -> Any:
         return self._compare(other, ">=")
+
+    def __add__(self, other: Any) -> Any:
+        if isinstance(other, Duration):
+            return MixtimeArray(self._data + other)
+        return NotImplemented
+
+    def __radd__(self, other: Any) -> Any:
+        return self.__add__(other)
+
+    def __sub__(self, other: Any) -> Any:
+        if isinstance(other, Duration):
+            return MixtimeArray(self._data - other)
+        return NotImplemented
 
     def min(self, skipna: bool = True) -> Any:
         """Return the earliest value, skipping missing values by default."""

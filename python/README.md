@@ -154,12 +154,12 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
 `isna`, `take`, `fillna`, `where`, `concat`, slicing, `astype(object)`,
-`astype(str)`/`astype("string")`, and `to_numpy()` (object array of
-`TimeScalar`). String conversion uses `TimeScalar.format()`; pandas string
-dtypes keep missing values as `NA`, while NumPy unicode arrays use the literal
-`"NA"` because they cannot represent missing values. Columns sort
-chronologically even when granularities are mixed, and comparisons,
-`between()`, `min()`/`max()`,
+`astype(str)`/`astype("string")`, duration shifts (`series + months(1)`), and
+`to_numpy()` (object array of `TimeScalar`). String conversion uses
+`TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while
+NumPy unicode arrays use the literal `"NA"` because they cannot represent
+missing values. Columns sort chronologically even when granularities are
+mixed, and comparisons, `between()`, `min()`/`max()`,
 `idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
 and `value_counts()` follow the same interval rules as the core vectors.
 `MixtimeArray.nlargest()`/`nsmallest()` are available directly; pandas'
