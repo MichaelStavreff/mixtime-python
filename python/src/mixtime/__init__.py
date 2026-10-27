@@ -67,6 +67,7 @@ from .time import (
     yearweek,
     years,
 )
+from .timezones import tz_abbreviation, tz_name, tz_offset, tz_transitions
 from .units import Calendar, GregorianCalendar, Unit, cal_gregorian
 
 __all__ = [
@@ -121,6 +122,11 @@ __all__ = [
     "chronon_glb",
     "chronon_lub",
     "chronon_common",
+    # timezones
+    "tz_name",
+    "tz_abbreviation",
+    "tz_offset",
+    "tz_transitions",
     # predicates
     "time_is_linear",
     "time_is_cyclical",

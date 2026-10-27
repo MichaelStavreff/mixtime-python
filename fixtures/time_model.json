@@ -1689,5 +1689,170 @@
       },
       "lub": null
     }
+  ],
+  "timezones": [
+    {
+      "name": "naive_datetime",
+      "tz_name": null,
+      "abbreviation": "",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "0.0 seconds"
+    },
+    {
+      "name": "utc_datetime",
+      "tz_name": "UTC",
+      "abbreviation": "UTC",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "0.0 seconds"
+    },
+    {
+      "name": "ny_winter_datetime",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -18000,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "-18000.0 seconds"
+    },
+    {
+      "name": "ny_summer_datetime",
+      "tz_name": "America/New_York",
+      "abbreviation": "EDT",
+      "offset_values": -14400,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "-14400.0 seconds"
+    },
+    {
+      "name": "sydney_datetime",
+      "tz_name": "Australia/Sydney",
+      "abbreviation": "AEDT",
+      "offset_values": 39600,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "39600.0 seconds"
+    },
+    {
+      "name": "naive_date",
+      "tz_name": null,
+      "abbreviation": "",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "offset_formatted": "0.0 days"
+    },
+    {
+      "name": "ny_date",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.208333333333333,
+      "offset_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "offset_formatted": "-0.2083333 days"
+    },
+    {
+      "name": "ny_yearmonth",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.00672043010752688,
+      "offset_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "offset_formatted": "-0.00672043 months"
+    },
+    {
+      "name": "ny_yearquarter",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.00228310502283105,
+      "offset_chronon": {
+        "name": "quarter",
+        "n": 1
+      },
+      "offset_formatted": "-0.002283105 quarters"
+    },
+    {
+      "name": "ny_year",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.000570776255707763,
+      "offset_chronon": {
+        "name": "year",
+        "n": 1
+      },
+      "offset_formatted": "-0.0005707763 years"
+    },
+    {
+      "name": "ny_week",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.0297619047619048,
+      "offset_chronon": {
+        "name": "week",
+        "n": 1
+      },
+      "offset_formatted": "-0.0297619 weeks"
+    },
+    {
+      "name": "ny_hour",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -5,
+      "offset_chronon": {
+        "name": "hour",
+        "n": 1
+      },
+      "offset_formatted": "-5.0 hours"
+    },
+    {
+      "name": "mixed",
+      "tz_name": ["America/New_York", "America/New_York", "America/New_York"],
+      "abbreviation": ["EST", "EST", "EST"],
+      "offset_values": [-18000, -0.208333333333333, -0.00672043010752688],
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": ["-18000.0 seconds", "-0.2083333 days", "-0.00672043 months"]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "ny_2024",
+      "time": [1710054000, 1730613600],
+      "offset_before": [-18000, -14400],
+      "offset_after": [-14400, -18000]
+    },
+    {
+      "name": "london_2024",
+      "time": [1711846800, 1729990800],
+      "offset_before": [0, 3600],
+      "offset_after": [3600, 0]
+    },
+    {
+      "name": "utc_2024",
+      "time": [],
+      "offset_before": [],
+      "offset_after": []
+    }
   ]
 }

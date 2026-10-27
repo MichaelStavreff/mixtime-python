@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pytest
@@ -711,6 +712,135 @@ def test_offset_date_strings_convert_to_requested_timezone():
         "2024-01-15T23:00:00-05:00", tz="America/New_York"
     ).format() == ["2024-01-15"]
     assert mt.yearweek("2024-01-15T23:00:00-05:00").format() == ["2024 W03"]
+
+
+TIMEZONE_INPUTS = {
+    "naive_datetime": lambda: mt.datetime("2024-01-15 12:00:00"),
+    "utc_datetime": lambda: mt.datetime("2024-01-15 12:00:00", tz="UTC"),
+    "ny_winter_datetime": lambda: mt.datetime(
+        "2024-01-15 12:00:00", tz="America/New_York"
+    ),
+    "ny_summer_datetime": lambda: mt.datetime(
+        "2024-07-15 12:00:00", tz="America/New_York"
+    ),
+    "sydney_datetime": lambda: mt.datetime(
+        "2024-01-15 12:00:00", tz="Australia/Sydney"
+    ),
+    "naive_date": lambda: mt.date("2024-01-15"),
+    "ny_date": lambda: mt.date("2024-01-15", tz="America/New_York"),
+    "ny_yearmonth": lambda: mt.yearmonth(
+        "2024-01", tz="America/New_York"
+    ),
+    "ny_yearquarter": lambda: mt.yearquarter(
+        "2024-Q1", tz="America/New_York"
+    ),
+    "ny_year": lambda: mt.year("2024", tz="America/New_York"),
+    "ny_week": lambda: mt.yearweek(
+        "2024-W03", tz="America/New_York"
+    ),
+    "ny_hour": lambda: mt.linear_time(
+        1, mt.cal_gregorian.hour(1, tz="America/New_York")
+    ),
+    "mixed": lambda: mt.mixtime(
+        mt.datetime("2024-01-15 12:00:00", tz="America/New_York"),
+        mt.date("2024-01-15", tz="America/New_York"),
+        mt.yearmonth("2024-01", tz="America/New_York"),
+    ),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["timezones"], ids=lambda c: c["name"])
+def test_timezones(case):
+    x = TIMEZONE_INPUTS[case["name"]]()
+    assert mt.tz_name(x) == _listify(case["tz_name"])
+    assert mt.tz_abbreviation(x) == _listify(case["abbreviation"])
+
+    offset = mt.tz_offset(x)
+    if isinstance(offset, mt.Mixtime):
+        _assert_values(
+            np.concatenate([part.values for part in offset.parts]),
+            _listify(case["offset_values"]),
+        )
+    else:
+        _assert_values(offset.values, _listify(case["offset_values"]))
+        assert offset.chronon.name == case["offset_chronon"]["name"]
+        assert float(offset.chronon.n) == float(case["offset_chronon"]["n"])
+    _assert_formatted(offset.format(), case["offset_formatted"])
+
+
+TRANSITION_INPUTS = {
+    "ny_2024": lambda: (
+        dt.datetime(2024, 1, 1, tzinfo=ZoneInfo("America/New_York")),
+        dt.datetime(2024, 12, 31, tzinfo=ZoneInfo("America/New_York")),
+    ),
+    "london_2024": lambda: (
+        dt.datetime(2024, 1, 1, tzinfo=ZoneInfo("Europe/London")),
+        dt.datetime(2024, 12, 31, tzinfo=ZoneInfo("Europe/London")),
+    ),
+    "utc_2024": lambda: (
+        dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc),
+        dt.datetime(2024, 12, 31, tzinfo=dt.timezone.utc),
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["transitions"], ids=lambda c: c["name"]
+)
+def test_tz_transitions(case):
+    start, end = TRANSITION_INPUTS[case["name"]]()
+    result = mt.tz_transitions(start, end)
+    assert set(result) == {"time", "offset_before", "offset_after"}
+    _assert_values(result["time"].values, _listify(case["time"]))
+    _assert_values(
+        result["offset_before"].values, _listify(case["offset_before"])
+    )
+    _assert_values(
+        result["offset_after"].values, _listify(case["offset_after"])
+    )
+    assert result["time"].discrete is False
+    assert result["time"].timezone == "UTC"
+    assert result["offset_before"].chronon.name == "second"
+    assert result["offset_after"].chronon.name == "second"
+
+
+def test_timezone_helpers_accept_python_temporal_values():
+    aware = dt.datetime(
+        2024, 1, 15, 12, tzinfo=ZoneInfo("America/New_York")
+    )
+    assert mt.tz_name(aware) == ["America/New_York"]
+    assert mt.tz_abbreviation(aware) == ["EST"]
+    assert mt.tz_offset(aware).format() == ["-18000.0 seconds"]
+    assert mt.tz_offset(dt.date(2024, 1, 15)).format() == ["0.0 days"]
+    naive = dt.datetime(2024, 1, 15, 12)
+    assert mt.tz_abbreviation(
+        naive, tz="America/New_York"
+    ) == ["EST"]
+    assert mt.tz_offset(
+        naive, tz="America/New_York"
+    ).format() == ["-18000.0 seconds"]
+    assert mt.tz_name(
+        mt.cal_gregorian.hour(1, tz="America/New_York")
+    ) == "America/New_York"
+
+
+def test_tz_transitions_accept_time_vectors():
+    start = mt.datetime("2024-01-01", tz="America/New_York")
+    end = mt.datetime("2024-12-31", tz="America/New_York")
+    result = mt.tz_transitions(start, end)
+    assert result["time"].format() == [
+        "2024-03-10 07:00:00 0.0%",
+        "2024-11-03 06:00:00 0.0%",
+    ]
+
+
+def test_tz_transitions_accept_naive_values_with_explicit_tz():
+    result = mt.tz_transitions(
+        dt.datetime(2024, 1, 1),
+        dt.datetime(2024, 12, 31),
+        tz="America/New_York",
+    )
+    assert result["time"].values.tolist() == [1710054000.0, 1730613600.0]
 
 
 def test_pandas_is_optional():

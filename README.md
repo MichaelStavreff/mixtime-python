@@ -7,9 +7,10 @@ timezone handling are Python.
 
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
-> sequences, arithmetic, timezone-aware `datetime`, type and completeness
-> predicates, component extraction/composition, chronon bounds, circular
-> sums, and optional pandas interop.
+> sequences, arithmetic, timezone-aware `datetime`, timezone name/offset
+> helpers and transitions, type and completeness predicates, component
+> extraction/composition, chronon bounds, circular sums, and optional pandas
+> interop.
 > Non-Gregorian calendars, astronomical calendars, and the full R format-token
 > language remain out of scope. See [Scope](#scope) and
 > [`DECISION.md`](DECISION.md).
@@ -37,7 +38,8 @@ There are two layers:
   `datetime`, cyclical components such as `month_of_year`, durations such as
   `months(1)`, a `Mixtime` container for mixed granularities, component helpers
   (`lin`, `cyc`, `time_components`, `time_compose`), chronon bounds
-  (`chronon_glb`, `chronon_lub`), and predicates such as
+  (`chronon_glb`, `chronon_lub`), timezone helpers (`tz_name`,
+  `tz_abbreviation`, `tz_offset`, `tz_transitions`), and predicates such as
   `time_is_determinate_at` and `time_is_complete_at`.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
@@ -158,12 +160,32 @@ Each part keeps its own chronon, cycle, calendar, and timezone.
 interpret naive input and to format in a named zone:
 
 ```python
+import datetime as dt
+from zoneinfo import ZoneInfo
+
 import mixtime as mt
 
 x = mt.datetime("2024-01-15 12:34:56", tz="UTC")
 y = mt.datetime("2024-01-15 12:34:56+11:00", tz="Australia/Sydney")
 print(y.format())
+
+ny = mt.datetime("2024-07-15 12:00:00", tz="America/New_York")
+print(mt.tz_name(ny))          # ['America/New_York']
+print(mt.tz_abbreviation(ny))  # ['EDT']
+print(mt.tz_offset(ny).format())  # ['-14400.0 seconds']
+
+changes = mt.tz_transitions(
+    dt.datetime(2024, 1, 1, tzinfo=ZoneInfo("America/New_York")),
+    dt.datetime(2024, 12, 31, tzinfo=ZoneInfo("America/New_York")),
+)
+print(changes["time"].format())
+# ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
 ```
+
+`tz_name()` returns `None` for naive time; `tz_abbreviation()` returns an empty
+string there, matching R. `tz_offset()` returns a `Duration` in each element's
+own chronon: seconds for `datetime`, days for `date`, months for `yearmonth`,
+and so on.
 
 ### Components
 
@@ -268,7 +290,8 @@ Ported:
   `minutes`, `seconds`, `milliseconds`)
 - time arithmetic, comparison, rounding, and sequences, including continuous
   same-category shifts and common-chronon differences
-- UTC and IANA timezone-aware `datetime`
+- UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
+  `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
 - Gregorian component extraction and composition (`time_components`,
   `time_compose`, `lin`, `cyc`)

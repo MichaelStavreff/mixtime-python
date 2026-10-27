@@ -31,7 +31,9 @@ out <- list(
   components = list(),
   compose = list(),
   circsum = list(),
-  granules = list()
+  granules = list(),
+  timezones = list(),
+  transitions = list()
 )
 
 chronon_info <- function(x) {
@@ -156,6 +158,31 @@ add_granule <- function(name, x) {
     name = name,
     glb = glb,
     lub = lub
+  )
+}
+
+add_timezone <- function(name, x) {
+  offset <- tz_offset(x)
+  out$timezones[[length(out$timezones) + 1L]] <<- list(
+    name = name,
+    tz_name = unname(tz_name(x)),
+    abbreviation = unname(tz_abbreviation(x)),
+    offset_values = as.numeric(offset),
+    offset_chronon = tryCatch(chronon_info(offset), error = function(e) NULL),
+    offset_formatted = as.character(format(offset))
+  )
+}
+
+add_transitions <- function(name, start, end) {
+  transitions <- tz_transitions(start, end)
+  # as.numeric() on an empty mixtime returns the S7 object rather than a
+  # numeric vector, so make the empty case explicit for jsonlite.
+  as_num <- function(x) if (length(x) == 0L) numeric(0) else as.numeric(x)
+  out$transitions[[length(out$transitions) + 1L]] <<- list(
+    name = name,
+    time = as_num(transitions$time),
+    offset_before = as_num(transitions$offset_before),
+    offset_after = as_num(transitions$offset_after)
   )
 }
 
@@ -561,6 +588,68 @@ add_granule(
 add_granule(
   "year_week",
   c(year(1L), yearweek(as.Date("2024-01-01")))
+)
+
+# -- timezone helpers ------------------------------------------------------
+add_timezone("naive_datetime", datetime("2024-01-15 12:00:00"))
+add_timezone("utc_datetime", datetime("2024-01-15 12:00:00", tz = "UTC"))
+add_timezone(
+  "ny_winter_datetime",
+  datetime("2024-01-15 12:00:00", tz = "America/New_York")
+)
+add_timezone(
+  "ny_summer_datetime",
+  datetime("2024-07-15 12:00:00", tz = "America/New_York")
+)
+add_timezone(
+  "sydney_datetime",
+  datetime("2024-01-15 12:00:00", tz = "Australia/Sydney")
+)
+add_timezone("naive_date", date("2024-01-15"))
+add_timezone(
+  "ny_date",
+  date("2024-01-15", tz = "America/New_York")
+)
+add_timezone(
+  "ny_yearmonth",
+  yearmonth("2024-01", tz = "America/New_York")
+)
+add_timezone(
+  "ny_yearquarter",
+  yearquarter("2024-Q1", tz = "America/New_York")
+)
+add_timezone("ny_year", year("2024", tz = "America/New_York"))
+add_timezone(
+  "ny_week",
+  yearweek("2024-W03", tz = "America/New_York")
+)
+add_timezone(
+  "ny_hour",
+  linear_time(1L, cal_gregorian$hour(1L, tz = "America/New_York"))
+)
+add_timezone(
+  "mixed",
+  c(
+    datetime("2024-01-15 12:00:00", tz = "America/New_York"),
+    date("2024-01-15", tz = "America/New_York"),
+    yearmonth("2024-01", tz = "America/New_York")
+  )
+)
+
+add_transitions(
+  "ny_2024",
+  as.POSIXct("2024-01-01", tz = "America/New_York"),
+  as.POSIXct("2024-12-31", tz = "America/New_York")
+)
+add_transitions(
+  "london_2024",
+  as.POSIXct("2024-01-01", tz = "Europe/London"),
+  as.POSIXct("2024-12-31", tz = "Europe/London")
+)
+add_transitions(
+  "utc_2024",
+  as.POSIXct("2024-01-01", tz = "UTC"),
+  as.POSIXct("2024-12-31", tz = "UTC")
 )
 
 json <- toJSON(out, auto_unbox = TRUE, pretty = TRUE, digits = NA,
