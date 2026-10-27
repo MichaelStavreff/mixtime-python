@@ -8,7 +8,7 @@ timezone handling are Python.
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
 > sequences, arithmetic, timezone-aware `datetime`, type and completeness
-> predicates, and optional pandas interop.
+> predicates, component extraction/composition, and optional pandas interop.
 > Non-Gregorian calendars, astronomical calendars, and the full R format-token
 > language remain out of scope. See [Scope](#scope) and
 > [`DECISION.md`](DECISION.md).
@@ -34,8 +34,9 @@ There are two layers:
 
 - **Python time model** — `yearmonth`, `yearquarter`, `yearweek`, `date`,
   `datetime`, cyclical components such as `month_of_year`, durations such as
-  `months(1)`, a `Mixtime` container for mixed granularities, and predicates
-  such as `time_is_determinate_at` and `time_is_complete_at`.
+  `months(1)`, a `Mixtime` container for mixed granularities, component helpers
+  (`lin`, `cyc`, `time_components`, `time_compose`), and predicates such as
+  `time_is_determinate_at` and `time_is_complete_at`.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -162,6 +163,28 @@ y = mt.datetime("2024-01-15 12:34:56+11:00", tz="Australia/Sydney")
 print(y.format())
 ```
 
+### Components
+
+`time_components()` extracts linear and cyclical parts, and `time_compose()`
+builds time points back from them. `cyc()` values are 1-indexed positions within
+the cycle.
+
+```python
+when = mt.datetime("2024-03-15 12:34:56")
+parts = mt.time_components(
+    when,
+    year=mt.lin("year"),
+    month=mt.cyc("month", "year"),
+    day=mt.cyc("day", "month"),
+)
+print(parts["month"].format())  # ['Mar']
+print(mt.time_compose(
+    mt.lin("year", 1980),
+    mt.cyc("month", "year", 3),
+    mt.cyc("day", "month", 15),
+).format())  # ['1980-03-15']
+```
+
 ### Predicates
 
 ```python
@@ -234,6 +257,8 @@ Ported:
   same-category shifts and common-chronon differences
 - UTC and IANA timezone-aware `datetime`
 - type predicates and granule determinacy/completeness predicates
+- Gregorian component extraction and composition (`time_components`,
+  `time_compose`, `lin`, `cyc`)
 - optional pandas `Series`/`Index` input and `PeriodIndex`/`DatetimeIndex`
   output
 - the low-level Rust chronon splits
@@ -242,7 +267,7 @@ Not yet ported:
 
 - Symmetry454, civil/lunar/solar/astronomical calendars
 - the full R format-token language and all labelled parsing variants
-- `time_components()` and the complete vctrs/S7 coercion surface
+- the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
 - complete `Mixtime` arithmetic and columnar pandas/DataFrame coercion
 - continuous calendar/fixed cross-category shifts (for example,

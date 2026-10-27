@@ -27,7 +27,9 @@ out <- list(
   operations = list(),
   comparisons = list(),
   mixed = list(),
-  predicates = list()
+  predicates = list(),
+  components = list(),
+  compose = list()
 )
 
 chronon_info <- function(x) {
@@ -102,6 +104,32 @@ add_predicate <- function(name, value) {
   out$predicates[[length(out$predicates) + 1L]] <<- list(
     name = name,
     result = unname(as.logical(value))
+  )
+}
+
+component_info <- function(x) {
+  list(
+    values = as.numeric(x@x[[1L]]),
+    formatted = as.character(format(x)),
+    chronon = chronon_info(x),
+    cycle = cycle_info(x)
+  )
+}
+
+add_components <- function(name, x, columns) {
+  out$components[[length(out$components) + 1L]] <<- list(
+    name = name,
+    columns = lapply(columns, component_info)
+  )
+}
+
+add_compose <- function(name, x) {
+  out$compose[[length(out$compose) + 1L]] <<- list(
+    name = name,
+    values = as.numeric(x@x[[1L]]),
+    formatted = as.character(format(x)),
+    chronon = chronon_info(x),
+    cycle = cycle_info(x)
   )
 }
 
@@ -395,6 +423,73 @@ add_predicate("complete_days_week",
                 date(as.Date("2020-01-01")) + 0:6,
                 cal_isoweek$week(1L)
               ))
+
+# -- components and composition ------------------------------------------
+tc <- time_components(
+  yearmonth(as.Date("2026-02-14") + c(0, 40, 400)),
+  yr = lin(year),
+  mth = cyc(month, year)
+)
+add_components("yearmonth", yearmonth(as.Date("2026-02-14") + c(0, 40, 400)),
+               list(yr = tc$yr, mth = tc$mth))
+
+tc <- time_components(
+  date(as.Date("2025-12-15") + 0:3),
+  dow = cyc(day, cal_isoweek$week),
+  doy = cyc(day, year)
+)
+add_components("date_week", date(as.Date("2025-12-15") + 0:3),
+               list(dow = tc$dow, doy = tc$doy))
+
+tc <- time_components(
+  datetime("2024-03-15 12:34:56"),
+  yr = lin(year),
+  mth = cyc(month, year),
+  dom = cyc(day, month),
+  hod = cyc(hour, day),
+  min = cyc(minute, hour),
+  sec = cyc(second, minute),
+  mq = cyc(month, quarter),
+  qy = cyc(quarter, year)
+)
+add_components("datetime", datetime("2024-03-15 12:34:56"),
+               list(yr = tc$yr, mth = tc$mth, dom = tc$dom,
+                    hod = tc$hod, min = tc$min, sec = tc$sec,
+                    mq = tc$mq, qy = tc$qy))
+
+tc <- time_components(yearmonth("2024-01"), day = cyc(day, month))
+add_components("indeterminate", yearmonth("2024-01"), list(day = tc$day))
+
+tc <- time_components(
+  yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+  yr = lin(year),
+  mth = cyc(month, year),
+  dom = cyc(day, month)
+)
+add_components("continuous", yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+               list(yr = tc$yr, mth = tc$mth, dom = tc$dom))
+
+add_compose(
+  "year_month_day",
+  time_compose(lin(year) ~ 1980, cyc(month, year) ~ 3, cyc(day, month) ~ 15)
+)
+add_compose("year", time_compose(lin(year) ~ 1980))
+add_compose("month", time_compose(cyc(month, year) ~ 3))
+add_compose(
+  "day_month",
+  time_compose(cyc(day, month) ~ 15, cyc(month, year) ~ 3)
+)
+add_compose(
+  "multi_unit",
+  time_compose(lin(month(3L)) ~ 3, cyc(month(1L), month(3L)) ~ 3)
+)
+parts <- time_components(
+  as.Date("2024-03-15"),
+  yr = lin(year),
+  mth = cyc(month, year),
+  dom = cyc(day, month)
+)
+add_compose("tagged", time_compose(parts$yr, parts$mth, parts$dom))
 
 json <- toJSON(out, auto_unbox = TRUE, pretty = TRUE, digits = NA,
                na = "null", null = "null")

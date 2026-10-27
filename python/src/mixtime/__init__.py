@@ -18,6 +18,14 @@ import numpy as np
 
 import mixtime_rs as _rs
 
+from .components import (
+    ComponentSpec,
+    ComponentValue,
+    cyc,
+    lin,
+    time_components,
+    time_compose,
+)
 from .ops import seq, time_ceiling, time_floor, time_round, time_shift
 from .predicates import (
     time_is_complete_at,
@@ -114,6 +122,13 @@ __all__ = [
     "time_is_duration",
     "time_is_determinate_at",
     "time_is_complete_at",
+    # components
+    "ComponentSpec",
+    "ComponentValue",
+    "lin",
+    "cyc",
+    "time_components",
+    "time_compose",
 ]
 
 

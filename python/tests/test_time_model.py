@@ -452,6 +452,137 @@ def test_predicates_missing_and_multi_unit():
         mt.time_is_complete_at(m, "year")
 
 
+COMPONENT_INPUTS = {
+    "yearmonth": lambda: mt.time_components(
+        mt.yearmonth(
+            [
+                dt.date(2026, 2, 14) + dt.timedelta(days=offset)
+                for offset in (0, 40, 400)
+            ]
+        ),
+        yr=mt.lin("year"),
+        mth=mt.cyc("month", "year"),
+    ),
+    "date_week": lambda: mt.time_components(
+        mt.date(
+            [
+                dt.date(2025, 12, 15) + dt.timedelta(days=offset)
+                for offset in range(4)
+            ]
+        ),
+        dow=mt.cyc("day", "week"),
+        doy=mt.cyc("day", "year"),
+    ),
+    "datetime": lambda: mt.time_components(
+        mt.datetime("2024-03-15 12:34:56"),
+        yr=mt.lin("year"),
+        mth=mt.cyc("month", "year"),
+        dom=mt.cyc("day", "month"),
+        hod=mt.cyc("hour", "day"),
+        min=mt.cyc("minute", "hour"),
+        sec=mt.cyc("second", "minute"),
+        mq=mt.cyc("month", "quarter"),
+        qy=mt.cyc("quarter", "year"),
+    ),
+    "indeterminate": lambda: mt.time_components(
+        mt.yearmonth("2024-01"), day=mt.cyc("day", "month")
+    ),
+    "continuous": lambda: mt.time_components(
+        mt.yearmonth(dt.date(2024, 1, 15), discrete=False),
+        yr=mt.lin("year"),
+        mth=mt.cyc("month", "year"),
+        dom=mt.cyc("day", "month"),
+    ),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["components"], ids=lambda c: c["name"])
+def test_components(case):
+    actual = COMPONENT_INPUTS[case["name"]]()
+    assert list(actual) == list(case["columns"])
+    for name, expected in case["columns"].items():
+        column = actual[name]
+        _assert_values(column.values, _expected_values(expected))
+        _assert_formatted(column.format(), expected["formatted"])
+        assert column.chronon.name == expected["chronon"]["name"]
+        assert float(column.chronon.n) == float(expected["chronon"]["n"])
+        if expected["cycle"] is None:
+            assert column.cycle is None
+        else:
+            assert column.cycle is not None
+            assert column.cycle.name == expected["cycle"]["name"]
+            assert float(column.cycle.n) == float(expected["cycle"]["n"])
+
+
+COMPOSE_INPUTS = {
+    "year_month_day": lambda: mt.time_compose(
+        mt.lin("year", 1980),
+        mt.cyc("month", "year", 3),
+        mt.cyc("day", "month", 15),
+    ),
+    "year": lambda: mt.time_compose(mt.lin("year", 1980)),
+    "month": lambda: mt.time_compose(mt.cyc("month", "year", 3)),
+    "day_month": lambda: mt.time_compose(
+        mt.cyc("day", "month", 15), mt.cyc("month", "year", 3)
+    ),
+    "multi_unit": lambda: mt.time_compose(
+        mt.lin(mt.cal_gregorian.month(3), 3),
+        mt.cyc(mt.cal_gregorian.month(1), mt.cal_gregorian.month(3), 3),
+    ),
+    "tagged": lambda: _compose_tagged(),
+}
+
+
+def _compose_tagged():
+    parts = mt.time_components(
+        mt.date(dt.date(2024, 3, 15)),
+        yr=mt.lin("year"),
+        mth=mt.cyc("month", "year"),
+        dom=mt.cyc("day", "month"),
+    )
+    return mt.time_compose(parts["yr"], parts["mth"], parts["dom"])
+
+
+@pytest.mark.parametrize("case", FIXTURES["compose"], ids=lambda c: c["name"])
+def test_compose(case):
+    actual = COMPOSE_INPUTS[case["name"]]()
+    _assert_values(actual.values, _expected_values(case))
+    _assert_formatted(actual.format(), case["formatted"])
+    assert actual.chronon.name == case["chronon"]["name"]
+    assert float(actual.chronon.n) == float(case["chronon"]["n"])
+    if case["cycle"] is None:
+        assert actual.cycle is None
+    else:
+        assert actual.cycle is not None
+        assert actual.cycle.name == case["cycle"]["name"]
+        assert float(actual.cycle.n) == float(case["cycle"]["n"])
+
+
+def test_components_and_compose_python_api():
+    mixed = mt.mixtime(
+        mt.yearmonth(["2026-02", "2026-03"]),
+        mt.date([dt.date(2026, 2, 14), dt.date(2026, 3, 15)]),
+    )
+    components = mt.time_components(
+        mixed, yr=mt.lin("year"), mth=mt.cyc("month", "year")
+    )
+    assert isinstance(components["yr"], mt.Mixtime)
+    assert components["yr"].format() == ["2026", "2026", "2026", "2026"]
+    assert components["mth"].format() == ["Feb", "Mar", "Feb", "Mar"]
+
+    composed = mt.time_compose(
+        mt.lin("year", [1980, 1981]), mt.cyc("month", "year", 3)
+    )
+    assert composed.format() == ["1980 Mar", "1981 Mar"]
+
+    with pytest.raises(ValueError, match="Invalid position"):
+        mt.time_compose(mt.lin("year", 1980), mt.cyc("month", "year", 13))
+    with pytest.raises(ValueError, match="at least one component"):
+        mt.time_components(mt.date("2024-01-01"))
+    with pytest.raises(TypeError, match="need values"):
+        mt.time_compose(mt.lin("year"))
+
+
 # -- Python API behaviours not directly represented in the R fixture --------
 
 

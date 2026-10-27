@@ -19,6 +19,8 @@ low-level NumPy kernel.
 - `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
   `time_is_determinate_at`, and `time_is_complete_at` inspect vector type and
   granularity.
+- `mixtime.lin`, `cyc`, `time_components`, and `time_compose` extract and
+  rebuild Gregorian linear/cyclical components.
 - `mixtime.day_to_month`, `day_to_quarter`, `day_to_year`, `month_to_day`,
   `year_to_day` expose the low-level Rust kernel.
 
@@ -42,6 +44,11 @@ print(mt.month_of_year(when).format())  # ['Jan', 'Feb']
 print(mt.day_of_week(when).format())    # ['Mon', 'Thu']
 print(mt.time_is_determinate_at(when, "week"))  # [True True]
 print(mt.time_is_complete_at(when, "year"))     # [False False]
+
+parts = mt.time_components(when, yr=mt.lin("year"), mth=mt.cyc("month", "year"))
+print(parts["mth"].format())  # ['Jan', 'Feb']
+print(mt.time_compose(mt.lin("year", 1980), mt.cyc("month", "year", 3)).format())
+# ['1980 Mar']
 ```
 
 ## Divergences from R
@@ -117,6 +124,17 @@ Gregorian chronon values and default formatted output.
 - **Completeness with mixed granularity.** `time_is_complete_at()` rejects a
   `Mixtime` with more than one part, matching R's current restriction; a
   single-part `Mixtime` is accepted.
+- **Component API.** R uses `time_components(x, yr = lin(year))` and formula
+  composition such as `time_compose(lin(year) ~ 1980)`. Python uses
+  `time_components(x, yr=lin("year"))`, returns a dictionary of columns rather
+  than a data frame, and composes with `lin("year", 1980)` (or a
+  `(spec, value)` pair). `cyc()` composition values are 1-indexed, matching R.
+  `time_components()` columns store absolute chronon counts; formatting reduces
+  them to the position within the cycle. Discrete components that cannot be
+  resolved are `NA`; continuous components follow R's flooring when the target
+  granule differs from the input chronon. `time_compose()` accepts one
+  linear anchor and a connected cyclical chain, and rejects mixed-chronon
+  `Mixtime` components.
 - **Comparison operands.** Equality for linear time points uses R's half-open
   interval rule, so a discrete month is not equal to its first day. Ordering
   between different chronons is position-based and can differ from R's interval

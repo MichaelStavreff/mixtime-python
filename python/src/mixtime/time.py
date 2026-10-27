@@ -474,6 +474,14 @@ class TimeVector:
             return f"{_WEEKDAY_ABBR[int(np.floor(mod)) % 7]}{suffix}"
         if chronon == "week" and cycle == "year":
             return f"W{int(np.floor(mod)) + 1:02d}{suffix}"
+        if chronon == "month" and cycle == "quarter":
+            return f"M{int(np.floor(mod))}{suffix}"
+        if chronon == "hour" and cycle == "day":
+            return f"h{int(np.floor(mod)) % 24:02d}{suffix}"
+        if chronon == "minute" and cycle == "hour":
+            return f"m{int(np.floor(mod)) % 60:02d}{suffix}"
+        if chronon == "second" and cycle == "minute":
+            return f"s{int(np.floor(mod)) % 60:02d}{suffix}"
         if chronon == "second" and cycle == "day":
             seconds = int(np.floor(mod)) % 86_400
             hour, rem = divmod(seconds, 3600)
@@ -1282,11 +1290,16 @@ def _cycle_offset(
             dt = _datetime_from_seconds(value, tz)
             return float(dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond / 1e6)
         return float(value) % 86_400.0
-    # Fallback: continuous conversion to the cycle, then fractional part.
-    converted = calendar.convert(
-        np.asarray([float(value)]), chronon, cycle, discrete=False
+    # Fallback: find the start of the enclosing cycle and subtract it. This
+    # works for generic cycles such as hour-of-day or month-of-quarter, and
+    # preserves a continuous value's fractional position.
+    cycle_index = calendar.convert(
+        np.asarray([float(value)]), chronon, cycle, discrete=True
     )[0]
-    return float(converted - np.floor(converted)) * float(cycle.n)
+    base = calendar.convert(
+        np.asarray([float(cycle_index)]), cycle, chronon, discrete=True
+    )[0]
+    return float(value) - float(base)
 
 
 def _rs_day_to_year(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

@@ -27,7 +27,8 @@ The niche value of mixtime is the combination of:
 The selected niche MVP implements those capabilities for the Gregorian calendar
 and ISO weeks, while keeping the Rust kernel for chronon arithmetic. The Python
 layer owns classes, metadata, parsing, formatting, timezones, pandas interop,
-and type/determinacy/completeness predicates;
+type/determinacy/completeness predicates, and Gregorian component extraction /
+composition;
 Rust remains the arithmetic kernel. Durations follow R's double-valued helpers
 by default (continuous), with `discrete=True` for whole granules. Time-point
 differences use the finest common chronon, and continuous shifts are supported
@@ -38,7 +39,8 @@ Deferred:
 
 - Symmetry454, civil/lunar/solar/astronomical calendars,
 - the full R format-token and labelled-parsing language,
-- complete `time_components()`/vctrs/S7 coercion parity,
+- the complete vctrs/S7 coercion surface (a Gregorian `time_components()` /
+  `time_compose()` subset is implemented),
 - ggplot2 and tsibble integration,
 - complete mixed-vector arithmetic and columnar pandas/DataFrame coercion,
 - continuous calendar/fixed cross-category shifts and calendar-step `seq()` on
