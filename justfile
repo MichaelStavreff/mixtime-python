@@ -15,6 +15,17 @@ test-python: build
 # Run all tests (Rust + Python).
 test: test-rust test-python
 
+# Build the Rust extension wheel and the pure-Python wheel.
+wheel:
+    cd rust && uv build --wheel
+    cd python && uv build --wheel
+
+# Build both wheels, install them into a clean venv, and run a smoke test.
+wheel-smoke: wheel
+    uv venv --clear /tmp/mixtime-wheel-smoke
+    uv pip install --python /tmp/mixtime-wheel-smoke/bin/python rust/dist/*.whl python/dist/*.whl
+    /tmp/mixtime-wheel-smoke/bin/python -c "import mixtime as mt; assert mt.yearmonth(['2024-03', '2024-01']).sort().format() == ['2024 Jan', '2024 Mar']; print('wheel smoke test passed')"
+
 # Regenerate the R golden fixtures (requires mixtime installed in R; set R_LIBS if non-default).
 fixtures:
     Rscript fixtures/generate_fixtures.R

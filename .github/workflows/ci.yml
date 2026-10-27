@@ -38,3 +38,40 @@ jobs:
       - name: Run Python tests
         run: uv run pytest -q
         working-directory: python
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Build wheels
+        run: |
+          cd rust
+          uv build --wheel
+          cd ../python
+          uv build --wheel
+
+      - name: Install wheels into a clean venv
+        run: |
+          uv venv --clear /tmp/mixtime-wheel-smoke
+          uv pip install --python /tmp/mixtime-wheel-smoke/bin/python rust/dist/*.whl python/dist/*.whl
+
+      - name: Smoke-test the installed wheel
+        run: |
+          /tmp/mixtime-wheel-smoke/bin/python - <<'PY'
+          import mixtime as mt
+
+          assert mt.yearmonth(["2024-03", "2024-01"]).sort().format() == [
+              "2024 Jan",
+              "2024 Mar",
+          ]
+          print("wheel smoke test passed")
+          PY

@@ -5,7 +5,7 @@ description = "Pythonic mixed-granularity time vectors with a Rust Gregorian chr
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-dependencies = ["mixtime-rs", "numpy>=2.0"]
+dependencies = ["mixtime-rs>=0.1.0,<0.2", "numpy>=2.0"]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.0"]
