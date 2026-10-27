@@ -16,12 +16,16 @@ low-level NumPy kernel.
 - `mixtime.mixtime(...)` combines vectors of different granularities.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
   provide calendar-aware operations.
+- `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
+  `time_is_determinate_at`, and `time_is_complete_at` inspect vector type and
+  granularity.
 - `mixtime.day_to_month`, `day_to_quarter`, `day_to_year`, `month_to_day`,
   `year_to_day` expose the low-level Rust kernel.
 
 Time points are stored as chronon counts since 1970-01-01. Durations store plain
 counts of their unit. `values` is a NumPy array; `format()` returns a list of
-strings; `to_pandas()` is available when pandas is installed.
+strings. Constructors accept one-dimensional pandas `Series`/`Index` objects
+and `to_pandas()` is available when pandas is installed.
 
 ## Example
 
@@ -36,6 +40,8 @@ print((x + mt.months(1)).format())
 when = mt.date(["2024-01-15", "2024-02-29"])
 print(mt.month_of_year(when).format())  # ['Jan', 'Feb']
 print(mt.day_of_week(when).format())    # ['Mon', 'Thu']
+print(mt.time_is_determinate_at(when, "week"))  # [True True]
+print(mt.time_is_complete_at(when, "year"))     # [False False]
 ```
 
 ## Divergences from R
@@ -102,6 +108,15 @@ Gregorian chronon values and default formatted output.
   it in a named zone.
 - **pandas week output.** `yearweek(...).to_pandas()` returns a Monday–Sunday
   `PeriodIndex` with `freq="W-SUN"`, not an ISO week label.
+- **pandas input.** Constructors accept one-dimensional `Series` and `Index`
+  objects; `DataFrame` and other columnar inputs are not coerced. `pd.NA` and
+  `pd.NaT` become `NaN`, so the usual missing-value rules apply.
+- **Predicate missing values.** `time_is_determinate_at()` and
+  `time_is_complete_at()` return object arrays with `None` for missing or
+  infinite values, whereas R returns logical `NA`.
+- **Completeness with mixed granularity.** `time_is_complete_at()` rejects a
+  `Mixtime` with more than one part, matching R's current restriction; a
+  single-part `Mixtime` is accepted.
 - **Comparison operands.** Equality for linear time points uses R's half-open
   interval rule, so a discrete month is not equal to its first day. Ordering
   between different chronons is position-based and can differ from R's interval

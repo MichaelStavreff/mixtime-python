@@ -1,7 +1,7 @@
 # mixtime port — decision record
 
 **Date:** 2026-10-23  
-**Updated:** 2026-10-26 (niche MVP: Python time model + Rust kernel)
+**Updated:** 2026-10-27 (niche MVP: Python time model + Rust kernel)
 **Pinned upstream:** CRAN `mixtime` 0.4.0 (`upstream/mixtime`)  
 **Ports:** Rust core + PyO3/Python wrapper  
 **Status:** **Niche MVP selected.** The kernel-only scope was correct as a
@@ -26,7 +26,8 @@ The niche value of mixtime is the combination of:
 
 The selected niche MVP implements those capabilities for the Gregorian calendar
 and ISO weeks, while keeping the Rust kernel for chronon arithmetic. The Python
-layer owns classes, metadata, parsing, formatting, timezones, and pandas interop;
+layer owns classes, metadata, parsing, formatting, timezones, pandas interop,
+and type/determinacy/completeness predicates;
 Rust remains the arithmetic kernel. Durations follow R's double-valued helpers
 by default (continuous), with `discrete=True` for whole granules. Time-point
 differences use the finest common chronon, and continuous shifts are supported
@@ -39,7 +40,7 @@ Deferred:
 - the full R format-token and labelled-parsing language,
 - complete `time_components()`/vctrs/S7 coercion parity,
 - ggplot2 and tsibble integration,
-- complete mixed-vector arithmetic and pandas input coercion,
+- complete mixed-vector arithmetic and columnar pandas/DataFrame coercion,
 - continuous calendar/fixed cross-category shifts and calendar-step `seq()` on
   day/second time,
 - R's `seq(from, length_out=, by=)` form.

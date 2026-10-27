@@ -58,6 +58,8 @@ def parse_time(data: Any, *, tz: str | None = None) -> np.ndarray:
 
 
 def date_to_days(value: Any, *, tz: str | None = None) -> float:
+    if _is_missing(value):
+        return float("nan")
     value = _coerce_temporal(value, tz=tz)
     if isinstance(value, _dt.datetime):
         value = _local_date(value, tz=tz)
@@ -65,6 +67,8 @@ def date_to_days(value: Any, *, tz: str | None = None) -> float:
 
 
 def datetime_to_seconds(value: Any, *, tz: str | None = None) -> float:
+    if _is_missing(value):
+        return float("nan")
     value = _coerce_temporal(value, tz=tz)
     if isinstance(value, _dt.date) and not isinstance(value, _dt.datetime):
         value = _dt.datetime.combine(value, _dt.time())
@@ -97,9 +101,13 @@ def _as_sequence(data: Any) -> list[Any]:
 def _is_missing(value: Any) -> bool:
     if value is None:
         return True
-    if isinstance(value, float) and np.isnan(value):
+    if isinstance(value, (float, np.floating)) and np.isnan(value):
         return True
     if value is np.nan:
+        return True
+    if isinstance(value, np.datetime64) and np.isnat(value):
+        return True
+    if type(value).__name__ in {"NAType", "NaTType"}:
         return True
     if isinstance(value, str) and value.strip().upper() in {"", "NA", "NAN", "NONE"}:
         return True

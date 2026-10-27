@@ -356,6 +356,102 @@ def test_mixed(case):
     assert len(actual) == len(case["values"])
 
 
+PREDICATE_INPUTS = {
+    "linear_yearmonth": lambda: mt.time_is_linear(
+        mt.yearmonth(["2024-01-15", "2024-02-29"])
+    ),
+    "linear_month_of_year": lambda: mt.time_is_linear(
+        mt.month_of_year(["2024-01-15", "2024-02-29"])
+    ),
+    "cyclical_yearmonth": lambda: mt.time_is_cyclical(
+        mt.yearmonth(["2024-01-15", "2024-02-29"])
+    ),
+    "cyclical_month_of_year": lambda: mt.time_is_cyclical(
+        mt.month_of_year(["2024-01-15", "2024-02-29"])
+    ),
+    "duration_months": lambda: mt.time_is_duration(mt.months([1, 2])),
+    "duration_yearmonth": lambda: mt.time_is_duration(
+        mt.yearmonth(["2024-01-15", "2024-02-29"])
+    ),
+    "determinate_year_month": lambda: mt.time_is_determinate_at(
+        mt.year(2020), mt.cal_gregorian.month(1)
+    ),
+    "determinate_continuous_year_month": lambda: mt.time_is_determinate_at(
+        mt.year(2020, discrete=False), mt.cal_gregorian.month(1)
+    ),
+    "determinate_month_year": lambda: mt.time_is_determinate_at(
+        mt.yearmonth("2020-02"), mt.cal_gregorian.year(1)
+    ),
+    "determinate_month_week": lambda: mt.time_is_determinate_at(
+        mt.yearmonth("2020-01"), mt.cal_gregorian.week(1)
+    ),
+    "determinate_day_month": lambda: mt.time_is_determinate_at(
+        mt.date("2020-01-01"), mt.cal_gregorian.month(1)
+    ),
+    "determinate_day_week": lambda: mt.time_is_determinate_at(
+        mt.date("2020-01-01"), mt.cal_gregorian.week(1)
+    ),
+    "determinate_week_month": lambda: mt.time_is_determinate_at(
+        mt.yearweek("2020-W01"), mt.cal_gregorian.month(1)
+    ),
+    "determinate_quarter_month": lambda: mt.time_is_determinate_at(
+        mt.yearquarter("2020-Q1"), mt.cal_gregorian.month(1)
+    ),
+    "determinate_datetime_hour": lambda: mt.time_is_determinate_at(
+        mt.datetime("2020-01-01 00:00:00"), mt.cal_gregorian.hour(1)
+    ),
+    "complete_year_partial": lambda: mt.time_is_complete_at(
+        mt.yearmonth("2020-01") + mt.months(np.arange(10)),
+        mt.cal_gregorian.year(1),
+    ),
+    "complete_year_full": lambda: mt.time_is_complete_at(
+        mt.yearmonth("2020-01") + mt.months(np.arange(15)),
+        mt.cal_gregorian.year(1),
+    ),
+    "complete_quarter_full": lambda: mt.time_is_complete_at(
+        mt.yearquarter(["2020-Q1", "2020-Q2", "2020-Q3", "2020-Q4"]),
+        mt.cal_gregorian.year(1),
+    ),
+    "complete_month_missing": lambda: mt.time_is_complete_at(
+        mt.yearmonth(["2020-01", "2020-03"]),
+        mt.cal_gregorian.year(1),
+    ),
+    "complete_days_month": lambda: mt.time_is_complete_at(
+        mt.date("2020-01-01") + mt.days(np.arange(31)),
+        mt.cal_gregorian.month(1),
+    ),
+    "complete_days_week": lambda: mt.time_is_complete_at(
+        mt.date("2020-01-01") + mt.days(np.arange(7)),
+        mt.cal_gregorian.week(1),
+    ),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["predicates"], ids=lambda c: c["name"])
+def test_predicates(case):
+    actual = PREDICATE_INPUTS[case["name"]]()
+    assert list(actual) == _listify(case["result"])
+
+
+def test_predicates_missing_and_multi_unit():
+    x = mt.date([None, "2024-01-01"])
+    assert list(mt.time_is_determinate_at(x, "month")) == [None, True]
+    assert list(mt.time_is_complete_at(x, "year")) == [None, False]
+    assert list(
+        mt.time_is_determinate_at(mt.date("2020-01-01"), mt.cal_gregorian.month(3))
+    ) == [True]
+    assert list(
+        mt.time_is_determinate_at(mt.date("2020-01-01"), mt.cal_gregorian.hour(5))
+    ) == [False]
+
+    m = mt.mixtime(mt.year(2020), mt.date("2020-01-01"))
+    assert list(mt.time_is_determinate_at(m, "month")) == [False, True]
+    assert list(mt.time_is_linear(m)) == [True, True]
+    assert list(mt.time_is_duration(m)) == [False, False]
+    with pytest.raises(ValueError, match="mixed-granularity"):
+        mt.time_is_complete_at(m, "year")
+
+
 # -- Python API behaviours not directly represented in the R fixture --------
 
 
@@ -416,6 +512,39 @@ def test_pandas_is_optional():
     assert list(
         mt.yearweek(["2024-W01", "2024-W03"]).to_pandas().astype(str)
     ) == ["2024-01-01/2024-01-07", "2024-01-15/2024-01-21"]
+
+
+def test_pandas_input_coercion():
+    pd = pytest.importorskip("pandas")
+
+    stamps = pd.to_datetime(["2024-01-15", "2024-02-29"])
+    assert mt.date(pd.Series(stamps)).format() == ["2024-01-15", "2024-02-29"]
+    assert mt.date(pd.DatetimeIndex(stamps)).format() == [
+        "2024-01-15",
+        "2024-02-29",
+    ]
+    assert mt.yearmonth(
+        pd.Series(pd.period_range("2024-01", periods=2, freq="M"))
+    ).format() == ["2024 Jan", "2024 Feb"]
+    assert mt.yearmonth(pd.Series([1, 2])).values.tolist() == [1, 2]
+    assert mt.yearmonth(pd.Series([1.5, 2.5])).discrete is False
+    assert mt.date(pd.Series(["2024-01-15", None])).format() == [
+        "2024-01-15",
+        "NA",
+    ]
+    assert mt.date(pd.Series([pd.Timestamp("2024-01-15"), pd.NaT])).format() == [
+        "2024-01-15",
+        "NA",
+    ]
+    aware = pd.Series(pd.to_datetime(["2024-01-15 12:00:00+00:00"]))
+    assert mt.datetime(aware, tz="America/New_York").format() == [
+        "2024-01-15 07:00:00"
+    ]
+    assert mt.date(pd.NaT).format() == ["NA"]
+    assert mt.date(np.datetime64("NaT", "ns")).format() == ["NA"]
+    assert mt.date(
+        np.array(["2024-01-15", "NaT"], dtype="datetime64[ns]")
+    ).format() == ["2024-01-15", "NA"]
 
 
 def test_discrete_shift_rejects_indeterminate_duration():

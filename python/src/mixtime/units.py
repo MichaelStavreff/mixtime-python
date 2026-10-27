@@ -280,5 +280,83 @@ def _maybe_integral(values: np.ndarray, discrete: bool) -> np.ndarray:
     return values
 
 
+_FIXED_UNITS = {
+    "hour",
+    "minute",
+    "second",
+    "millisecond",
+    "microsecond",
+    "nanosecond",
+}
+
+
+def _divides(coarse: float, fine: float) -> bool:
+    if fine <= 0 or coarse <= 0:
+        return False
+    ratio = coarse / fine
+    return abs(ratio - round(ratio)) < 1e-9
+
+
+def _months_in(unit: Unit) -> float | None:
+    n = float(unit.n)
+    if unit.name == "year":
+        return 12.0 * n
+    if unit.name == "quarter":
+        return 3.0 * n
+    if unit.name == "month":
+        return n
+    return None
+
+
+def _fixed_seconds(unit: Unit) -> float:
+    return float(unit.n) * _SECONDS_FACTOR[unit.name]
+
+
+def _nests_in(from_unit: Unit, to_unit: Unit) -> bool:
+    """Whether every ``from_unit`` granule lies inside one ``to_unit`` granule.
+
+    This is the structural containment relation behind R's
+    ``chronon_nests_in()`` for Gregorian chronons. It is intentionally about
+    calendar fields, not about whether a particular conversion happens to
+    round-trip: a day nests in a month even though a day is not a month start.
+    """
+    f = from_unit.name
+    t = to_unit.name
+    if f == t:
+        return _divides(float(to_unit.n), float(from_unit.n))
+
+    if f == "week":
+        return False
+
+    if f in {"month", "quarter", "year"}:
+        if t in {"month", "quarter", "year"}:
+            from_months = _months_in(from_unit)
+            to_months = _months_in(to_unit)
+            assert from_months is not None and to_months is not None
+            return _divides(to_months, from_months)
+        return False
+
+    if f == "day":
+        if t == "week":
+            return float(from_unit.n) == 1.0
+        if t in {"month", "quarter", "year"}:
+            return float(from_unit.n) == 1.0
+        if t in _FIXED_UNITS:
+            return _divides(_fixed_seconds(to_unit), 86_400.0 * float(from_unit.n))
+        return False
+
+    if f in _FIXED_UNITS:
+        from_seconds = _fixed_seconds(from_unit)
+        if t == "day":
+            return _divides(86_400.0 * float(to_unit.n), from_seconds)
+        if t in {"week", "month", "quarter", "year"}:
+            return from_seconds <= 86_400.0 and _divides(86_400.0, from_seconds)
+        if t in _FIXED_UNITS:
+            return _divides(_fixed_seconds(to_unit), from_seconds)
+        return False
+
+    return False
+
+
 # The singleton Gregorian calendar used by the convenience constructors.
 cal_gregorian = GregorianCalendar()

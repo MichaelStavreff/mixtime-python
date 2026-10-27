@@ -1158,5 +1158,91 @@
       "values": [648, 649, 217, 218],
       "formatted": ["2024 Jan", "2024 Feb", "2024 Q2", "2024 Q3"]
     }
+  ],
+  "predicates": [
+    {
+      "name": "linear_yearmonth",
+      "result": [true, true]
+    },
+    {
+      "name": "linear_month_of_year",
+      "result": [false, false]
+    },
+    {
+      "name": "cyclical_yearmonth",
+      "result": [false, false]
+    },
+    {
+      "name": "cyclical_month_of_year",
+      "result": [true, true]
+    },
+    {
+      "name": "duration_months",
+      "result": [true, true]
+    },
+    {
+      "name": "duration_yearmonth",
+      "result": [false, false]
+    },
+    {
+      "name": "determinate_year_month",
+      "result": false
+    },
+    {
+      "name": "determinate_continuous_year_month",
+      "result": true
+    },
+    {
+      "name": "determinate_month_year",
+      "result": true
+    },
+    {
+      "name": "determinate_month_week",
+      "result": false
+    },
+    {
+      "name": "determinate_day_month",
+      "result": true
+    },
+    {
+      "name": "determinate_day_week",
+      "result": true
+    },
+    {
+      "name": "determinate_week_month",
+      "result": false
+    },
+    {
+      "name": "determinate_quarter_month",
+      "result": false
+    },
+    {
+      "name": "determinate_datetime_hour",
+      "result": true
+    },
+    {
+      "name": "complete_year_partial",
+      "result": [false, false, false, false, false, false, false, false, false, false]
+    },
+    {
+      "name": "complete_year_full",
+      "result": [true, true, true, true, true, true, true, true, true, true, true, true, false, false, false]
+    },
+    {
+      "name": "complete_quarter_full",
+      "result": [true, true, true, true]
+    },
+    {
+      "name": "complete_month_missing",
+      "result": [false, false]
+    },
+    {
+      "name": "complete_days_month",
+      "result": [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]
+    },
+    {
+      "name": "complete_days_week",
+      "result": [false, false, false, false, false, false, false]
+    }
   ]
 }

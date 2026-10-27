@@ -7,7 +7,8 @@ timezone handling are Python.
 
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
-> sequences, arithmetic, timezone-aware `datetime`, and optional pandas interop.
+> sequences, arithmetic, timezone-aware `datetime`, type and completeness
+> predicates, and optional pandas interop.
 > Non-Gregorian calendars, astronomical calendars, and the full R format-token
 > language remain out of scope. See [Scope](#scope) and
 > [`DECISION.md`](DECISION.md).
@@ -33,7 +34,8 @@ There are two layers:
 
 - **Python time model** — `yearmonth`, `yearquarter`, `yearweek`, `date`,
   `datetime`, cyclical components such as `month_of_year`, durations such as
-  `months(1)`, and a `Mixtime` container for mixed granularities.
+  `months(1)`, a `Mixtime` container for mixed granularities, and predicates
+  such as `time_is_determinate_at` and `time_is_complete_at`.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -96,7 +98,8 @@ print(dates.format())   # ['2024-01-15', '2024-02-29']
 ```
 
 Constructors accept strings, `datetime.date`, `datetime.datetime`,
-`numpy.datetime64`, existing time vectors, and optional pandas objects. Numeric
+`numpy.datetime64`, existing time vectors, and one-dimensional pandas
+`Series`/`Index` objects. Numeric
 input is interpreted as chronon counts since the Unix epoch. Integer counts,
 strings, and temporal objects default to discrete chronons; floating-point
 counts default to continuous chronons. Pass `discrete=` explicitly to override
@@ -159,15 +162,35 @@ y = mt.datetime("2024-01-15 12:34:56+11:00", tz="Australia/Sydney")
 print(y.format())
 ```
 
+### Predicates
+
+```python
+x = mt.yearmonth(["2024-01", "2024-02"])
+print(mt.time_is_linear(x))                 # [ True  True]
+print(mt.time_is_determinate_at(x, "year")) # [True True]
+print(mt.time_is_complete_at(x, "year"))    # [False False]
+```
+
+`time_is_determinate_at()` tests whether a discrete time point can resolve a
+granule; continuous time points resolve every granule. `time_is_complete_at()`
+tests whether the vector contains every finer chronon of each coarser granule.
+Missing and infinite values are reported as `None`.
+
 ### pandas interop
 
-pandas is optional. Install the extra and call `to_pandas()`:
+pandas is optional. Install the extra, pass a one-dimensional `Series`/`Index`
+to a constructor, or call `to_pandas()`:
 
 ```sh
 uv add "mixtime[pandas]"
 ```
 
 ```python
+import pandas as pd
+
+x = mt.date(pd.Series(["2024-01-15", None]))
+print(x.format())  # ['2024-01-15', 'NA']
+
 idx = mt.yearmonth(["2024-01", "2024-02"]).to_pandas()
 ```
 
@@ -210,7 +233,9 @@ Ported:
 - time arithmetic, comparison, rounding, and sequences, including continuous
   same-category shifts and common-chronon differences
 - UTC and IANA timezone-aware `datetime`
-- optional pandas `PeriodIndex`/`DatetimeIndex` output
+- type predicates and granule determinacy/completeness predicates
+- optional pandas `Series`/`Index` input and `PeriodIndex`/`DatetimeIndex`
+  output
 - the low-level Rust chronon splits
 
 Not yet ported:
@@ -219,7 +244,7 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - `time_components()` and the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic and pandas input coercion
+- complete `Mixtime` arithmetic and columnar pandas/DataFrame coercion
 - continuous calendar/fixed cross-category shifts (for example,
   `date + months(1)`) and calendar-step `seq()` on day/second time
 - R's `seq(from, length.out=, by=)` form

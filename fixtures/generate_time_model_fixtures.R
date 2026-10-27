@@ -26,7 +26,8 @@ out <- list(
   durations = list(),
   operations = list(),
   comparisons = list(),
-  mixed = list()
+  mixed = list(),
+  predicates = list()
 )
 
 chronon_info <- function(x) {
@@ -94,6 +95,13 @@ add_mixed <- function(name, x) {
     name = name,
     values = as.numeric(x),
     formatted = as.character(format(x))
+  )
+}
+
+add_predicate <- function(name, value) {
+  out$predicates[[length(out$predicates) + 1L]] <<- list(
+    name = name,
+    result = unname(as.logical(value))
   )
 }
 
@@ -327,6 +335,66 @@ add_mixed(
   c(yearmonth(c("2024-01", "2024-02")),
     yearquarter(c("2024-Q2", "2024-Q3")))
 )
+
+# -- predicates ------------------------------------------------------------
+pd <- as.Date(c("2024-01-15", "2024-02-29"))
+add_predicate("linear_yearmonth", time_is_linear(yearmonth(pd)))
+add_predicate("linear_month_of_year", time_is_linear(month_of_year(pd)))
+add_predicate("cyclical_yearmonth", time_is_cyclical(yearmonth(pd)))
+add_predicate("cyclical_month_of_year", time_is_cyclical(month_of_year(pd)))
+add_predicate("duration_months", time_is_duration(months(c(1, 2))))
+add_predicate("duration_yearmonth", time_is_duration(yearmonth(pd)))
+
+add_predicate("determinate_year_month",
+              time_is_determinate_at(year(2020L), cal_gregorian$month(1L)))
+add_predicate("determinate_continuous_year_month",
+              time_is_determinate_at(year(2020), cal_gregorian$month(1L)))
+add_predicate("determinate_month_year",
+              time_is_determinate_at(yearmonth("2020-02"), cal_gregorian$year(1L)))
+add_predicate("determinate_month_week",
+              time_is_determinate_at(yearmonth("2020-01"), cal_isoweek$week(1L)))
+add_predicate("determinate_day_month",
+              time_is_determinate_at(date("2020-01-01"), cal_gregorian$month(1L)))
+add_predicate("determinate_day_week",
+              time_is_determinate_at(date("2020-01-01"), cal_isoweek$week(1L)))
+add_predicate("determinate_week_month",
+              time_is_determinate_at(yearweek("2020-W01"), cal_gregorian$month(1L)))
+add_predicate("determinate_quarter_month",
+              time_is_determinate_at(yearquarter("2020-Q1"), cal_gregorian$month(1L)))
+add_predicate("determinate_datetime_hour",
+              time_is_determinate_at(datetime("2020-01-01 00:00:00"),
+                                     cal_gregorian$hour(1L)))
+
+add_predicate("complete_year_partial",
+              time_is_complete_at(
+                yearmonth(as.Date("2020-01-01")) + 0:9,
+                cal_gregorian$year(1L)
+              ))
+add_predicate("complete_year_full",
+              time_is_complete_at(
+                yearmonth(as.Date("2020-01-01")) + 0:14,
+                cal_gregorian$year(1L)
+              ))
+add_predicate("complete_quarter_full",
+              time_is_complete_at(
+                yearquarter(c("2020-Q1", "2020-Q2", "2020-Q3", "2020-Q4")),
+                cal_gregorian$year(1L)
+              ))
+add_predicate("complete_month_missing",
+              time_is_complete_at(
+                yearmonth(c("2020-01", "2020-03")),
+                cal_gregorian$year(1L)
+              ))
+add_predicate("complete_days_month",
+              time_is_complete_at(
+                date(as.Date("2020-01-01")) + 0:30,
+                cal_gregorian$month(1L)
+              ))
+add_predicate("complete_days_week",
+              time_is_complete_at(
+                date(as.Date("2020-01-01")) + 0:6,
+                cal_isoweek$week(1L)
+              ))
 
 json <- toJSON(out, auto_unbox = TRUE, pretty = TRUE, digits = NA,
                na = "null", null = "null")

@@ -19,6 +19,13 @@ import numpy as np
 import mixtime_rs as _rs
 
 from .ops import seq, time_ceiling, time_floor, time_round, time_shift
+from .predicates import (
+    time_is_complete_at,
+    time_is_cyclical,
+    time_is_determinate_at,
+    time_is_duration,
+    time_is_linear,
+)
 from .time import (
     CyclicalTime,
     Duration,
@@ -101,6 +108,12 @@ __all__ = [
     "time_round",
     "time_shift",
     "seq",
+    # predicates
+    "time_is_linear",
+    "time_is_cyclical",
+    "time_is_duration",
+    "time_is_determinate_at",
+    "time_is_complete_at",
 ]
 
 

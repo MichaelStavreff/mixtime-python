@@ -601,7 +601,7 @@ def linear_time(
     discrete = _infer_discrete(data, discrete)
     unit = _normalize_unit(chronon, calendar, tz=tz)
     values = _values_from_data(
-        data, unit, discrete=discrete, calendar=calendar, tz=tz, kind="linear"
+        data, unit, discrete=discrete, calendar=calendar, tz=tz
     )
     return LinearTime(
         values,
@@ -627,7 +627,7 @@ def cyclical_time(
     unit = _normalize_unit(chronon, calendar, tz=tz)
     cycle_unit = _normalize_unit(cycle, calendar, tz=tz)
     values = _values_from_data(
-        data, unit, discrete=discrete, calendar=calendar, tz=tz, kind="cyclical"
+        data, unit, discrete=discrete, calendar=calendar, tz=tz
     )
     return CyclicalTime(
         values,
@@ -1001,7 +1001,6 @@ def _values_from_data(
     discrete: bool,
     calendar: Calendar,
     tz: str | None,
-    kind: str,
 ) -> np.ndarray:
     if isinstance(data, TimeVector):
         if isinstance(data, Duration):
@@ -1015,8 +1014,18 @@ def _values_from_data(
         if len(data.parts) != 1:
             raise ValueError("mixtime input has multiple chronons; choose a chronon")
         return _values_from_data(
-            data.parts[0], unit, discrete=discrete, calendar=calendar, tz=tz, kind=kind
+            data.parts[0], unit, discrete=discrete, calendar=calendar, tz=tz
         )
+
+    # pandas Series and one-dimensional indexes are accepted as input. Convert
+    # them to a plain list so the existing string/temporal/numeric paths apply,
+    # normalising pandas' missing sentinels to NaN along the way.
+    pandas_values = _pandas_sequence(data)
+    if pandas_values is not None:
+        data = pandas_values
+
+    if _is_missing(data):
+        return _coerce_values([np.nan], discrete)
 
     # Strings and object arrays are parsed according to the chronon.
     if isinstance(data, (str, bytes)) or _is_string_sequence(data):
@@ -1029,8 +1038,6 @@ def _values_from_data(
 
     # Numeric values are already chronon counts for linear/cyclical time.
     values = _as_values(data)
-    if kind == "duration":
-        return _coerce_values(values, discrete)
     return _coerce_values(values, discrete)
 
 
@@ -1098,6 +1105,8 @@ def _temporal_values(
 
 
 def _temporal_days(value: Any, *, tz: str | None) -> float:
+    if _is_missing(value):
+        return np.nan
     if (
         isinstance(value, _dt.datetime)
         or isinstance(value, np.datetime64)
@@ -1140,11 +1149,31 @@ def _coerce_values(values: Any, discrete: bool) -> np.ndarray:
     return arr.astype(np.float64)
 
 
+def _pandas_sequence(data: Any) -> list[Any] | None:
+    """Convert a one-dimensional pandas Series/Index to a plain list.
+
+    pandas is optional, so this deliberately checks the type without importing
+    it. Missing sentinels such as ``pd.NA`` and ``pd.NaT`` become ``NaN`` so the
+    ordinary missing-value path can handle them.
+    """
+    if not type(data).__module__.startswith("pandas"):
+        return None
+    if getattr(data, "ndim", None) != 1:
+        return None
+    try:
+        items = list(data)
+    except TypeError:
+        return None
+    return [np.nan if _is_missing(item) else item for item in items]
+
+
 def _is_string_sequence(data: Any) -> bool:
     if isinstance(data, np.ndarray):
         return data.dtype.kind in {"U", "S", "O"}
     if isinstance(data, (list, tuple)) and data:
-        return all(isinstance(item, (str, bytes)) for item in data)
+        return all(
+            isinstance(item, (str, bytes)) or _is_missing(item) for item in data
+        )
     return False
 
 
@@ -1157,16 +1186,25 @@ def _is_temporal(data: Any) -> bool:
     }:
         return True
     if isinstance(data, (list, tuple, np.ndarray)) and len(data) > 0:
-        first = data[0]
-        return isinstance(first, (_dt.date, _dt.datetime, np.datetime64)) or (
-            type(first).__module__.startswith("pandas")
-            and type(first).__name__ in {"Timestamp", "Period"}
-        )
+        for item in data:
+            if _is_missing(item):
+                continue
+            return isinstance(item, (_dt.date, _dt.datetime, np.datetime64)) or (
+                type(item).__module__.startswith("pandas")
+                and type(item).__name__ in {"Timestamp", "Period"}
+            )
     return False
 
 
 def _is_missing(value: Any) -> bool:
-    return isinstance(value, (float, np.floating)) and np.isnan(value)
+    if value is None:
+        return True
+    if isinstance(value, (float, np.floating)) and np.isnan(value):
+        return True
+    if isinstance(value, np.datetime64) and np.isnat(value):
+        return True
+    # pandas NA / NaT without importing pandas.
+    return type(value).__name__ in {"NAType", "NaTType"}
 
 
 def _is_integral(value: Any) -> bool:
