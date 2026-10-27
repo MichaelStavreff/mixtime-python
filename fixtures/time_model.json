@@ -958,6 +958,138 @@
       "formatted": ["2024-01-16", "2024-03-01"]
     },
     {
+      "name": "time_shift_date_months_clamp",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19782,
+      "formatted": "2024-02-29"
+    },
+    {
+      "name": "time_shift_date_years_leap",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 20147,
+      "formatted": "2025-02-28"
+    },
+    {
+      "name": "time_shift_datetime_days_dst_forward",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1710086400,
+      "formatted": "2024-03-10 12:00:00 EDT"
+    },
+    {
+      "name": "time_shift_datetime_hours_dst_forward",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1710090000,
+      "formatted": "2024-03-10 13:00:00 EDT"
+    },
+    {
+      "name": "time_shift_datetime_days_dst_backward",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1730653200,
+      "formatted": "2024-11-03 12:00:00 EST"
+    },
+    {
+      "name": "time_shift_datetime_days_vector",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1710086400, 1730653200],
+      "formatted": ["2024-03-10 12:00:00 EDT", "2024-11-03 12:00:00 EST"]
+    },
+    {
+      "name": "time_shift_datetime_months_clamp_tz",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1614522600,
+      "formatted": "2021-02-28 09:30:00 EST"
+    },
+    {
+      "name": "time_shift_datetime_years_leap_tz",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1740753000,
+      "formatted": "2025-02-28 09:30:00 EST"
+    },
+    {
+      "name": "time_shift_datetime_quarters_tz",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1714483800,
+      "formatted": "2024-04-30 09:30:00 EDT"
+    },
+    {
+      "name": "time_shift_melbourne_gap",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1759591800,
+      "formatted": "2025-10-05 01:30:00 AEST"
+    },
+    {
+      "name": "time_shift_melbourne_ambiguous",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1743867000,
+      "formatted": "2025-04-06 02:30:00 AEDT"
+    },
+    {
       "name": "date_timezone_utc",
       "kind": "linear",
       "chronon": "day",
@@ -1112,6 +1244,150 @@
       "discrete": true,
       "values": [19723, 19723],
       "formatted": ["2024-01-01", "2024-01-01"]
+    },
+    {
+      "name": "seq_calendar_months_clamp",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19753, 19782, 19813, 19843, 19874],
+      "formatted": ["2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30", "2024-05-31"]
+    },
+    {
+      "name": "seq_calendar_months_endpoint_alignment",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19753, 19782, 19813],
+      "formatted": ["2024-01-31", "2024-02-29", "2024-03-31"]
+    },
+    {
+      "name": "seq_calendar_months_reverse",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19874, 19843, 19813, 19782, 19753],
+      "formatted": ["2024-05-31", "2024-04-30", "2024-03-31", "2024-02-29", "2024-01-31"]
+    },
+    {
+      "name": "seq_calendar_two_months",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19753, 19813, 19874, 19935, 19996, 20057, 20119, 20178, 20239, 20300],
+      "formatted": ["2024-01-31", "2024-03-31", "2024-05-31", "2024-07-31", "2024-09-30", "2024-11-30", "2025-01-31", "2025-03-31", "2025-05-31", "2025-07-31"]
+    },
+    {
+      "name": "seq_calendar_fractional_years",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19753, 20300],
+      "formatted": ["2024-01-31", "2025-07-31"]
+    },
+    {
+      "name": "seq_calendar_quarters",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19753, 19843, 19935, 20027, 20119],
+      "formatted": ["2024-01-31", "2024-04-30", "2024-07-31", "2024-10-31", "2025-01-31"]
+    },
+    {
+      "name": "seq_calendar_years_leap",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19782, 20147],
+      "formatted": ["2024-02-29", "2025-02-28"]
+    },
+    {
+      "name": "seq_calendar_days",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19723, 19726, 19729, 19732],
+      "formatted": ["2024-01-01", "2024-01-04", "2024-01-07", "2024-01-10"]
+    },
+    {
+      "name": "seq_calendar_weeks",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19725, 19732, 19739, 19746],
+      "formatted": ["2024-01-03", "2024-01-10", "2024-01-17", "2024-01-24"]
+    },
+    {
+      "name": "seq_calendar_datetime_dst",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1709969400, 1710052200, 1710138600],
+      "formatted": ["2024-03-09 02:30:00 EST", "2024-03-10 01:30:00 EST", "2024-03-11 02:30:00 EDT"]
+    },
+    {
+      "name": "seq_calendar_datetime_month_dst",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1707550200, 1710052200, 1712730600, 1715322600],
+      "formatted": ["2024-02-10 02:30:00 EST", "2024-03-10 01:30:00 EST", "2024-04-10 02:30:00 EDT", "2024-05-10 02:30:00 EDT"]
+    },
+    {
+      "name": "seq_calendar_datetime_months_clamp",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1706711400, 1709217000, 1711891800, 1714483800, 1717162200],
+      "formatted": ["2024-01-31 09:30:00 EST", "2024-02-29 09:30:00 EST", "2024-03-31 09:30:00 EDT", "2024-04-30 09:30:00 EDT", "2024-05-31 09:30:00 EDT"]
     }
   ],
   "comparisons": [
@@ -1152,11 +1428,188 @@
       "result": true
     }
   ],
+  "mixed_comparisons": [
+    {
+      "name": "mixed_linear_self",
+      "left": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "right": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "results": {
+        "==": [true, true, true, true],
+        "!=": [false, false, false, false],
+        "<": [false, false, false, false],
+        "<=": [true, true, true, true],
+        ">": [false, false, false, false],
+        ">=": [true, true, true, true]
+      }
+    },
+    {
+      "name": "mixed_linear_scalar",
+      "left": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "right": "2024 Jan",
+      "results": {
+        "==": [true, false, false, false],
+        "!=": [false, true, true, true],
+        "<": [false, false, false, false],
+        "<=": [true, false, false, false],
+        ">": [false, true, false, true],
+        ">=": [true, true, true, true]
+      }
+    },
+    {
+      "name": "year_vs_month_interval",
+      "left": "1980",
+      "right": "1980 Dec",
+      "results": {
+        "==": false,
+        "!=": true,
+        "<": false,
+        "<=": true,
+        ">": false,
+        ">=": false
+      }
+    },
+    {
+      "name": "mixed_instant_span",
+      "left": ["2024 Jan", "2024-01-15", "2024"],
+      "right": "2024-02-01",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [true, true, false],
+        "<=": [true, true, false],
+        ">": [false, false, false],
+        ">=": [false, false, false]
+      }
+    },
+    {
+      "name": "cyclical_positions",
+      "left": ["Dec", "Jan", "Jun"],
+      "right": "Mar",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [false, true, false],
+        "<=": [false, true, false],
+        ">": [true, false, true],
+        ">=": [true, false, true]
+      }
+    },
+    {
+      "name": "cyclical_mixed_chronon",
+      "left": ["Dec", "Jan", "D153"],
+      "right": "D61",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [false, true, false],
+        "<=": [false, true, false],
+        ">": [true, false, true],
+        ">=": [true, false, true]
+      }
+    }
+  ],
   "mixed": [
     {
       "name": "month_quarter",
       "values": [648, 649, 217, 218],
       "formatted": ["2024 Jan", "2024 Feb", "2024 Q2", "2024 Q3"]
+    }
+  ],
+  "ordering": [
+    {
+      "name": "linear_mixed",
+      "formatted": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "order": [1, 2, 3, 4],
+      "sorted": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "decreasing": ["2025", "2024", "2024 Feb", "2024 Jan"],
+      "min": "2024 Jan",
+      "max": "2025 Jan",
+      "min_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "linear_mixed_instants",
+      "formatted": ["2024 Jan", "2024-01-15", "2024", "2024 Feb"],
+      "order": [2, 1, 4, 3],
+      "sorted": ["2024-01-15", "2024 Jan", "2024 Feb", "2024"],
+      "decreasing": ["2024", "2024 Feb", "2024 Jan", "2024-01-15"],
+      "min": "2024-01-01",
+      "max": "2024-02-01",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "linear_continuous_mixed",
+      "formatted": ["2024 Jan 45.2%", "2024-01-20 0.0%", "2024.41530054645 41.5%"],
+      "order": [1, 2, 3],
+      "sorted": ["2024 Jan 45.2%", "2024-01-20 0.0%", "2024.41530054645 41.5%"],
+      "decreasing": ["2024.41530054645 41.5%", "2024-01-20 0.0%", "2024 Jan 45.2%"],
+      "min": "2024-01-15 0.0%",
+      "max": "2024-06-01 0.0%",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": false,
+      "max_discrete": false
+    },
+    {
+      "name": "cyclical_months",
+      "formatted": ["Dec", "Jan", "Jun", "Mar"],
+      "order": [2, 4, 3, 1],
+      "sorted": ["Jan", "Mar", "Jun", "Dec"],
+      "decreasing": ["Dec", "Jun", "Mar", "Jan"],
+      "min": "Mar",
+      "max": "Jan",
+      "min_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "cyclical_mixed_chronon",
+      "formatted": ["Dec", "Jan", "D153"],
+      "order": [2, 3, 1],
+      "sorted": ["Jan", "D153", "Dec"],
+      "decreasing": ["Dec", "D153", "Jan"],
+      "min": "D153",
+      "max": "D01",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
     }
   ],
   "predicates": [

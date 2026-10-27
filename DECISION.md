@@ -8,6 +8,67 @@
 performance exercise but insufficient as a product. The port now includes a
 Pythonic Gregorian/ISO-week time model on top of the Rust kernel.
 
+## 2026-10-27 update: mixed comparison, ordering, and pandas operations
+
+Phase 1 adds R-compatible comparison and ordering for mixed chronons plus the
+pandas operations that depend on them. Time points compare as half-open
+intervals, matching `compare.R`: a discrete value spans its granule and a
+continuous value is an instant. `Mixtime` comparisons are element-wise,
+broadcast a length-one operand, and raise on other length mismatches instead of
+silently returning `False`.
+
+Mixed ordering follows R's `vec_proxy_order`: convert every part to the finest
+shared chronon, add half a chronon to discrete parts so a span sorts at its
+midpoint, and order cyclical parts by position within their shared cycle.
+`Mixtime.sort`/`argsort`/`min`/`max` expose this. `min`/`max` convert to the
+common chronon and return a `TimeScalar`; R returns a length-one mixtime with
+the same chronon.
+
+pandas columns now sort, filter, use `between`, reduce with `min`/`max`, and
+participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and
+`value_counts` with the same interval rules. `TimeScalar` equality stays strict
+about metadata so factorization and joins keep different chronons distinct.
+Missing values compare equal in `==` masks; ordering comparisons involving a
+missing value are `False`. This is a documented divergence from R's
+three-valued `NA`. Phase 2 still defers mixed arithmetic, string coercion, and
+broader vctrs parity.
+
+## 2026-10-27 update: pandas columns and scalars
+
+The core `TimeVector`/`Mixtime` API remains primary. `TimeScalar` and
+`.scalar(i)` provide explicit scalar access without changing the existing
+length-one `x[i]` behavior. An optional pandas `ExtensionArray`/`ExtensionDtype`
+(`MixtimeArray`, `MixtimeDtype`, `to_pandas_series()`) makes mixed-granularity
+values usable as Series/DataFrame columns. pandas stays an optional extra; the
+core package does not import it. Direct `pd.Series(vector)` is not the
+extension-dtype path because the core vector is not a pandas array.
+
+## 2026-10-27 update: DST-aware calendar shifts
+
+`date` and `datetime` shifts by day-or-longer durations now use calendar-field
+arithmetic. For timezone-aware `datetime`, day and week shifts preserve the
+local wall-clock reading across DST changes, while sub-day durations add
+elapsed time. Month, quarter, and year shifts clamp the day to the target
+month (`2024-01-31 + months(1)` becomes `2024-02-29`). A local time skipped by
+a DST gap clamps backward by the gap, and an ambiguous local time resolves to
+its first occurrence. This matches R's default `on_invalid = "clamp"`; the
+alternative resolutions are not exposed. Shifts that require a fractional
+month (including fractional quarters) raise `NotImplementedError`, while
+fractional day/week shifts are supported and fractional years that resolve to
+whole months are allowed.
+
+## 2026-10-27 update: calendar-aware sequences
+
+`seq()` now accepts day, week, month, quarter, and year steps for `date` and
+`datetime`, supplied as a duration, unit, or string. Counted strings such as
+`"1 month"` and `"3 days"` are supported. Day/week sequences use local anchor
+shifts, so they preserve wall-clock time across DST changes. Month-like
+sequences use anchor shifts with month-end clamping and reproduce R's endpoint
+alignment, including R's rule that can exclude a clamped endpoint when the end
+is earlier in its month/quarter/year than the start. R's clamping warning is
+not emitted. Counted strings honor fractional counts (`"1.5 years"` is 18
+months); R's parser truncates the numeric prefix to an integer.
+
 ## 2026-10-26 update: why kernel-only was not enough
 
 The kernel-only port reproduced the four Gregorian `chronon_divmod` splits and
@@ -32,9 +93,10 @@ composition, common-chronon selection, metadata accessors, and timezone
 name/abbreviation/offset helpers with transition discovery. Rust remains the
 arithmetic kernel. Durations follow R's double-valued helpers by default
 (continuous), with `discrete=True` for whole granules. Time-point
-differences use the finest common chronon, and continuous shifts are supported
-within the calendar or fixed category; cross-category continuous shifts raise
-rather than approximating R's calendar clamping.
+differences use the finest common chronon. Date/datetime day-or-longer shifts
+use calendar-field arithmetic, including DST handling and month/year clamping;
+shifts from a calendar chronon to a finer fixed unit still raise rather than
+approximating R's continuous decomposition.
 
 Deferred:
 
@@ -43,9 +105,13 @@ Deferred:
 - the complete vctrs/S7 coercion surface (a Gregorian `time_components()` /
   `time_compose()` subset is implemented),
 - ggplot2 and tsibble integration,
-- complete mixed-vector arithmetic and columnar pandas/DataFrame coercion,
-- continuous calendar/fixed cross-category shifts and calendar-step `seq()` on
-  day/second time,
+- complete mixed-vector arithmetic; pandas Series/DataFrame columns are now
+  covered by an optional ExtensionArray, but full non-pandas columnar coercion
+  and all mixed-vector operators remain partial,
+- shifts from calendar chronons to finer fixed units (for example,
+  `yearmonth + days(1)`),
+- shifts requiring a fractional month and R's alternative `on_invalid` DST
+  resolutions,
 - R's `seq(from, length_out=, by=)` form.
 
 This update supersedes the "Option 1 selected" status below. The option analysis

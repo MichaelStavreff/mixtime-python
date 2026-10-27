@@ -7,13 +7,14 @@ timezone handling are Python.
 
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
-> sequences, arithmetic, timezone-aware `datetime`, timezone name/offset
-> helpers and transitions, type and completeness predicates, component
-> extraction/composition, chronon bounds, circular sums, and optional pandas
-> interop.
-> Non-Gregorian calendars, astronomical calendars, and the full R format-token
-> language remain out of scope. See [Scope](#scope) and
-> [`DECISION.md`](DECISION.md).
+> calendar-aware sequences, arithmetic, DST-aware calendar shifts,
+> timezone-aware `datetime`,
+> timezone name/offset helpers and transitions, type and completeness
+> predicates, component extraction/composition, chronon bounds, circular sums,
+> scalar values, and an optional pandas `"mixtime"` extension dtype for
+> Series/DataFrame columns. Non-Gregorian calendars, astronomical calendars,
+> and the full R format-token language remain out of scope. See [Scope](#scope)
+> and [`DECISION.md`](DECISION.md).
 
 ## Credits
 
@@ -40,8 +41,11 @@ There are two layers:
   (`lin`, `cyc`, `time_components`, `time_compose`), chronon bounds
   (`chronon_glb`, `chronon_lub`), metadata accessors (`time_chronon`,
   `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
-  `tz_abbreviation`, `tz_offset`, `tz_transitions`), and predicates such as
-  `time_is_determinate_at` and `time_is_complete_at`.
+  `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
+  (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
+  and `time_is_complete_at`, mixed-vector comparison/ordering
+  (`Mixtime.sort`, `argsort`, `min`, `max`), and an optional pandas extension
+  dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -132,15 +136,46 @@ print((x - mt.yearmonth("2023-12")).format())  # duration in months
 print(mt.time_floor(x, "year").format())
 print(mt.time_ceiling(x, "year").format())
 print(mt.seq(mt.yearmonth("2024-01"), mt.yearmonth("2024-06"), by=2).format())
+print(
+    mt.seq(mt.date("2024-01-31"), mt.date("2024-05-31"), by="month").format()
+)
+# ['2024-01-31', '2024-02-29', '2024-03-31', '2024-04-30', '2024-05-31']
 ```
 
 `time_floor`, `time_ceiling`, and `time_round` accept a unit name, a unit object
 such as `mt.cal_gregorian.year`, a duration such as `mt.years(1)`, or a time
 vector whose chronon is used.
 
+For `date` and `datetime`, `seq()` accepts day, week, month, quarter, and year
+steps as a duration, unit, or string (`"month"`, `"1 month"`, `"3 days"`). These
+steps use anchor-based calendar shifts: day/week sequences preserve local
+wall-clock time across DST changes, and month/quarter/year sequences clamp
+month ends. Month-like endpoint alignment follows R, so a clamped endpoint can
+be excluded when the end is earlier in its month/quarter/year than the start.
+For example, `seq(date("2024-01-31"), date("2024-04-30"), by="month")` stops at
+`2024-03-31`, while ending on `2024-05-31` includes all five month ends.
+
 Durations are continuous by default, matching R's double-valued helpers:
 `mt.years(1)` formats as `1.0 years`. Pass `discrete=True` for whole-granule
 durations, such as `mt.years(1, discrete=True)`.
+
+Day-or-longer shifts on `date` and `datetime` use calendar fields. For a
+timezone-aware `datetime`, day and week shifts preserve the local wall-clock
+time across DST changes, while sub-day durations add elapsed time. Month,
+quarter, and year shifts clamp the day to the target month:
+
+```python
+ny = mt.datetime("2024-03-09 12:00:00", tz="America/New_York")
+print((ny + mt.days(1)).format())    # ['2024-03-10 12:00:00 EDT']
+print((ny + mt.hours(24)).format())  # ['2024-03-10 13:00:00 EDT']
+print((mt.date("2024-01-31") + mt.months(1)).format())  # ['2024-02-29']
+```
+
+DST gaps and ambiguous local times use R's default clamp behavior: a skipped
+local time moves back by the gap, and an ambiguous time resolves to its first
+occurrence. Shifts requiring a fractional month (including fractional
+quarters) are not implemented; fractional years that resolve to whole months
+are allowed.
 
 ### Mixed granularity
 
@@ -154,6 +189,69 @@ print(mixed.format())
 ```
 
 Each part keeps its own chronon, cycle, calendar, and timezone.
+
+### Mixed comparison and ordering
+
+Time points compare as half-open intervals: a discrete value spans its whole
+granule, while a continuous value is an instant. Comparisons across
+granularities therefore follow R's interval relations rather than comparing
+converted start values.
+
+```python
+import mixtime as mt
+
+mixed = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.year(["2024", "2025"]),
+)
+print(mixed.sort().format())   # ['2024 Jan', '2024 Feb', '2024', '2025']
+print(mixed.min().format())    # 2024 Jan
+print(mixed.max().format())    # 2025 Jan
+
+months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
+print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
+```
+
+Mixed ordering uses R's order proxy: parts convert to their finest shared
+chronon, discrete values shift by half a chronon so a span sorts at its
+midpoint, and cyclical values order by position within the cycle. `Mixtime`
+comparisons broadcast a length-one operand and raise on other length
+mismatches. Missing values compare equal in `==` masks; ordering comparisons
+involving a missing value are `False`, where R would return `NA`.
+`min()`/`max()` skip missing values by default; pass `skipna=False` for R's
+`na.rm = FALSE` behaviour.
+
+### pandas columns
+
+pandas is optional; install the extra with `uv add "mixtime[pandas]"` (or the
+equivalent `pip` extra). `to_pandas_series()` returns a Series backed by the
+`"mixtime"` extension dtype, including mixed-granularity `Mixtime` columns:
+
+```python
+import pandas as pd
+import mixtime as mt
+
+when = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.date(["2024-03-01", None]),
+)
+series = when.to_pandas_series(name="when")
+frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+
+print(series.dtype)                  # mixtime
+print(series.iloc[0])                # 2024 Jan (a TimeScalar)
+print(series.iloc[0].chronon.name)   # month
+print(frame["when"].isna().tolist()) # [False, False, False, True]
+```
+
+`pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
+missing values, slicing, `take`, `fillna`, `where`, `concat`, and object-array
+conversion. Mixed-granularity columns sort chronologically, and comparisons,
+`between()`, `min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
+`drop_duplicates()`, and `unique()` follow the core interval rules.
+Constructors also accept one-dimensional pandas `Series`/`Index` inputs, and
+`to_pandas()` is unchanged: it still returns a `PeriodIndex`/`DatetimeIndex`
+for linear time.
 
 ### Timezones
 
@@ -186,7 +284,8 @@ print(changes["time"].format())
 `tz_name()` returns `None` for naive time; `tz_abbreviation()` returns an empty
 string there, matching R. `tz_offset()` returns a `Duration` in each element's
 own chronon: seconds for `datetime`, days for `date`, months for `yearmonth`,
-and so on.
+and so on. Default `datetime` formatting appends the zone abbreviation for
+non-UTC named zones, matching R.
 
 ### Components
 
@@ -235,24 +334,6 @@ granule; continuous time points resolve every granule. `time_is_complete_at()`
 tests whether the vector contains every finer chronon of each coarser granule.
 Missing and infinite values are reported as `None`.
 
-### pandas interop
-
-pandas is optional. Install the extra, pass a one-dimensional `Series`/`Index`
-to a constructor, or call `to_pandas()`:
-
-```sh
-uv add "mixtime[pandas]"
-```
-
-```python
-import pandas as pd
-
-x = mt.date(pd.Series(["2024-01-15", None]))
-print(x.format())  # ['2024-01-15', 'NA']
-
-idx = mt.yearmonth(["2024-01", "2024-02"]).to_pandas()
-```
-
 ### Low-level Rust kernel
 
 The original NumPy kernel remains available:
@@ -289,8 +370,11 @@ Ported:
   `day_of_week`, `week_of_year`, `time_of_day`)
 - durations (`years`, `quarters`, `months`, `weeks`, `days`, `hours`,
   `minutes`, `seconds`, `milliseconds`)
-- time arithmetic, comparison, rounding, and sequences, including continuous
-  same-category shifts and common-chronon differences
+- time arithmetic, comparison, rounding, and sequences, including DST-aware
+  day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
+  calendar-aware date/datetime sequences, continuous shifts within a category,
+  common-chronon differences, R's half-open interval comparisons, and
+  mixed-granularity `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -298,8 +382,10 @@ Ported:
   `time_compose`, `lin`, `cyc`)
 - chronon bounds (`chronon_glb`, `chronon_lub`, `chronon_common`) and circular
   sums (`circsum`)
-- optional pandas `Series`/`Index` input and `PeriodIndex`/`DatetimeIndex`
-  output
+- optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
+  and `"mixtime"` ExtensionArray columns for Series/DataFrame, including
+  chronological sorting, filtering, `between`, `min`/`max`, grouping, merging,
+  de-duplication, and concatenation
 - the low-level Rust chronon splits
 
 Not yet ported:
@@ -308,9 +394,12 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic and columnar pandas/DataFrame coercion
-- continuous calendar/fixed cross-category shifts (for example,
-  `date + months(1)`) and calendar-step `seq()` on day/second time
+- complete `Mixtime` arithmetic; pandas Series/DataFrame columns are covered,
+  but full non-pandas columnar coercion remains incomplete
+- shifts requiring a fractional month and R's alternative `on_invalid` DST
+  resolutions
+- shifts from calendar chronons to finer fixed units (for example,
+  `yearmonth + days(1)`)
 - R's `seq(from, length.out=, by=)` form
 
 See [`COVERAGE.md`](COVERAGE.md) for the R branch-to-test map and

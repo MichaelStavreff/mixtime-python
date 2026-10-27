@@ -26,7 +26,9 @@ out <- list(
   durations = list(),
   operations = list(),
   comparisons = list(),
+  mixed_comparisons = list(),
   mixed = list(),
+  ordering = list(),
   predicates = list(),
   components = list(),
   compose = list(),
@@ -94,6 +96,40 @@ add_comparison <- function(name, value) {
   out$comparisons[[length(out$comparisons) + 1L]] <<- list(
     name = name,
     result = as.logical(value)
+  )
+}
+
+add_mixed_comparison <- function(name, e1, e2) {
+  ops <- c("==", "!=", "<", "<=", ">", ">=")
+  results <- lapply(ops, function(op) {
+    as.logical(do.call(op, list(e1, e2)))
+  })
+  names(results) <- ops
+  out$mixed_comparisons[[length(out$mixed_comparisons) + 1L]] <<- list(
+    name = name,
+    left = as.character(format(e1)),
+    right = as.character(format(e2)),
+    results = results
+  )
+}
+
+add_ordering <- function(name, x) {
+  sorted <- sort(x)
+  decreasing <- sort(x, decreasing = TRUE)
+  mn <- min(x)
+  mx <- max(x)
+  out$ordering[[length(out$ordering) + 1L]] <<- list(
+    name = name,
+    formatted = as.character(format(x)),
+    order = as.integer(order(x)),
+    sorted = as.character(format(sorted)),
+    decreasing = as.character(format(decreasing)),
+    min = as.character(format(mn)),
+    max = as.character(format(mx)),
+    min_chronon = chronon_info(mn),
+    max_chronon = chronon_info(mx),
+    min_discrete = is.integer(S7::S7_data(mn@x[[1L]])),
+    max_discrete = is.integer(S7::S7_data(mx@x[[1L]]))
   )
 }
 
@@ -364,6 +400,47 @@ add_case("operations", "duration_discrete_scalar_div", years(1L) / 2,
 add_case("operations", "time_shift_months", time_shift(x, months(1)), "linear")
 add_case("operations", "time_shift_days",
          time_shift(date(c("2024-01-15", "2024-02-29")), days(1)), "linear")
+add_case("operations", "time_shift_date_months_clamp",
+         time_shift(date("2024-01-31"), months(1)), "linear")
+add_case("operations", "time_shift_date_years_leap",
+         time_shift(date("2024-02-29"), years(1)), "linear")
+add_case("operations", "time_shift_datetime_days_dst_forward",
+         time_shift(datetime("2024-03-09 12:00:00",
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_hours_dst_forward",
+         time_shift(datetime("2024-03-09 12:00:00",
+                             tz = "America/New_York"), hours(24)),
+         "linear")
+add_case("operations", "time_shift_datetime_days_dst_backward",
+         time_shift(datetime("2024-11-02 12:00:00",
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_days_vector",
+         time_shift(datetime(c("2024-03-09 12:00:00",
+                               "2024-11-02 12:00:00"),
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_months_clamp_tz",
+         time_shift(datetime("2021-01-31 09:30:00",
+                             tz = "America/New_York"), months(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_years_leap_tz",
+         time_shift(datetime("2024-02-29 09:30:00",
+                             tz = "America/New_York"), years(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_quarters_tz",
+         time_shift(datetime("2024-01-31 09:30:00",
+                             tz = "America/New_York"), quarters(1)),
+         "linear")
+add_case("operations", "time_shift_melbourne_gap",
+         time_shift(datetime("2025-10-04 02:30:00",
+                             tz = "Australia/Melbourne"), days(1)),
+         "linear")
+add_case("operations", "time_shift_melbourne_ambiguous",
+         time_shift(datetime("2025-04-05 02:30:00",
+                             tz = "Australia/Melbourne"), days(1)),
+         "linear")
 add_case("operations", "date_timezone_utc",
          date(as.POSIXct("2024-01-15 23:00:00", tz = "America/New_York"),
               tz = "UTC"),
@@ -397,6 +474,51 @@ add_case("operations", "seq_fractional_step_date",
          seq(date("2024-01-01"), date("2024-01-02"), by = 0.5), "linear")
 add_case("operations", "seq_fractional_step_date_06",
          seq(date("2024-01-01"), date("2024-01-02"), by = 0.6), "linear")
+add_case("operations", "seq_calendar_months_clamp",
+         suppressWarnings(seq(date("2024-01-31"), date("2024-05-31"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_months_endpoint_alignment",
+         suppressWarnings(seq(date("2024-01-31"), date("2024-04-30"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_months_reverse",
+         suppressWarnings(seq(date("2024-05-31"), date("2024-01-31"),
+                             by = "-1 month")), "linear")
+add_case("operations", "seq_calendar_two_months",
+         suppressWarnings(seq(date("2024-01-31"), date("2025-07-31"),
+                             by = months(2))), "linear")
+add_case("operations", "seq_calendar_fractional_years",
+         suppressWarnings(seq(date("2024-01-31"), date("2026-01-31"),
+                             by = years(1.5))), "linear")
+add_case("operations", "seq_calendar_quarters",
+         suppressWarnings(seq(date("2024-01-31"), date("2025-01-31"),
+                             by = "quarter")), "linear")
+add_case("operations", "seq_calendar_years_leap",
+         suppressWarnings(seq(date("2024-02-29"), date("2026-02-28"),
+                             by = "year")), "linear")
+add_case("operations", "seq_calendar_days",
+         suppressWarnings(seq(date("2024-01-01"), date("2024-01-10"),
+                             by = "3 days")), "linear")
+add_case("operations", "seq_calendar_weeks",
+         suppressWarnings(seq(date("2024-01-03"), date("2024-01-24"),
+                             by = "week")), "linear")
+add_case("operations", "seq_calendar_datetime_dst",
+         suppressWarnings(seq(datetime("2024-03-09 02:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-03-11 02:30:00",
+                                      tz = "America/New_York"),
+                             by = "day")), "linear")
+add_case("operations", "seq_calendar_datetime_month_dst",
+         suppressWarnings(seq(datetime("2024-02-10 02:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-05-10 02:30:00",
+                                      tz = "America/New_York"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_datetime_months_clamp",
+         suppressWarnings(seq(datetime("2024-01-31 09:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-05-31 09:30:00",
+                                      tz = "America/New_York"),
+                             by = "month")), "linear")
 
 # -- comparisons -----------------------------------------------------------
 add_comparison("month_vs_day_start",
@@ -420,11 +542,68 @@ add_comparison("month_vs_day_lt",
 add_comparison("month_vs_day_ge",
                yearmonth("2024-01") >= date("2024-01-01"))
 
+# Mixed-vector comparisons. Length-1 operands recycle, as in R.
+mixed_linear <- c(
+  yearmonth(c("2024-01", "2024-02")),
+  year(c(2024L, 2025L))
+)
+add_mixed_comparison("mixed_linear_self", mixed_linear, mixed_linear)
+add_mixed_comparison(
+  "mixed_linear_scalar",
+  mixed_linear,
+  yearmonth("2024-01")
+)
+add_mixed_comparison(
+  "year_vs_month_interval",
+  year(1980L),
+  yearmonth(as.integer((1980 - 1970) * 12 + 11))
+)
+add_mixed_comparison(
+  "mixed_instant_span",
+  c(yearmonth("2024-01"), date("2024-01-15"), year(2024L)),
+  date("2024-02-01")
+)
+add_mixed_comparison(
+  "cyclical_positions",
+  month_of_year(as.Date(c("2024-12-15", "2025-01-15", "2024-06-15"))),
+  month_of_year(as.Date("2024-03-15"))
+)
+add_mixed_comparison(
+  "cyclical_mixed_chronon",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
+    day_of_year(as.Date("2024-06-01"))),
+  day_of_year(as.Date("2024-03-01"))
+)
+
 # -- mixed granularity -----------------------------------------------------
 add_mixed(
   "month_quarter",
   c(yearmonth(c("2024-01", "2024-02")),
     yearquarter(c("2024-Q2", "2024-Q3")))
+)
+
+# -- ordering --------------------------------------------------------------
+add_ordering("linear_mixed", mixed_linear)
+add_ordering(
+  "linear_mixed_instants",
+  c(yearmonth("2024-01"), date("2024-01-15"), year(2024L),
+    yearmonth("2024-02"))
+)
+add_ordering(
+  "linear_continuous_mixed",
+  c(yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+    date(as.Date("2024-01-20"), discrete = FALSE),
+    year(as.Date("2024-06-01"), discrete = FALSE))
+)
+add_ordering(
+  "cyclical_months",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15", "2024-06-15"))),
+    month_of_year(as.Date("2024-03-15")))
+)
+add_ordering(
+  "cyclical_mixed_chronon",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
+    day_of_year(as.Date("2024-06-01")))
 )
 
 # -- predicates ------------------------------------------------------------

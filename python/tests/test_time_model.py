@@ -267,6 +267,51 @@ OPERATION_INPUTS = {
     "time_shift_days": lambda: mt.time_shift(
         mt.date(["2024-01-15", "2024-02-29"]), mt.days(1)
     ),
+    "time_shift_date_months_clamp": lambda: mt.time_shift(
+        mt.date("2024-01-31"), mt.months(1)
+    ),
+    "time_shift_date_years_leap": lambda: mt.time_shift(
+        mt.date("2024-02-29"), mt.years(1)
+    ),
+    "time_shift_datetime_days_dst_forward": lambda: mt.time_shift(
+        mt.datetime("2024-03-09 12:00:00", tz="America/New_York"),
+        mt.days(1),
+    ),
+    "time_shift_datetime_hours_dst_forward": lambda: mt.time_shift(
+        mt.datetime("2024-03-09 12:00:00", tz="America/New_York"),
+        mt.hours(24),
+    ),
+    "time_shift_datetime_days_dst_backward": lambda: mt.time_shift(
+        mt.datetime("2024-11-02 12:00:00", tz="America/New_York"),
+        mt.days(1),
+    ),
+    "time_shift_datetime_days_vector": lambda: mt.time_shift(
+        mt.datetime(
+            ["2024-03-09 12:00:00", "2024-11-02 12:00:00"],
+            tz="America/New_York",
+        ),
+        mt.days(1),
+    ),
+    "time_shift_datetime_months_clamp_tz": lambda: mt.time_shift(
+        mt.datetime("2021-01-31 09:30:00", tz="America/New_York"),
+        mt.months(1),
+    ),
+    "time_shift_datetime_years_leap_tz": lambda: mt.time_shift(
+        mt.datetime("2024-02-29 09:30:00", tz="America/New_York"),
+        mt.years(1),
+    ),
+    "time_shift_datetime_quarters_tz": lambda: mt.time_shift(
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York"),
+        mt.quarters(1),
+    ),
+    "time_shift_melbourne_gap": lambda: mt.time_shift(
+        mt.datetime("2025-10-04 02:30:00", tz="Australia/Melbourne"),
+        mt.days(1),
+    ),
+    "time_shift_melbourne_ambiguous": lambda: mt.time_shift(
+        mt.datetime("2025-04-05 02:30:00", tz="Australia/Melbourne"),
+        mt.days(1),
+    ),
     "date_timezone_utc": lambda: mt.date(
         dt.datetime(
             2024,
@@ -308,6 +353,48 @@ OPERATION_INPUTS = {
     ),
     "seq_fractional_step_date_06": lambda: mt.seq(
         mt.date("2024-01-01"), mt.date("2024-01-02"), by=0.6
+    ),
+    "seq_calendar_months_clamp": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2024-05-31"), by="month"
+    ),
+    "seq_calendar_months_endpoint_alignment": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2024-04-30"), by="month"
+    ),
+    "seq_calendar_months_reverse": lambda: mt.seq(
+        mt.date("2024-05-31"), mt.date("2024-01-31"), by="-1 month"
+    ),
+    "seq_calendar_two_months": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2025-07-31"), by=mt.months(2)
+    ),
+    "seq_calendar_fractional_years": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2026-01-31"), by=mt.years(1.5)
+    ),
+    "seq_calendar_quarters": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2025-01-31"), by="quarter"
+    ),
+    "seq_calendar_years_leap": lambda: mt.seq(
+        mt.date("2024-02-29"), mt.date("2026-02-28"), by="year"
+    ),
+    "seq_calendar_days": lambda: mt.seq(
+        mt.date("2024-01-01"), mt.date("2024-01-10"), by="3 days"
+    ),
+    "seq_calendar_weeks": lambda: mt.seq(
+        mt.date("2024-01-03"), mt.date("2024-01-24"), by="week"
+    ),
+    "seq_calendar_datetime_dst": lambda: mt.seq(
+        mt.datetime("2024-03-09 02:30:00", tz="America/New_York"),
+        mt.datetime("2024-03-11 02:30:00", tz="America/New_York"),
+        by="day",
+    ),
+    "seq_calendar_datetime_month_dst": lambda: mt.seq(
+        mt.datetime("2024-02-10 02:30:00", tz="America/New_York"),
+        mt.datetime("2024-05-10 02:30:00", tz="America/New_York"),
+        by="month",
+    ),
+    "seq_calendar_datetime_months_clamp": lambda: mt.seq(
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York"),
+        mt.datetime("2024-05-31 09:30:00", tz="America/New_York"),
+        by="month",
     ),
 }
 
@@ -355,6 +442,159 @@ def test_mixed(case):
     _assert_values(actual.values, _expected_values(case))
     _assert_formatted(actual.format(), case["formatted"])
     assert len(actual) == len(case["values"])
+
+
+MIXED_COMPARISON_INPUTS = {
+    "mixed_linear_self": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+    ),
+    "mixed_linear_scalar": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.yearmonth(["2024-01"]),
+    ),
+    "year_vs_month_interval": lambda: (
+        mt.year(["1980"]),
+        mt.yearmonth(["1980-12"]),
+    ),
+    "mixed_instant_span": lambda: (
+        mt.mixtime(
+            mt.yearmonth("2024-01"),
+            mt.date("2024-01-15"),
+            mt.year(["2024"]),
+        ),
+        mt.date("2024-02-01"),
+    ),
+    "cyclical_positions": lambda: (
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    ),
+    "cyclical_mixed_chronon": lambda: (
+        mt.mixtime(
+            mt.month_of_year(["2024-12-15", "2025-01-15"]),
+            mt.day_of_year(["2024-06-01"]),
+        ),
+        mt.day_of_year(["2024-03-01"]),
+    ),
+}
+
+_MIXED_OPS = {
+    "==": "__eq__",
+    "!=": "__ne__",
+    "<": "__lt__",
+    "<=": "__le__",
+    ">": "__gt__",
+    ">=": "__ge__",
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["mixed_comparisons"], ids=lambda c: c["name"]
+)
+def test_mixed_comparisons(case):
+    left, right = MIXED_COMPARISON_INPUTS[case["name"]]()
+    _assert_formatted(left.format(), case["left"])
+    _assert_formatted(right.format(), case["right"])
+    for op, method in _MIXED_OPS.items():
+        actual = np.asarray(getattr(left, method)(right)).tolist()
+        expected = _listify(case["results"][op])
+        assert actual == expected, op
+
+
+ORDERING_INPUTS = {
+    "linear_mixed": lambda: mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    ),
+    "linear_mixed_instants": lambda: mt.mixtime(
+        mt.yearmonth("2024-01"),
+        mt.date("2024-01-15"),
+        mt.year(["2024"]),
+        mt.yearmonth("2024-02"),
+    ),
+    "linear_continuous_mixed": lambda: mt.mixtime(
+        mt.yearmonth([648 + 14 / 31], discrete=False),
+        mt.date([19742], discrete=False),
+        mt.year([54 + 152 / 366], discrete=False),
+    ),
+    "cyclical_months": lambda: mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    ),
+    "cyclical_mixed_chronon": lambda: mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15"]),
+        mt.day_of_year(["2024-06-01"]),
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["ordering"], ids=lambda c: c["name"]
+)
+def test_mixed_ordering(case):
+    actual = ORDERING_INPUTS[case["name"]]()
+    _assert_formatted(actual.format(), case["formatted"])
+
+    expected_order = [int(value) - 1 for value in _listify(case["order"])]
+    assert actual.argsort().tolist() == expected_order
+    _assert_formatted(actual.sort().format(), case["sorted"])
+    _assert_formatted(
+        actual.sort(decreasing=True).format(), case["decreasing"]
+    )
+
+    minimum = actual.min()
+    maximum = actual.max()
+    assert minimum.format() == case["min"]
+    assert maximum.format() == case["max"]
+    assert minimum.chronon.name == case["min_chronon"]["name"]
+    assert maximum.chronon.name == case["max_chronon"]["name"]
+    assert minimum.discrete is case["min_discrete"]
+    assert maximum.discrete is case["max_discrete"]
+
+
+def test_mixed_comparison_recycling_errors():
+    left = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    right = mt.mixtime(mt.yearmonth(["2024-01", "2024-02", "2024-03"]))
+    with pytest.raises(ValueError, match="recycle"):
+        left == right
+    with pytest.raises(ValueError):
+        mt.yearmonth(["2024-01", "2024-02"]) == mt.yearmonth(
+            ["2024-01", "2024-02", "2024-03"]
+        )
+
+
+def test_mixed_ordering_rejects_mixed_modes():
+    mixed = mt.mixtime(mt.yearmonth("2024-01"), mt.months(1))
+    with pytest.raises(TypeError, match="one mode"):
+        mixed.sort()
+    with pytest.raises(TypeError, match="one mode"):
+        mixed == mixed
+
+
+def test_missing_comparison_policy():
+    values = mt.mixtime(mt.yearmonth(["2024-01", None]), mt.year(["2024"]))
+    assert (values == values).tolist() == [True, True, True]
+    assert (values != values).tolist() == [False, False, False]
+    assert (values < values).tolist() == [False, False, False]
+    assert (values <= values).tolist() == [True, False, True]
+    assert values.min().format() == "2024 Jan"
+    assert values.min(skipna=False).format() == "NA"
+
+
+def test_time_vector_comparison_uses_intervals():
+    assert not bool(mt.yearmonth("2024-01") <= mt.date("2024-01-15"))
+    assert bool(mt.yearmonth("2024-01") <= mt.date("2024-01-31"))
+    assert bool(mt.year(["1980"]) <= mt.yearmonth("1980-12"))
+    assert not bool(mt.year(["1980"]) >= mt.yearmonth("1980-12"))
 
 
 PREDICATE_INPUTS = {
@@ -678,6 +918,61 @@ def test_indexing_returns_length_one_vectors():
     assert x[-1].format() == ["2024 Feb"]
 
 
+def test_scalar_access_preserves_metadata():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    scalar = x.scalar(0)
+    assert isinstance(scalar, mt.TimeScalar)
+    assert scalar.format() == "2024 Jan"
+    assert scalar.chronon.name == "month"
+    assert scalar.kind == "linear"
+    assert scalar.discrete is True
+    # Existing extraction behavior is intentionally unchanged.
+    assert x[0].format() == ["2024 Jan"]
+
+    cyclical = mt.month_of_year(["2024-01-15"]).scalar(0)
+    assert cyclical.kind == "cyclical"
+    assert cyclical.cycle is not None
+    assert cyclical.cycle.name == "year"
+
+    duration = mt.days(2).scalar(0)
+    assert duration.kind == "duration"
+    assert duration.format() == "2.0 days"
+
+
+def test_missing_scalars_and_masks():
+    x = mt.date(["2024-01-01", None])
+    assert x.isna().tolist() == [False, True]
+    assert x.notna().tolist() == [True, False]
+    assert x.scalar(1).isna()
+    assert x.scalar(1).format() == "NA"
+    assert mt.TimeScalar.missing(x.scalar(0)).format() == "NA"
+    assert x.scalar(0) == x.scalar(0)
+    assert hash(x.scalar(0)) == hash(x.scalar(0))
+    assert x.scalar(0) != x.scalar(1)
+
+
+def test_mixed_scalar_take_and_shift():
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    assert m.scalar(1).chronon.name == "month"
+    assert m.scalar(2).chronon.name == "day"
+    assert m.isna().tolist() == [False, False, False, True]
+    assert (m == m).tolist() == [True, True, True, True]
+    assert (m != m).tolist() == [False, False, False, False]
+
+    taken = m.take([2, -1, 0], allow_fill=True)
+    assert taken.format() == ["2024-03-01", "NA", "2024 Jan"]
+    assert [part.chronon.name for part in taken.parts] == ["day", "month"]
+
+    shifted = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.yearmonth(["2024-03"]),
+    ) + mt.months(1)
+    assert shifted.format() == ["2024 Feb", "2024 Mar", "2024 Apr"]
+
+
 def test_mixed_indexing_including_negative_index():
     m = mt.mixtime(mt.yearmonth(["2024-01"]), mt.yearquarter(["2024-Q2"]))
     assert m[0].format() == ["2024 Jan"]
@@ -704,6 +999,18 @@ def test_arithmetic_and_comparison():
 def test_timezone_aware_datetime():
     x = mt.datetime("2024-01-15 12:34:56+00:00", tz="UTC")
     assert x.format() == ["2024-01-15 12:34:56"]
+
+
+def test_non_utc_datetime_format_includes_abbreviation():
+    x = mt.datetime("2024-01-15 12:34:56", tz="America/New_York")
+    assert x.format() == ["2024-01-15 12:34:56 EST"]
+
+
+def test_fractional_calendar_shifts_are_explicitly_unsupported():
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.date("2024-01-31") + mt.months(1.5)
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York") + mt.quarters(0.5)
 
 
 def test_offset_date_strings_convert_to_requested_timezone():
@@ -908,6 +1215,213 @@ def test_tz_transitions_accept_naive_values_with_explicit_tz():
     assert result["time"].values.tolist() == [1710054000.0, 1730613600.0]
 
 
+def test_pandas_extension_series_roundtrip():
+    pd = pytest.importorskip("pandas")
+
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    series = x.to_pandas_series(name="when")
+
+    assert series.dtype == mt.MixtimeDtype()
+    assert isinstance(series.array, mt.MixtimeArray)
+    assert series.name == "when"
+    assert series.iloc[0] == x.scalar(0)
+    assert [value.format() for value in series] == ["2024 Jan", "2024 Feb"]
+    assert series.isna().tolist() == [False, False]
+
+    constructed = pd.Series(mt.MixtimeArray(x))
+    assert constructed.dtype == mt.MixtimeDtype()
+    assert [value.format() for value in constructed] == ["2024 Jan", "2024 Feb"]
+
+    explicit = pd.Series([x.scalar(0), x.scalar(1)], dtype=mt.MixtimeDtype())
+    assert explicit.dtype == mt.MixtimeDtype()
+    assert explicit.iloc[1] == x.scalar(1)
+
+
+def test_pandas_mixed_extension_dataframe():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    series = m.to_pandas_series()
+    assert series.dtype == mt.MixtimeDtype()
+    assert series.iloc[1].chronon.name == "month"
+    assert series.iloc[2].chronon.name == "day"
+    assert series.iloc[3].isna()
+
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+    assert frame["when"].dtype == mt.MixtimeDtype()
+    assert frame["when"].iloc[2].format() == "2024-03-01"
+    assert frame["when"].isna().tolist() == [False, False, False, True]
+
+
+def test_pandas_mixed_sort_filter_and_between():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series(name="when")
+
+    assert [value.format() for value in series.sort_values()] == [
+        "2024 Jan",
+        "2024 Feb",
+        "2024",
+        "2025",
+    ]
+    assert [value.format() for value in series.sort_values(ascending=False)] == [
+        "2025",
+        "2024",
+        "2024 Feb",
+        "2024 Jan",
+    ]
+
+    lower = mt.yearmonth("2024-01").scalar(0)
+    upper = mt.yearmonth("2024-02").scalar(0)
+    mask = series.between(lower, upper)
+    assert mask.tolist() == [True, True, False, False]
+    assert [value.format() for value in series[mask]] == ["2024 Jan", "2024 Feb"]
+    assert series.array.between(lower, upper).tolist() == [True, True, False, False]
+    assert (
+        series.between(lower, upper, inclusive="neither").tolist()
+        == [False, False, False, False]
+    )
+
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+    assert [
+        value.format() for value in frame.sort_values("when")["when"]
+    ] == ["2024 Jan", "2024 Feb", "2024", "2025"]
+    assert [value.format() for value in frame[frame["when"] >= upper]["when"]] == [
+        "2024 Feb",
+        "2025",
+    ]
+
+
+def test_pandas_mixed_min_max_and_arg_reductions():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series()
+
+    assert series.min().format() == "2024 Jan"
+    assert series.max().format() == "2025 Jan"
+    assert series.idxmin() == 0
+    assert series.idxmax() == 3
+    assert series.array.argmin() == 0
+    assert series.array.argmax() == 3
+
+    assert [value.format() for value in series.array.nsmallest(2)] == [
+        "2024 Jan",
+        "2024 Feb",
+    ]
+    assert [value.format() for value in series.array.nlargest(2)] == [
+        "2025",
+        "2024",
+    ]
+
+    with_missing = mt.mixtime(
+        mt.yearmonth(["2024-01", None]), mt.year(["2024"])
+    ).to_pandas_series()
+    assert with_missing.isna().tolist() == [False, True, False]
+    assert with_missing.min().format() == "2024 Jan"
+    assert with_missing.min(skipna=False).isna()
+    assert with_missing.sort_values().isna().tolist() == [False, False, True]
+    assert (with_missing == with_missing).tolist() == [True, True, True]
+
+
+def test_pandas_mixed_groupby_merge_and_concat():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series(name="when")
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+
+    grouped = frame.groupby("when", sort=False)["value"].sum()
+    assert grouped.tolist() == [1, 2, 3, 4]
+    assert [value.format() for value in grouped.index] == [
+        "2024 Jan",
+        "2024 Feb",
+        "2024",
+        "2025",
+    ]
+
+    left = pd.DataFrame({"when": series, "left": [1, 2, 3, 4]})
+    right = pd.DataFrame({"when": series, "right": [5, 6, 7, 8]})
+    merged = left.merge(right, on="when").sort_values("left")
+    assert merged["left"].tolist() == [1, 2, 3, 4]
+    assert merged["right"].tolist() == [5, 6, 7, 8]
+    assert merged["when"].dtype == mt.MixtimeDtype()
+
+    concatenated = pd.concat([series, series], ignore_index=True)
+    assert concatenated.dtype == mt.MixtimeDtype()
+    assert len(concatenated) == 8
+    assert len(pd.concat([series, series]).drop_duplicates()) == 4
+    assert len(series.unique()) == 4
+
+
+def test_pandas_cyclical_sort_and_between():
+    pd = pytest.importorskip("pandas")
+
+    cyc = mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    )
+    series = cyc.to_pandas_series()
+
+    assert [value.format() for value in series.sort_values()] == [
+        "Jan",
+        "Mar",
+        "Jun",
+        "Dec",
+    ]
+    assert series.min().format() == "Mar"
+    assert series.max().format() == "Jan"
+    assert series.between(
+        mt.month_of_year(["2024-01-15"]).scalar(0),
+        mt.month_of_year(["2024-03-15"]).scalar(0),
+    ).tolist() == [False, True, False, True]
+
+
+def test_pandas_extension_take_concat_and_numpy():
+    pd = pytest.importorskip("pandas")
+
+    x = mt.date(["2024-01-01", None, "2024-01-02"])
+    array = mt.MixtimeArray(x)
+    taken = array.take([0, -1, 1], allow_fill=True)
+    assert taken.isna().tolist() == [False, True, True]
+    assert taken[0].format() == "2024-01-01"
+
+    left = pd.Series(array)
+    right = pd.Series(array)
+    joined = pd.concat([left, right], ignore_index=True)
+    assert joined.dtype == mt.MixtimeDtype()
+    assert len(joined) == 6
+
+    values = left.to_numpy()
+    assert all(isinstance(value, mt.TimeScalar) for value in values)
+    assert left.astype(object).iloc[0] == x.scalar(0)
+    assert left.astype("mixtime").dtype == mt.MixtimeDtype()
+    assert pd.array([x.scalar(0), x.scalar(2)], dtype="mixtime").dtype == mt.MixtimeDtype()
+
+    filled = left.fillna(x.scalar(0))
+    assert filled.isna().tolist() == [False, False, False]
+    assert filled.iloc[1].format() == "2024-01-01"
+    assert left.dropna().tolist() == [x.scalar(0), x.scalar(2)]
+    assert left.where(left.notna(), x.scalar(0)).isna().tolist() == [
+        False,
+        False,
+        False,
+    ]
+
+
 def test_pandas_is_optional():
     pytest.importorskip("pandas")
     x = mt.yearmonth(["2024-01", "2024-02"])
@@ -948,7 +1462,7 @@ def test_pandas_input_coercion():
     ]
     aware = pd.Series(pd.to_datetime(["2024-01-15 12:00:00+00:00"]))
     assert mt.datetime(aware, tz="America/New_York").format() == [
-        "2024-01-15 07:00:00"
+        "2024-01-15 07:00:00 EST"
     ]
     assert mt.date(pd.NaT).format() == ["NA"]
     assert mt.date(np.datetime64("NaT", "ns")).format() == ["NA"]
@@ -964,8 +1478,7 @@ def test_discrete_shift_rejects_indeterminate_duration():
     assert (quarters + mt.months(3)).format() == ["2024 Q3", "2024 Q4"]
 
     dates = mt.date(["2024-01-15", "2024-02-29"])
-    with pytest.raises(ValueError, match="temporally indeterminate"):
-        dates + mt.months(1)
+    assert (dates + mt.months(1)).format() == ["2024-02-15", "2024-03-29"]
     assert (dates + mt.weeks(1)).format() == ["2024-01-22", "2024-03-07"]
 
 
@@ -1037,9 +1550,9 @@ def test_yearweek_to_date_uses_monday_start():
     assert mt.date(weeks).values.tolist() == [19723, 19737]
 
 
-def test_continuous_cross_category_shifts_are_explicitly_unsupported():
-    with pytest.raises(NotImplementedError, match="Continuous shifts"):
-        mt.date(dt.date(2024, 1, 31), discrete=False) + mt.months(1)
+def test_continuous_calendar_shifts_and_unsupported_cross_category_shifts():
+    continuous_date = mt.date(dt.date(2024, 1, 31), discrete=False)
+    assert (continuous_date + mt.months(1)).format() == ["2024-02-29 0.0%"]
     with pytest.raises(NotImplementedError, match="Continuous shifts"):
         mt.yearmonth(dt.date(2024, 1, 31), discrete=False) + mt.days(1)
     with pytest.raises(ValueError, match="calendar and fixed"):
@@ -1082,6 +1595,76 @@ def test_sequence_by_week_name_adds_seven_days():
         "2024-01-29",
         "2024-02-05",
     ]
+
+
+def test_sequence_calendar_steps_accept_durations_units_and_counted_strings():
+    month_start = mt.date("2024-01-31")
+    month_end = mt.date("2024-05-31")
+    expected = mt.seq(month_start, month_end, by="month").format()
+    assert mt.seq(month_start, month_end, by=mt.months(1)).format() == expected
+    assert (
+        mt.seq(month_start, month_end, by=mt.cal_gregorian.month(1)).format()
+        == expected
+    )
+    assert mt.seq(month_start, month_end, by="1 month").format() == expected
+    assert mt.seq(month_start, month_end, by="months").format() == expected
+
+    two_month_end = mt.date("2025-07-31")
+    expected = mt.seq(month_start, two_month_end, by=mt.months(2)).format()
+    assert mt.seq(month_start, two_month_end, by="2 months").format() == expected
+
+    quarter_end = mt.date("2025-01-31")
+    expected = mt.seq(month_start, quarter_end, by="quarter").format()
+    assert mt.seq(month_start, quarter_end, by=mt.quarters(1)).format() == expected
+    assert (
+        mt.seq(
+            month_start, quarter_end, by=mt.cal_gregorian.quarter(1)
+        ).format()
+        == expected
+    )
+
+    day_end = mt.date("2024-01-10")
+    expected = mt.seq(mt.date("2024-01-01"), day_end, by="3 days").format()
+    assert mt.seq(mt.date("2024-01-01"), day_end, by=mt.days(3)).format() == expected
+    assert (
+        mt.seq(
+            mt.date("2024-01-01"), day_end, by=mt.cal_gregorian.day(3)
+        ).format()
+        == expected
+    )
+
+
+def test_sequence_counted_unit_strings_work_for_calendar_chronons():
+    start = mt.yearmonth("2024-01")
+    end = mt.yearmonth("2024-06")
+    assert mt.seq(start, end, by="2 months").format() == mt.seq(
+        start, end, by=mt.months(2)
+    ).format()
+
+
+def test_sequence_calendar_steps_return_empty_for_wrong_direction():
+    assert len(
+        mt.seq(mt.date("2024-05-31"), mt.date("2024-01-31"), by="month")
+    ) == 0
+    assert len(
+        mt.seq(mt.date("2024-01-31"), mt.date("2024-05-31"), by="-1 month")
+    ) == 0
+
+
+def test_sequence_rejects_fractional_month_steps():
+    start = mt.date("2024-01-31")
+    end = mt.date("2024-05-31")
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.seq(start, end, by=mt.months(1.5))
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.seq(start, end, by="1.5 months")
+
+
+def test_sequence_counted_fractional_years_use_whole_months():
+    start = mt.date("2024-01-31")
+    end = mt.date("2026-01-31")
+    expected = mt.seq(start, end, by=mt.years(1.5)).format()
+    assert mt.seq(start, end, by="1.5 years").format() == expected
 
 
 def test_duration_rejects_time_point_input():

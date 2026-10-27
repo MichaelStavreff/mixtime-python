@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import re
+from calendar import monthrange
 from typing import Any, Iterable, Iterator
 from zoneinfo import ZoneInfo
 
@@ -30,6 +31,13 @@ _MONTH_FULL = ("January", "February", "March", "April", "May", "June",
 _WEEKDAY_ABBR = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _WEEKDAY_FULL = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
                  "Saturday", "Sunday")
+_UTC_TIMEZONES = {None, "", "UTC", "Etc/UTC"}
+_CALENDAR_SHIFT_UNITS = {"day", "week", "month", "quarter", "year"}
+_MONTHS_PER_UNIT = {"month": 1, "quarter": 3, "year": 12}
+
+
+def _timezone_is_utc(tz: str | None) -> bool:
+    return tz in _UTC_TIMEZONES
 
 
 class TimeVector:
@@ -68,6 +76,29 @@ class TimeVector:
     def __iter__(self) -> Iterator["TimeVector"]:
         for index in range(len(self)):
             yield self[index]
+
+    def scalar(self, index: int) -> Any:
+        """Return one element as a :class:`~mixtime.scalar.TimeScalar`.
+
+        ``x[i]`` deliberately keeps returning a length-one vector for
+        compatibility with R-style extraction.  Use this method when a real
+        scalar is needed, for example for pandas.
+        """
+        from .scalar import TimeScalar
+
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("TimeVector index out of range")
+        return TimeScalar.from_vector(self, self.values[index])
+
+    def isna(self) -> np.ndarray:
+        """Return a boolean mask for missing values."""
+        return np.asarray([_is_missing(value) for value in self.values], dtype=bool)
+
+    def notna(self) -> np.ndarray:
+        """Return the complement of :meth:`isna`."""
+        return np.logical_not(self.isna())
 
     def __array__(self, dtype: Any = None) -> np.ndarray:
         if dtype is None:
@@ -150,6 +181,9 @@ class TimeVector:
                     discrete=False,
                     calendar=self.calendar,
                 )
+            shifted = self._calendar_shift_values(other, 1)
+            if shifted is not None:
+                return self._new(_coerce_values(shifted, self.discrete))
             values = self._duration_values_in_chronon(other)
             return self._new(_coerce_values(self.values + values, self.discrete))
         if isinstance(self, Duration) and isinstance(other, TimeVector):
@@ -194,6 +228,9 @@ class TimeVector:
                 calendar=self.calendar,
             )
         if isinstance(other, Duration) and not isinstance(self, Duration):
+            shifted = self._calendar_shift_values(other, -1)
+            if shifted is not None:
+                return self._new(_coerce_values(shifted, self.discrete))
             values = self._duration_values_in_chronon(other)
             return self._new(_coerce_values(self.values - values, self.discrete))
         if isinstance(self, TimeVector) and isinstance(other, TimeVector) and not isinstance(self, Duration):
@@ -245,6 +282,30 @@ class TimeVector:
             _check_discrete_shift(self.chronon, other.chronon, values)
         return values
 
+    def _calendar_shift_values(
+        self, other: "Duration", sign: int
+    ) -> np.ndarray | None:
+        """Shift dates and datetimes with calendar-field arithmetic.
+
+        Day-or-longer durations keep the local wall-clock reading for
+        datetimes, which is what R does in a time zone. Month/year shifts clamp
+        the day to the last valid day of the target month. Returns ``None``
+        when the ordinary chronon conversion path should be used instead.
+        """
+        if self.kind != "linear" or isinstance(self, Duration):
+            return None
+        duration_name = other.chronon.name
+        if duration_name not in _CALENDAR_SHIFT_UNITS:
+            return None
+        time_name = self.chronon.name
+        if time_name == "day":
+            return _shift_date_values(self.values, other, sign, self.discrete)
+        if time_name == "second":
+            return _shift_datetime_values(
+                self.values, other, sign, self.timezone
+            )
+        return None
+
     def __mul__(self, other: Any) -> "Duration":
         if isinstance(self, Duration) and np.isscalar(other):
             return Duration(
@@ -280,45 +341,9 @@ class TimeVector:
 
     def __eq__(self, other: Any) -> np.ndarray:
         if isinstance(other, TimeVector):
-            if isinstance(self, Duration) != isinstance(other, Duration):
-                raise TypeError("Cannot compare a duration with a time point")
-            if isinstance(self, Duration):
-                values = self.calendar.convert(
-                    other.values,
-                    other.chronon,
-                    self.chronon,
-                    discrete=False,
-                    duration=True,
-                    anchored=False,
-                )
-                return self.values == values
-            if self.kind == "linear" and other.kind == "linear":
-                # R compares linear time points as half-open intervals: a
-                # discrete chronon spans its whole granule, while a
-                # continuous value is an instant.
-                common = _common_unit(self.chronon, other.chronon, duration=False)
-                x_start, x_end = _linear_interval(
-                    self.values, self.chronon, common, self.calendar, self.discrete
-                )
-                y_start, y_end = _linear_interval(
-                    other.values,
-                    other.chronon,
-                    common,
-                    other.calendar,
-                    other.discrete,
-                )
-                return (x_start == y_start) & (x_end == y_end)
-            values = self.calendar.convert(
-                other.values,
-                other.chronon,
-                self.chronon,
-                discrete=False,
-                duration=False,
-            )
-            equal = self.values == values
-            if self.discrete != other.discrete:
-                return np.zeros_like(equal, dtype=bool)
-            return equal
+            return self._compare(other, "==")
+        if _is_time_scalar(other):
+            return self._compare(other.to_vector(), "==")
         return NotImplemented
 
     def __ne__(self, other: Any) -> np.ndarray:
@@ -328,31 +353,105 @@ class TimeVector:
         return np.logical_not(equal)
 
     def __lt__(self, other: Any) -> np.ndarray:
-        return self._compare(other, np.less)
+        return self._compare(other, "<")
 
     def __le__(self, other: Any) -> np.ndarray:
-        return self._compare(other, np.less_equal)
+        return self._compare(other, "<=")
 
     def __gt__(self, other: Any) -> np.ndarray:
-        return self._compare(other, np.greater)
+        return self._compare(other, ">")
 
     def __ge__(self, other: Any) -> np.ndarray:
-        return self._compare(other, np.greater_equal)
+        return self._compare(other, ">=")
 
-    def _compare(self, other: Any, op) -> np.ndarray:
-        if isinstance(other, TimeVector):
-            if isinstance(self, Duration) != isinstance(other, Duration):
-                raise TypeError("Cannot compare a duration with a time point")
-            values = self.calendar.convert(
+    def _compare(self, other: Any, op: str) -> np.ndarray:
+        if _is_time_scalar(other):
+            other = other.to_vector()
+        if not isinstance(other, TimeVector):
+            raise TypeError(f"Cannot compare TimeVector with {type(other)!r}")
+        if isinstance(self, Duration) != isinstance(other, Duration):
+            raise TypeError("Cannot compare a duration with a time point")
+        if self.kind != other.kind:
+            raise TypeError(
+                f"Cannot compare {self.kind} time with {other.kind} time"
+            )
+
+        if op == "!=":
+            return np.logical_not(self._compare(other, "=="))
+
+        self_missing = self.isna()
+        other_missing = other.isna()
+        missing = self_missing | other_missing
+
+        if isinstance(self, Duration):
+            common = _common_unit(self.chronon, other.chronon, duration=True)
+            left = _convert_defined(
+                self.values,
+                self.chronon,
+                common,
+                self.calendar,
+                duration=True,
+                anchored=False,
+            )
+            right = _convert_defined(
                 other.values,
                 other.chronon,
-                self.chronon,
-                discrete=False,
-                duration=isinstance(self, Duration),
-                anchored=not isinstance(self, Duration),
+                common,
+                other.calendar,
+                duration=True,
+                anchored=False,
             )
-            return op(self.values, values)
-        raise TypeError(f"Cannot compare TimeVector with {type(other)!r}")
+            result = _duration_relation(op, left, right)
+        else:
+            common = _comparison_unit(self.chronon, other.chronon)
+            if self.kind == "cyclical":
+                cycle = _common_cycle([self, other])
+                assert cycle is not None
+                x_start, x_end = _cyclical_interval(
+                    self.values,
+                    self.chronon,
+                    common,
+                    cycle,
+                    self.calendar,
+                    self.discrete,
+                    self.timezone,
+                )
+                y_start, y_end = _cyclical_interval(
+                    other.values,
+                    other.chronon,
+                    common,
+                    cycle,
+                    other.calendar,
+                    other.discrete,
+                    other.timezone,
+                )
+            else:
+                x_start, x_end = _linear_interval(
+                    self.values,
+                    self.chronon,
+                    common,
+                    self.calendar,
+                    self.discrete,
+                )
+                y_start, y_end = _linear_interval(
+                    other.values,
+                    other.chronon,
+                    common,
+                    other.calendar,
+                    other.discrete,
+                )
+            result = _relation(op, x_start, x_end, y_start, y_end)
+
+        result = np.asarray(result, dtype=bool)
+        if op == "==":
+            result = np.where(
+                self_missing & other_missing,
+                True,
+                np.where(missing, False, result),
+            )
+        else:
+            result = np.where(missing, False, result)
+        return result
 
     def to_pandas(self):
         """Return a pandas index for linear Gregorian time.
@@ -412,6 +511,24 @@ class TimeVector:
             return pd.DatetimeIndex(values)
         raise NotImplementedError(f"to_pandas() is not implemented for {name}")
 
+    def to_pandas_series(self, name: str | None = None):
+        """Return this vector as a pandas Series with ``MixtimeDtype``.
+
+        This is separate from :meth:`to_pandas`, which returns a pandas
+        ``PeriodIndex``/``DatetimeIndex`` for linear time.
+        """
+        try:
+            import pandas as pd
+        except ImportError as exc:  # pragma: no cover - depends on env
+            raise ImportError(
+                "pandas is required for to_pandas_series(); "
+                "install mixtime[pandas]"
+            ) from exc
+
+        from .pandas_ext import MixtimeArray
+
+        return pd.Series(MixtimeArray(self), name=name)
+
     # -- default formatting ------------------------------------------------
     def _format_one(self, value: Any) -> str:
         if _is_missing(value):
@@ -442,10 +559,13 @@ class TimeVector:
         if name == "day":
             return f"{_date_from_day(value).isoformat()}{suffix}"
         if name in {"second", "millisecond", "microsecond", "nanosecond"}:
-            base = _datetime_from_seconds(value, self.timezone).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            return f"{base}{suffix}"
+            local = _datetime_from_seconds(value, self.timezone)
+            result = f"{local.strftime('%Y-%m-%d %H:%M:%S')}{suffix}"
+            if not _timezone_is_utc(self.timezone):
+                abbreviation = local.tzname()
+                if abbreviation:
+                    result = f"{result} {abbreviation}"
+            return result
         if name == "week":
             iso = _date_from_day(float(value) * 7.0).isocalendar()
             return f"{iso.year} W{iso.week:02d}{suffix}"
@@ -545,6 +665,337 @@ class Mixtime:
         if not 0 <= index < len(self):
             raise IndexError("Mixtime index out of range")
         return self._slice(index, index + 1)
+
+    def scalar(self, index: int) -> Any:
+        """Return one element as a :class:`~mixtime.scalar.TimeScalar`."""
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("Mixtime index out of range")
+        offset = 0
+        for part in self.parts:
+            if index < offset + len(part):
+                return part.scalar(index - offset)
+            offset += len(part)
+        raise IndexError("Mixtime index out of range")
+
+    def isna(self) -> np.ndarray:
+        """Return a boolean mask for missing values."""
+        if not self.parts:
+            return np.asarray([], dtype=bool)
+        return np.concatenate([part.isna() for part in self.parts])
+
+    def notna(self) -> np.ndarray:
+        """Return the complement of :meth:`isna`."""
+        return np.logical_not(self.isna())
+
+    def take(
+        self,
+        indices: Any,
+        *,
+        allow_fill: bool = False,
+        fill_value: Any = None,
+    ) -> "Mixtime":
+        """Select positions, optionally filling ``-1`` with a missing value."""
+        from .scalar import TimeScalar, _mixtime_from_scalars
+
+        positions = np.asarray(indices, dtype=np.int64).ravel()
+        if not allow_fill:
+            return _mixtime_from_scalars(self.scalar(int(i)) for i in positions)
+
+        fill = (
+            fill_value
+            if isinstance(fill_value, TimeScalar)
+            else TimeScalar.missing()
+        )
+        scalars = [
+            fill if int(i) == -1 else self.scalar(int(i)) for i in positions
+        ]
+        return _mixtime_from_scalars(scalars)
+
+    def to_pandas_series(self, name: str | None = None):
+        """Return this mixed container as a pandas Series with ``MixtimeDtype``."""
+        try:
+            import pandas as pd
+        except ImportError as exc:  # pragma: no cover - depends on env
+            raise ImportError(
+                "pandas is required for to_pandas_series(); "
+                "install mixtime[pandas]"
+            ) from exc
+
+        from .pandas_ext import MixtimeArray
+
+        return pd.Series(MixtimeArray(self), name=name)
+
+    def __add__(self, other: Any) -> "Mixtime":
+        if isinstance(other, Duration):
+            return Mixtime([part + other for part in self.parts])
+        return NotImplemented
+
+    def __radd__(self, other: Any) -> "Mixtime":
+        return self.__add__(other)
+
+    def __sub__(self, other: Any) -> "Mixtime":
+        if isinstance(other, Duration):
+            return Mixtime([part - other for part in self.parts])
+        return NotImplemented
+
+    def _operand_scalars(self, other: Any) -> list[Any] | None:
+        if isinstance(other, Mixtime):
+            _mixtime_mode(other.parts)
+            return [other.scalar(i) for i in range(len(other))]
+        if isinstance(other, TimeVector):
+            return [other.scalar(i) for i in range(len(other))]
+        if _is_time_scalar(other):
+            return [other]
+        return None
+
+    def _compare_scalars_against(
+        self, operands: list[Any], op: str
+    ) -> np.ndarray:
+        _mixtime_mode(self.parts)
+        n_self = len(self)
+        n_other = len(operands)
+        if n_self == 0 or n_other == 0:
+            if n_self != n_other:
+                raise ValueError(
+                    f"Can't recycle a Mixtime of length {n_self} to match "
+                    f"length {n_other}."
+                )
+            return np.asarray([], dtype=bool)
+        if n_self == n_other:
+            pairs = zip(
+                (self.scalar(i) for i in range(n_self)), operands
+            )
+        elif n_other == 1:
+            right = operands[0]
+            pairs = ((self.scalar(i), right) for i in range(n_self))
+        elif n_self == 1:
+            left = self.scalar(0)
+            pairs = ((left, right) for right in operands)
+        else:
+            raise ValueError(
+                f"Can't recycle a Mixtime of length {n_self} to match "
+                f"length {n_other}."
+            )
+        return np.asarray(
+            [_compare_scalars(left, right, op) for left, right in pairs],
+            dtype=bool,
+        )
+
+    def __eq__(self, other: Any) -> np.ndarray:
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        return self._compare_scalars_against(operands, "==")
+
+    def __ne__(self, other: Any) -> np.ndarray:
+        equal = self.__eq__(other)
+        if equal is NotImplemented:
+            return NotImplemented
+        return np.logical_not(equal)
+
+    def __lt__(self, other: Any) -> np.ndarray:
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        return self._compare_scalars_against(operands, "<")
+
+    def __le__(self, other: Any) -> np.ndarray:
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        return self._compare_scalars_against(operands, "<=")
+
+    def __gt__(self, other: Any) -> np.ndarray:
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        return self._compare_scalars_against(operands, ">")
+
+    def __ge__(self, other: Any) -> np.ndarray:
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        return self._compare_scalars_against(operands, ">=")
+
+    # -- ordering ----------------------------------------------------------
+    def order_values(self) -> np.ndarray:
+        """Return R's ``vec_proxy_order`` for this mixed vector.
+
+        Every part is converted to the finest shared chronon. Discrete values
+        are nudged by half a chronon before conversion so a span sorts at its
+        midpoint, matching R. Cyclical parts then order by their position
+        within the shared cycle rather than their absolute chronon count.
+        """
+        if not self.parts:
+            return np.asarray([], dtype=np.float64)
+
+        mode = _mixtime_mode(self.parts)
+        assert mode is not None
+        common = _common_chronon(self.parts)
+        cycle = _common_cycle(self.parts) if mode == "cyclical" else None
+        multiple = len(self.parts) > 1
+
+        pieces: list[np.ndarray] = []
+        for part in self.parts:
+            values = np.asarray(part.values, dtype=np.float64)
+            if multiple and part.discrete:
+                values = values + 0.5
+            if mode == "duration":
+                converted = _convert_defined(
+                    values,
+                    part.chronon,
+                    common,
+                    part.calendar,
+                    duration=True,
+                    anchored=False,
+                )
+            else:
+                converted = _convert_defined(
+                    values, part.chronon, common, part.calendar
+                )
+            if mode == "cyclical":
+                assert cycle is not None
+                converted = _cyclical_positions(
+                    converted, common, cycle, part.calendar, part.timezone
+                )
+            pieces.append(converted)
+        return np.concatenate(pieces)
+
+    def argsort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "last",
+    ) -> np.ndarray:
+        """Return positions that sort this vector chronologically.
+
+        ``na_position`` is ``"first"``, ``"last"``, or ``"drop"``. The default
+        keeps missing values last, matching R's ``order()``.
+        """
+        if na_position not in {"first", "last", "drop"}:
+            raise ValueError(
+                "na_position must be 'first', 'last', or 'drop'"
+            )
+        proxy = self.order_values()
+        missing = np.isnan(proxy)
+        present = np.flatnonzero(~missing)
+        if decreasing:
+            order = present[np.argsort(-proxy[present], kind="stable")]
+        else:
+            order = present[np.argsort(proxy[present], kind="stable")]
+        na = np.flatnonzero(missing)
+        if na_position == "first":
+            return np.concatenate([na, order])
+        if na_position == "last":
+            return np.concatenate([order, na])
+        return order
+
+    def sort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "drop",
+    ) -> "Mixtime":
+        """Sort chronologically; missing values are dropped by default.
+
+        R's ``sort()`` drops missing values unless ``na.last`` is supplied, so
+        ``na_position="drop"`` is the default here.
+        """
+        return self.take(
+            self.argsort(decreasing=decreasing, na_position=na_position)
+        )
+
+    def _extreme(self, which: str, *, skipna: bool = True) -> Any:
+        from .scalar import TimeScalar
+
+        mode = _mixtime_mode(self.parts)
+        if mode is None:
+            raise ValueError(f"{which}() arg is an empty sequence")
+        common = _common_chronon(self.parts)
+        cycle = _common_cycle(self.parts) if mode == "cyclical" else None
+        calendar = self.parts[0].calendar
+        timezone = common.timezone or self.parts[0].timezone
+        discrete = all(part.discrete for part in self.parts)
+
+        pieces: list[np.ndarray] = []
+        for part in self.parts:
+            if mode == "duration":
+                converted = _convert_defined(
+                    part.values,
+                    part.chronon,
+                    common,
+                    part.calendar,
+                    duration=True,
+                    anchored=False,
+                )
+            else:
+                converted = _convert_defined(
+                    part.values, part.chronon, common, part.calendar
+                )
+            pieces.append(converted)
+        values = np.concatenate(pieces)
+        missing = np.isnan(values)
+
+        def scalar(value: float | None) -> Any:
+            return TimeScalar(
+                value,
+                common,
+                kind=mode,
+                discrete=discrete,
+                calendar=calendar,
+                cycle=cycle,
+                timezone=timezone,
+            )
+
+        if missing.all() or (not skipna and missing.any()):
+            return scalar(None)
+        extreme = np.nanmin(values) if which == "min" else np.nanmax(values)
+        return scalar(float(extreme))
+
+    def min(self, *, skipna: bool = True) -> Any:
+        """Return the earliest value as a :class:`~mixtime.scalar.TimeScalar`.
+
+        All parts are converted to their finest shared chronon first, matching
+        R's ``min()``. Missing values are skipped unless ``skipna=False``.
+        """
+        return self._extreme("min", skipna=skipna)
+
+    def max(self, *, skipna: bool = True) -> Any:
+        """Return the latest value as a :class:`~mixtime.scalar.TimeScalar`."""
+        return self._extreme("max", skipna=skipna)
+
+    def _n_extreme(
+        self, n: int, *, largest: bool, keep: str
+    ) -> "Mixtime":
+        if keep not in {"first", "last", "all"}:
+            raise ValueError("keep must be 'first', 'last', or 'all'")
+        if n <= 0:
+            return Mixtime([])
+        proxy = self.order_values()
+        present = np.flatnonzero(~np.isnan(proxy))
+        if present.size == 0:
+            return Mixtime([])
+        values = -proxy[present] if largest else proxy[present]
+        if keep == "last":
+            order = present[::-1][np.argsort(values[::-1], kind="stable")]
+        else:
+            order = present[np.argsort(values, kind="stable")]
+        if keep == "all" and order.size > n:
+            boundary = proxy[order[n - 1]]
+            order = order[proxy[order] == boundary]
+        else:
+            order = order[:n]
+        return self.take(order)
+
+    def nlargest(self, n: int = 5, keep: str = "first") -> "Mixtime":
+        """Return the ``n`` latest values, chronologically."""
+        return self._n_extreme(n, largest=True, keep=keep)
+
+    def nsmallest(self, n: int = 5, keep: str = "first") -> "Mixtime":
+        """Return the ``n`` earliest values, chronologically."""
+        return self._n_extreme(n, largest=False, keep=keep)
 
     def _slice(self, start: int, stop: int) -> "Mixtime":
         if start < 0:
@@ -817,6 +1268,37 @@ _UNIT_RANK = {
 }
 
 
+def _convert_defined(
+    values: Any,
+    from_unit: Unit,
+    to_unit: Unit,
+    calendar: Calendar,
+    *,
+    discrete: bool = False,
+    duration: bool = False,
+    anchored: bool = True,
+) -> np.ndarray:
+    """Convert values, leaving missing entries as ``NaN``.
+
+    The Rust calendar kernel indexes month/year tables directly, so ``NaN``
+    must never reach it.  Comparisons and ordering routinely contain missing
+    values, hence this wrapper.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    result = np.full(values.shape, np.nan, dtype=np.float64)
+    defined = np.isfinite(values)
+    if np.any(defined):
+        result[defined] = calendar.convert(
+            values[defined],
+            from_unit,
+            to_unit,
+            discrete=discrete,
+            duration=duration,
+            anchored=anchored,
+        )
+    return result
+
+
 def _linear_interval(
     values: np.ndarray,
     chronon: Unit,
@@ -824,16 +1306,237 @@ def _linear_interval(
     calendar: Calendar,
     discrete: bool,
 ) -> tuple[np.ndarray, np.ndarray]:
-    start = calendar.convert(values, chronon, common, discrete=False)
+    start = _convert_defined(values, chronon, common, calendar, discrete=False)
     if not discrete:
         return start, start
-    end = calendar.convert(
+    end = _convert_defined(
         np.asarray(values, dtype=np.float64) + 1.0,
         chronon,
         common,
+        calendar,
         discrete=False,
     )
     return start, end
+
+
+def _cyclical_positions(
+    values: Any,
+    chronon: Unit,
+    cycle: Unit,
+    calendar: Calendar,
+    timezone: str | None,
+) -> np.ndarray:
+    """Return each value's 0-based position within ``cycle``.
+
+    Missing values stay ``NaN``; :func:`_cycle_offset` is only called for
+    defined entries because the calendar kernel cannot handle ``NaN``.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    positions = np.full(values.shape, np.nan, dtype=np.float64)
+    defined = np.isfinite(values)
+    if np.any(defined):
+        positions[defined] = [
+            _cycle_offset(value, chronon, cycle, calendar, timezone)
+            for value in values[defined]
+        ]
+    return positions
+
+
+def _cyclical_interval(
+    values: Any,
+    chronon: Unit,
+    common: Unit,
+    cycle: Unit,
+    calendar: Calendar,
+    discrete: bool,
+    timezone: str | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    values = np.asarray(values, dtype=np.float64)
+    converted = _convert_defined(
+        values, chronon, common, calendar, discrete=False
+    )
+    start = _cyclical_positions(converted, common, cycle, calendar, timezone)
+    if not discrete:
+        return start, start
+    following = _convert_defined(
+        values + 1.0, chronon, common, calendar, discrete=False
+    )
+    return start, start + (following - converted)
+
+
+def _cycle_key(cycle: Unit | None) -> tuple[Any, ...] | None:
+    if cycle is None:
+        return None
+    return (
+        cycle.name,
+        float(cycle.n),
+        cycle.timezone,
+        cycle.calendar.name if cycle.calendar is not None else None,
+    )
+
+
+def _common_cycle(parts: Iterable[Any]) -> Unit | None:
+    """Return the shared cycle of cyclical parts, or ``None``.
+
+    A cycle is a modulus rather than a unit, so differing cycles cannot be
+    reconciled: R raises instead of picking a finer common cycle.
+    """
+    cycle: Unit | None = None
+    for part in parts:
+        if getattr(part, "kind", None) != "cyclical":
+            continue
+        current = getattr(part, "cycle", None)
+        if current is None:
+            raise ValueError("cyclical time is missing its cycle")
+        if cycle is None:
+            cycle = current
+        elif _cycle_key(current) != _cycle_key(cycle):
+            raise ValueError(
+                "Can't compare cyclical time of differing cycles."
+            )
+    return cycle
+
+
+def _comparison_unit(left: Unit, right: Unit) -> Unit:
+    """Return R's ``chronon_glb`` for two comparison operands."""
+    from .granules import chronon_glb
+
+    return chronon_glb(left, right)
+
+
+def _relation(
+    op: str,
+    x_start: Any,
+    x_end: Any,
+    y_start: Any,
+    y_end: Any,
+) -> Any:
+    """Apply R's half-open interval comparison operators."""
+    if op == "==":
+        return (x_start == y_start) & (x_end == y_end)
+    if op == "!=":
+        return ~((x_start == y_start) & (x_end == y_end))
+    if op == "<":
+        return x_end <= y_start
+    if op == ">":
+        return x_start >= y_end
+    if op == "<=":
+        return x_end <= y_end
+    if op == ">=":
+        return x_start >= y_start
+    raise ValueError(f"unknown comparison operator {op!r}")
+
+
+def _duration_relation(op: str, left: Any, right: Any) -> Any:
+    if op == "==":
+        return left == right
+    if op == "!=":
+        return left != right
+    if op == "<":
+        return left < right
+    if op == ">":
+        return left > right
+    if op == "<=":
+        return left <= right
+    if op == ">=":
+        return left >= right
+    raise ValueError(f"unknown comparison operator {op!r}")
+
+
+def _scalar_interval(
+    scalar: Any,
+    common: Unit,
+    cycle: Unit | None,
+) -> tuple[float, float]:
+    """Return the half-open interval bounds of one scalar in ``common``."""
+    if scalar.kind == "cyclical":
+        assert cycle is not None
+        start, end = _cyclical_interval(
+            [scalar.value],
+            scalar.chronon,
+            common,
+            cycle,
+            scalar.calendar,
+            scalar.discrete,
+            scalar.timezone,
+        )
+    else:
+        start, end = _linear_interval(
+            np.asarray([scalar.value], dtype=np.float64),
+            scalar.chronon,
+            common,
+            scalar.calendar,
+            scalar.discrete,
+        )
+    return float(start[0]), float(end[0])
+
+
+def _compare_scalars(left: Any, right: Any, op: str) -> bool:
+    """Compare two scalars with R's interval semantics.
+
+    Missing values compare equal to other missing values for ``==`` and
+    ``!=`` is its negation.  Every ordering relation involving a missing value
+    is ``False``.  This keeps pandas masks boolean while R would propagate a
+    three-valued ``NA``.
+    """
+    if op == "!=":
+        return not _compare_scalars(left, right, "==")
+    if left.isna() or right.isna():
+        return op == "==" and left.isna() and right.isna()
+    if left.kind != right.kind:
+        raise TypeError(
+            "Cannot compare a duration with a time point"
+            if {left.kind, right.kind} == {"duration", "linear"}
+            or {left.kind, right.kind} == {"duration", "cyclical"}
+            else f"Cannot compare {left.kind} time with {right.kind} time"
+        )
+
+    if left.kind == "duration":
+        common = _common_unit(left.chronon, right.chronon, duration=True)
+        left_value = _convert_defined(
+            [left.value],
+            left.chronon,
+            common,
+            left.calendar,
+            duration=True,
+            anchored=False,
+        )[0]
+        right_value = _convert_defined(
+            [right.value],
+            right.chronon,
+            common,
+            right.calendar,
+            duration=True,
+            anchored=False,
+        )[0]
+        return bool(_duration_relation(op, left_value, right_value))
+
+    common = _comparison_unit(left.chronon, right.chronon)
+    cycle = _common_cycle([left, right]) if left.kind == "cyclical" else None
+    x_start, x_end = _scalar_interval(left, common, cycle)
+    y_start, y_end = _scalar_interval(right, common, cycle)
+    return bool(_relation(op, x_start, x_end, y_start, y_end))
+
+
+def _mixtime_mode(parts: Iterable[Any]) -> str | None:
+    modes = {part.kind for part in parts}
+    if len(modes) > 1:
+        names = " and ".join(sorted(modes))
+        raise TypeError(
+            f"Can't compare {names} time in a single Mixtime vector. "
+            "Comparing, sorting and de-duplicating a Mixtime requires every "
+            "element to share one mode of time."
+        )
+    return modes.pop() if modes else None
+
+
+def _common_chronon(parts: Iterable[Any]) -> Unit:
+    from .granules import chronon_glb
+
+    units = [part.chronon for part in parts]
+    if not units:
+        return cal_gregorian.day
+    return chronon_glb(units)
 
 
 def _common_unit(left: Unit, right: Unit, *, duration: bool) -> Unit:
@@ -1215,6 +1918,12 @@ def _is_missing(value: Any) -> bool:
     return type(value).__name__ in {"NAType", "NaTType"}
 
 
+def _is_time_scalar(value: Any) -> bool:
+    from .scalar import TimeScalar
+
+    return isinstance(value, TimeScalar)
+
+
 def _is_integral(value: Any) -> bool:
     return bool(np.isfinite(value)) and float(value) == np.floor(float(value))
 
@@ -1252,8 +1961,196 @@ def _date_from_day(value: Any) -> _dt.date:
 
 
 def _datetime_from_seconds(value: Any, tz: str | None) -> _dt.datetime:
-    zone = _dt.timezone.utc if tz in (None, "", "UTC") else ZoneInfo(tz)
+    zone = _dt.timezone.utc if _timezone_is_utc(tz) else ZoneInfo(tz)
     return _dt.datetime.fromtimestamp(float(value), tz=zone)
+
+
+def _shift_count(values: np.ndarray, duration: Duration) -> int:
+    time_count = len(values)
+    duration_count = len(duration.values)
+    if time_count == duration_count:
+        return time_count
+    if time_count == 1:
+        return duration_count
+    if duration_count == 1:
+        return time_count
+    raise ValueError(
+        "duration length must be 1 or match the time vector length"
+    )
+
+
+def _duration_amounts(
+    duration: Duration, count: int, sign: int
+) -> np.ndarray:
+    """Broadcast a duration's values and convert to its base unit."""
+    values = np.asarray(duration.values, dtype=float).reshape(-1)
+    if values.size == 1:
+        values = np.full(count, float(values[0]), dtype=float)
+    elif values.size != count:
+        raise ValueError(
+            "duration length must be 1 or match the time vector length"
+        )
+    return values * float(duration.chronon.n) * float(sign)
+
+
+def _calendar_month_amounts(
+    duration: Duration, count: int, sign: int
+) -> np.ndarray:
+    unit = duration.chronon.name
+    months = _duration_amounts(duration, count, sign) * float(
+        _MONTHS_PER_UNIT[unit]
+    )
+    finite = np.isfinite(months)
+    if np.any(finite & (months != np.floor(months))):
+        raise NotImplementedError(
+            "fractional month shifts are not implemented; the shift must be "
+            "a whole number of months. Use a whole-month duration or a "
+            "day/week duration."
+        )
+    return months
+
+
+def _day_fraction(value: _dt.datetime) -> float:
+    seconds = (
+        value.hour * 3600
+        + value.minute * 60
+        + value.second
+        + value.microsecond / 1_000_000.0
+    )
+    return seconds / 86_400.0
+
+
+def _add_months_local(
+    value: _dt.datetime, months: float
+) -> _dt.datetime:
+    """Add whole months, clamping the day to the target month."""
+    total = value.year * 12 + (value.month - 1) + int(months)
+    year, month_index = divmod(total, 12)
+    month = month_index + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def _shift_date_values(
+    values: np.ndarray, duration: Duration, sign: int, discrete: bool
+) -> np.ndarray:
+    count = _shift_count(values, duration)
+    values = np.broadcast_to(values, count)
+    unit = duration.chronon.name
+    if unit in {"day", "week"}:
+        amounts = _duration_amounts(duration, count, sign)
+        day_factor = 7.0 if unit == "week" else 1.0
+        months = None
+    else:
+        amounts = None
+        day_factor = 1.0
+        months = _calendar_month_amounts(duration, count, sign)
+
+    out = np.empty(count, dtype=float)
+    for index in range(count):
+        value = values[index]
+        if _is_missing(value):
+            out[index] = np.nan
+            continue
+        base_day = int(np.floor(float(value)))
+        fraction = float(value) - base_day
+        local = _dt.datetime.combine(
+            _EPOCH_DATE + _dt.timedelta(days=base_day), _dt.time()
+        ) + _dt.timedelta(days=fraction)
+
+        if months is None:
+            amount = float(amounts[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local += _dt.timedelta(days=amount * day_factor)
+        else:
+            amount = float(months[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local = _add_months_local(local, amount)
+
+        shifted = (local.date() - _EPOCH_DATE).days + _day_fraction(local)
+        out[index] = np.floor(shifted) if discrete else shifted
+    return out
+
+
+def _local_naive_from_seconds(
+    value: Any, tz: str | None
+) -> _dt.datetime:
+    return _datetime_from_seconds(value, tz).replace(tzinfo=None)
+
+
+def _local_naive_to_seconds(
+    value: _dt.datetime, tz: str | None
+) -> float:
+    """Resolve a naive local time to UTC seconds.
+
+    With R's default ``clamp`` strategy, an ambiguous local time resolves to
+    its first occurrence, while a local time skipped by a DST gap moves back by
+    the size of the gap.
+    """
+    if _timezone_is_utc(tz):
+        return value.replace(tzinfo=_dt.timezone.utc).timestamp()
+
+    zone = ZoneInfo(tz)
+    candidates: list[tuple[float, bool]] = []
+    for fold in (0, 1):
+        aware = value.replace(tzinfo=zone, fold=fold)
+        seconds = aware.timestamp()
+        round_trip = _dt.datetime.fromtimestamp(seconds, zone).replace(
+            tzinfo=None
+        )
+        candidates.append((seconds, round_trip == value))
+
+    valid = [seconds for seconds, ok in candidates if ok]
+    if valid:
+        return min(valid)
+    return min(seconds for seconds, _ in candidates)
+
+
+def _shift_datetime_values(
+    values: np.ndarray,
+    duration: Duration,
+    sign: int,
+    tz: str | None,
+) -> np.ndarray:
+    count = _shift_count(values, duration)
+    values = np.broadcast_to(values, count)
+    unit = duration.chronon.name
+    if unit in {"day", "week"}:
+        amounts = _duration_amounts(duration, count, sign)
+        day_factor = 7.0 if unit == "week" else 1.0
+        months = None
+    else:
+        amounts = None
+        day_factor = 1.0
+        months = _calendar_month_amounts(duration, count, sign)
+
+    out = np.empty(count, dtype=float)
+    for index in range(count):
+        value = values[index]
+        if _is_missing(value):
+            out[index] = np.nan
+            continue
+        local = _local_naive_from_seconds(value, tz)
+
+        if months is None:
+            amount = float(amounts[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local += _dt.timedelta(days=amount * day_factor)
+        else:
+            amount = float(months[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local = _add_months_local(local, amount)
+
+        out[index] = _local_naive_to_seconds(local, tz)
+    return out
 
 
 def _cycle_offset(

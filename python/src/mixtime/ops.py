@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from math import gcd
+import datetime as _dt
+import re
+from math import floor, gcd
 from typing import Any
 
 import numpy as np
@@ -13,9 +15,12 @@ from .time import (
     LinearTime,
     Mixtime,
     TimeVector,
+    _MONTHS_PER_UNIT,
     _check_discrete_shift,
     _check_duration_shift,
     _coerce_values,
+    _date_from_day,
+    _local_naive_from_seconds,
 )
 from .units import Calendar, Unit
 
@@ -63,9 +68,15 @@ def seq(
 ) -> TimeVector:
     """Generate a regular sequence of time points.
 
-    ``by`` may be a number of source granules, a :class:`Duration`, or a unit
-    name such as ``"month"``. The result includes ``end`` when it falls on a
-    step boundary.
+    ``by`` may be a number of source granules, a :class:`Duration`, a
+    :class:`Unit`, or a unit name such as ``"month"``. Counted unit strings
+    such as ``"1 month"`` and ``"3 days"`` are also accepted.
+
+    Day, week, month, quarter, and year steps on ``date`` and ``datetime`` use
+    calendar arithmetic. Month-like steps clamp month ends and preserve the
+    local wall-clock time across DST changes. R's endpoint alignment for
+    month-like steps is preserved, so a clamped month end may be excluded when
+    the end value is earlier in its month/quarter/year than the start value.
     """
     if not isinstance(start, TimeVector) or not isinstance(end, TimeVector):
         raise TypeError("seq() expects TimeVector start and end values")
@@ -105,6 +116,10 @@ def seq(
             timezone=start.timezone,
         )
 
+    calendar_unit = _calendar_step_unit(by, start)
+    if calendar_unit is not None:
+        return _seq_calendar(start, end, calendar_unit)
+
     step = _step_in_unit(1 if by is None else by, start)
     if not np.isfinite(step) or step == 0:
         raise ValueError("by must be a finite non-zero step")
@@ -121,6 +136,187 @@ def seq(
     if np.isclose(values[-1], finish):
         values[-1] = finish
     return start._new(_coerce_values(values, start.discrete))
+
+
+_CALENDAR_STEP_UNITS = {"day", "week", "month", "quarter", "year"}
+_STEP_STRING = re.compile(
+    r"^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*([A-Za-z]+)\s*$"
+)
+
+
+def _parse_step_unit(by: str, calendar: Calendar) -> Unit:
+    """Parse a unit name or a counted unit string such as ``"3 days"``."""
+    try:
+        return calendar.unit(by)
+    except ValueError:
+        match = _STEP_STRING.fullmatch(by)
+        if match is None:
+            if by.endswith("s") and by[:-1] in calendar:
+                return calendar.unit(by[:-1])
+            raise
+        name = match.group(2)
+        if name not in calendar and name.endswith("s"):
+            name = name[:-1]
+        return calendar.unit(name, n=float(match.group(1)))
+
+
+def _step_unit(by: Any, start: TimeVector) -> Unit | None:
+    """Normalize a sequence step to a unit, when it is unit-like."""
+    if isinstance(by, Duration):
+        if len(by) != 1:
+            raise ValueError("by duration must have length 1")
+        return Unit(
+            by.chronon.name,
+            float(by.chronon.n) * float(by.values[0]),
+            by.chronon.calendar or start.calendar,
+            by.chronon.timezone,
+        )
+    if isinstance(by, Unit):
+        return by
+    if isinstance(by, str):
+        return _parse_step_unit(by, start.calendar)
+    return None
+
+
+def _calendar_step_unit(by: Any, start: TimeVector) -> Unit | None:
+    """Return the calendar unit for a date/datetime sequence step."""
+    if not isinstance(start, LinearTime):
+        return None
+    if float(start.chronon.n) != 1.0:
+        return None
+    if start.chronon.name not in {"day", "second"}:
+        return None
+    unit = _step_unit(by, start)
+    if unit is None or unit.name not in _CALENDAR_STEP_UNITS:
+        return None
+    amount = float(unit.n)
+    if not np.isfinite(amount) or amount == 0:
+        raise ValueError("by must be a finite non-zero step")
+    return unit
+
+
+def _seq_calendar(start: TimeVector, end: TimeVector, unit: Unit) -> TimeVector:
+    """Generate a calendar-aware sequence for date/datetime values."""
+    amount = float(unit.n)
+    direction = 1 if amount > 0 else -1
+    step_units = abs(amount)
+    if unit.name in _MONTHS_PER_UNIT:
+        unit_months = _MONTHS_PER_UNIT[unit.name]
+        step_months = step_units * unit_months
+        if not float(step_months).is_integer():
+            raise NotImplementedError(
+                "fractional month shifts are not implemented; the sequence "
+                "step must be a whole number of months. Use a whole-month "
+                "step or a day/week step."
+            )
+        return _seq_calendar_months(
+            start,
+            end,
+            unit.name,
+            step_units,
+            step_months,
+            direction,
+        )
+    step_days = step_units * (7.0 if unit.name == "week" else 1.0)
+    return _seq_calendar_days(start, end, step_days, direction)
+
+
+def _seq_calendar_months(
+    start: TimeVector,
+    end: TimeVector,
+    unit_name: str,
+    step_units: float,
+    step_months: float,
+    direction: int,
+) -> TimeVector:
+    """R's month-like sequence alignment and anchor-based shifts."""
+    begin = float(start.values[0])
+    finish = float(end.values[0])
+    if (finish - begin) * direction < 0:
+        return start[:0]
+
+    unit_months = _MONTHS_PER_UNIT[unit_name]
+    start_local = _seq_local_datetime(start)
+    end_local = _seq_local_datetime(end)
+
+    from_div = _month_index(start_local) // unit_months
+    from_unit_start = _datetime_from_month_index(from_div * unit_months)
+    offset = start_local - from_unit_start
+
+    aligned_end = end_local - offset
+    to_div = _month_index(aligned_end) // unit_months
+    to_unit_start = _datetime_from_month_index(to_div * unit_months)
+    if direction < 0 and aligned_end != to_unit_start:
+        to_div += 1
+
+    n_steps = floor(direction * (to_div - from_div) / step_units + 1e-12)
+    if n_steps < 0:
+        return start[:0]
+
+    month_unit = Unit("month", 1, start.calendar, start.timezone)
+    values = np.empty(n_steps + 1, dtype=float)
+    for k in range(n_steps + 1):
+        duration = Duration(
+            np.asarray([direction * k * step_months], dtype=float),
+            month_unit,
+            discrete=False,
+            calendar=start.calendar,
+        )
+        values[k] = float((start + duration).values[0])
+    return start._new(_coerce_values(values, start.discrete))
+
+
+def _seq_calendar_days(
+    start: TimeVector,
+    end: TimeVector,
+    step_days: float,
+    direction: int,
+) -> TimeVector:
+    """Anchor-based day/week sequences, including DST-safe local shifts."""
+    begin = float(start.values[0])
+    finish = float(end.values[0])
+    if (finish - begin) * direction < 0:
+        return start[:0]
+
+    start_local = _seq_local_datetime(start)
+    end_local = _seq_local_datetime(end)
+    diff_days = (end_local - start_local).total_seconds() / 86_400.0
+    count = floor(direction * diff_days / step_days + 1e-12)
+    if count < 0:
+        return start[:0]
+
+    day_unit = Unit("day", 1, start.calendar, start.timezone)
+    values = np.empty(count + 1, dtype=float)
+    for k in range(count + 1):
+        duration = Duration(
+            np.asarray([direction * k * step_days], dtype=float),
+            day_unit,
+            discrete=False,
+            calendar=start.calendar,
+        )
+        values[k] = float((start + duration).values[0])
+    return start._new(_coerce_values(values, start.discrete))
+
+
+def _seq_local_datetime(x: TimeVector) -> _dt.datetime:
+    value = float(x.values[0])
+    if x.chronon.name == "day":
+        base_day = int(np.floor(value))
+        fraction = value - base_day
+        return _dt.datetime.combine(
+            _date_from_day(base_day), _dt.time()
+        ) + _dt.timedelta(days=fraction)
+    return _local_naive_from_seconds(value, x.timezone)
+
+
+def _month_index(value: _dt.datetime) -> int:
+    return (value.year - 1970) * 12 + (value.month - 1)
+
+
+def _datetime_from_month_index(index: int) -> _dt.datetime:
+    year = index // 12 + 1970
+    month = index % 12 + 1
+    return _dt.datetime(year, month, 1)
 
 
 def _round_to(
@@ -201,7 +397,7 @@ def _step_in_unit(by: Any, start: TimeVector) -> float:
             _check_discrete_shift(start.chronon, by, converted)
         return float(converted[0])
     if isinstance(by, str):
-        unit = start.calendar.unit(by)
+        unit = _parse_step_unit(by, start.calendar)
         _check_duration_shift(start.chronon, unit, start.discrete)
         converted = start.calendar.convert(
             np.asarray([1.0]),

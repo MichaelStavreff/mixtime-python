@@ -36,6 +36,7 @@ from .predicates import (
     time_is_duration,
     time_is_linear,
 )
+from .scalar import TimeScalar
 from .time import (
     CyclicalTime,
     Duration,
@@ -80,6 +81,7 @@ __all__ = [
     "year_to_day",
     # model
     "TimeVector",
+    "TimeScalar",
     "LinearTime",
     "CyclicalTime",
     "Duration",
@@ -147,6 +149,15 @@ __all__ = [
     "time_components",
     "time_compose",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily expose the optional pandas extension classes."""
+    if name in {"MixtimeDtype", "MixtimeArray"}:
+        from . import pandas_ext
+
+        return getattr(pandas_ext, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def day_to_month(
