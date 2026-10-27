@@ -26,7 +26,9 @@ out <- list(
   durations = list(),
   operations = list(),
   comparisons = list(),
+  mixed_comparisons = list(),
   mixed = list(),
+  ordering = list(),
   predicates = list(),
   components = list(),
   compose = list(),
@@ -94,6 +96,40 @@ add_comparison <- function(name, value) {
   out$comparisons[[length(out$comparisons) + 1L]] <<- list(
     name = name,
     result = as.logical(value)
+  )
+}
+
+add_mixed_comparison <- function(name, e1, e2) {
+  ops <- c("==", "!=", "<", "<=", ">", ">=")
+  results <- lapply(ops, function(op) {
+    as.logical(do.call(op, list(e1, e2)))
+  })
+  names(results) <- ops
+  out$mixed_comparisons[[length(out$mixed_comparisons) + 1L]] <<- list(
+    name = name,
+    left = as.character(format(e1)),
+    right = as.character(format(e2)),
+    results = results
+  )
+}
+
+add_ordering <- function(name, x) {
+  sorted <- sort(x)
+  decreasing <- sort(x, decreasing = TRUE)
+  mn <- min(x)
+  mx <- max(x)
+  out$ordering[[length(out$ordering) + 1L]] <<- list(
+    name = name,
+    formatted = as.character(format(x)),
+    order = as.integer(order(x)),
+    sorted = as.character(format(sorted)),
+    decreasing = as.character(format(decreasing)),
+    min = as.character(format(mn)),
+    max = as.character(format(mx)),
+    min_chronon = chronon_info(mn),
+    max_chronon = chronon_info(mx),
+    min_discrete = is.integer(S7::S7_data(mn@x[[1L]])),
+    max_discrete = is.integer(S7::S7_data(mx@x[[1L]]))
   )
 }
 
@@ -506,11 +542,68 @@ add_comparison("month_vs_day_lt",
 add_comparison("month_vs_day_ge",
                yearmonth("2024-01") >= date("2024-01-01"))
 
+# Mixed-vector comparisons. Length-1 operands recycle, as in R.
+mixed_linear <- c(
+  yearmonth(c("2024-01", "2024-02")),
+  year(c(2024L, 2025L))
+)
+add_mixed_comparison("mixed_linear_self", mixed_linear, mixed_linear)
+add_mixed_comparison(
+  "mixed_linear_scalar",
+  mixed_linear,
+  yearmonth("2024-01")
+)
+add_mixed_comparison(
+  "year_vs_month_interval",
+  year(1980L),
+  yearmonth(as.integer((1980 - 1970) * 12 + 11))
+)
+add_mixed_comparison(
+  "mixed_instant_span",
+  c(yearmonth("2024-01"), date("2024-01-15"), year(2024L)),
+  date("2024-02-01")
+)
+add_mixed_comparison(
+  "cyclical_positions",
+  month_of_year(as.Date(c("2024-12-15", "2025-01-15", "2024-06-15"))),
+  month_of_year(as.Date("2024-03-15"))
+)
+add_mixed_comparison(
+  "cyclical_mixed_chronon",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
+    day_of_year(as.Date("2024-06-01"))),
+  day_of_year(as.Date("2024-03-01"))
+)
+
 # -- mixed granularity -----------------------------------------------------
 add_mixed(
   "month_quarter",
   c(yearmonth(c("2024-01", "2024-02")),
     yearquarter(c("2024-Q2", "2024-Q3")))
+)
+
+# -- ordering --------------------------------------------------------------
+add_ordering("linear_mixed", mixed_linear)
+add_ordering(
+  "linear_mixed_instants",
+  c(yearmonth("2024-01"), date("2024-01-15"), year(2024L),
+    yearmonth("2024-02"))
+)
+add_ordering(
+  "linear_continuous_mixed",
+  c(yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+    date(as.Date("2024-01-20"), discrete = FALSE),
+    year(as.Date("2024-06-01"), discrete = FALSE))
+)
+add_ordering(
+  "cyclical_months",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15", "2024-06-15"))),
+    month_of_year(as.Date("2024-03-15")))
+)
+add_ordering(
+  "cyclical_mixed_chronon",
+  c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
+    day_of_year(as.Date("2024-06-01")))
 )
 
 # -- predicates ------------------------------------------------------------

@@ -444,6 +444,159 @@ def test_mixed(case):
     assert len(actual) == len(case["values"])
 
 
+MIXED_COMPARISON_INPUTS = {
+    "mixed_linear_self": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+    ),
+    "mixed_linear_scalar": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.yearmonth(["2024-01"]),
+    ),
+    "year_vs_month_interval": lambda: (
+        mt.year(["1980"]),
+        mt.yearmonth(["1980-12"]),
+    ),
+    "mixed_instant_span": lambda: (
+        mt.mixtime(
+            mt.yearmonth("2024-01"),
+            mt.date("2024-01-15"),
+            mt.year(["2024"]),
+        ),
+        mt.date("2024-02-01"),
+    ),
+    "cyclical_positions": lambda: (
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    ),
+    "cyclical_mixed_chronon": lambda: (
+        mt.mixtime(
+            mt.month_of_year(["2024-12-15", "2025-01-15"]),
+            mt.day_of_year(["2024-06-01"]),
+        ),
+        mt.day_of_year(["2024-03-01"]),
+    ),
+}
+
+_MIXED_OPS = {
+    "==": "__eq__",
+    "!=": "__ne__",
+    "<": "__lt__",
+    "<=": "__le__",
+    ">": "__gt__",
+    ">=": "__ge__",
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["mixed_comparisons"], ids=lambda c: c["name"]
+)
+def test_mixed_comparisons(case):
+    left, right = MIXED_COMPARISON_INPUTS[case["name"]]()
+    _assert_formatted(left.format(), case["left"])
+    _assert_formatted(right.format(), case["right"])
+    for op, method in _MIXED_OPS.items():
+        actual = np.asarray(getattr(left, method)(right)).tolist()
+        expected = _listify(case["results"][op])
+        assert actual == expected, op
+
+
+ORDERING_INPUTS = {
+    "linear_mixed": lambda: mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    ),
+    "linear_mixed_instants": lambda: mt.mixtime(
+        mt.yearmonth("2024-01"),
+        mt.date("2024-01-15"),
+        mt.year(["2024"]),
+        mt.yearmonth("2024-02"),
+    ),
+    "linear_continuous_mixed": lambda: mt.mixtime(
+        mt.yearmonth([648 + 14 / 31], discrete=False),
+        mt.date([19742], discrete=False),
+        mt.year([54 + 152 / 366], discrete=False),
+    ),
+    "cyclical_months": lambda: mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    ),
+    "cyclical_mixed_chronon": lambda: mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15"]),
+        mt.day_of_year(["2024-06-01"]),
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["ordering"], ids=lambda c: c["name"]
+)
+def test_mixed_ordering(case):
+    actual = ORDERING_INPUTS[case["name"]]()
+    _assert_formatted(actual.format(), case["formatted"])
+
+    expected_order = [int(value) - 1 for value in _listify(case["order"])]
+    assert actual.argsort().tolist() == expected_order
+    _assert_formatted(actual.sort().format(), case["sorted"])
+    _assert_formatted(
+        actual.sort(decreasing=True).format(), case["decreasing"]
+    )
+
+    minimum = actual.min()
+    maximum = actual.max()
+    assert minimum.format() == case["min"]
+    assert maximum.format() == case["max"]
+    assert minimum.chronon.name == case["min_chronon"]["name"]
+    assert maximum.chronon.name == case["max_chronon"]["name"]
+    assert minimum.discrete is case["min_discrete"]
+    assert maximum.discrete is case["max_discrete"]
+
+
+def test_mixed_comparison_recycling_errors():
+    left = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    right = mt.mixtime(mt.yearmonth(["2024-01", "2024-02", "2024-03"]))
+    with pytest.raises(ValueError, match="recycle"):
+        left == right
+    with pytest.raises(ValueError):
+        mt.yearmonth(["2024-01", "2024-02"]) == mt.yearmonth(
+            ["2024-01", "2024-02", "2024-03"]
+        )
+
+
+def test_mixed_ordering_rejects_mixed_modes():
+    mixed = mt.mixtime(mt.yearmonth("2024-01"), mt.months(1))
+    with pytest.raises(TypeError, match="one mode"):
+        mixed.sort()
+    with pytest.raises(TypeError, match="one mode"):
+        mixed == mixed
+
+
+def test_missing_comparison_policy():
+    values = mt.mixtime(mt.yearmonth(["2024-01", None]), mt.year(["2024"]))
+    assert (values == values).tolist() == [True, True, True]
+    assert (values != values).tolist() == [False, False, False]
+    assert (values < values).tolist() == [False, False, False]
+    assert (values <= values).tolist() == [True, False, True]
+    assert values.min().format() == "2024 Jan"
+    assert values.min(skipna=False).format() == "NA"
+
+
+def test_time_vector_comparison_uses_intervals():
+    assert not bool(mt.yearmonth("2024-01") <= mt.date("2024-01-15"))
+    assert bool(mt.yearmonth("2024-01") <= mt.date("2024-01-31"))
+    assert bool(mt.year(["1980"]) <= mt.yearmonth("1980-12"))
+    assert not bool(mt.year(["1980"]) >= mt.yearmonth("1980-12"))
+
+
 PREDICATE_INPUTS = {
     "linear_yearmonth": lambda: mt.time_is_linear(
         mt.yearmonth(["2024-01-15", "2024-02-29"])
@@ -1101,6 +1254,140 @@ def test_pandas_mixed_extension_dataframe():
     assert frame["when"].dtype == mt.MixtimeDtype()
     assert frame["when"].iloc[2].format() == "2024-03-01"
     assert frame["when"].isna().tolist() == [False, False, False, True]
+
+
+def test_pandas_mixed_sort_filter_and_between():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series(name="when")
+
+    assert [value.format() for value in series.sort_values()] == [
+        "2024 Jan",
+        "2024 Feb",
+        "2024",
+        "2025",
+    ]
+    assert [value.format() for value in series.sort_values(ascending=False)] == [
+        "2025",
+        "2024",
+        "2024 Feb",
+        "2024 Jan",
+    ]
+
+    lower = mt.yearmonth("2024-01").scalar(0)
+    upper = mt.yearmonth("2024-02").scalar(0)
+    mask = series.between(lower, upper)
+    assert mask.tolist() == [True, True, False, False]
+    assert [value.format() for value in series[mask]] == ["2024 Jan", "2024 Feb"]
+    assert series.array.between(lower, upper).tolist() == [True, True, False, False]
+    assert (
+        series.between(lower, upper, inclusive="neither").tolist()
+        == [False, False, False, False]
+    )
+
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+    assert [
+        value.format() for value in frame.sort_values("when")["when"]
+    ] == ["2024 Jan", "2024 Feb", "2024", "2025"]
+    assert [value.format() for value in frame[frame["when"] >= upper]["when"]] == [
+        "2024 Feb",
+        "2025",
+    ]
+
+
+def test_pandas_mixed_min_max_and_arg_reductions():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series()
+
+    assert series.min().format() == "2024 Jan"
+    assert series.max().format() == "2025 Jan"
+    assert series.idxmin() == 0
+    assert series.idxmax() == 3
+    assert series.array.argmin() == 0
+    assert series.array.argmax() == 3
+
+    assert [value.format() for value in series.array.nsmallest(2)] == [
+        "2024 Jan",
+        "2024 Feb",
+    ]
+    assert [value.format() for value in series.array.nlargest(2)] == [
+        "2025",
+        "2024",
+    ]
+
+    with_missing = mt.mixtime(
+        mt.yearmonth(["2024-01", None]), mt.year(["2024"])
+    ).to_pandas_series()
+    assert with_missing.isna().tolist() == [False, True, False]
+    assert with_missing.min().format() == "2024 Jan"
+    assert with_missing.min(skipna=False).isna()
+    assert with_missing.sort_values().isna().tolist() == [False, False, True]
+    assert (with_missing == with_missing).tolist() == [True, True, True]
+
+
+def test_pandas_mixed_groupby_merge_and_concat():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    )
+    series = m.to_pandas_series(name="when")
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+
+    grouped = frame.groupby("when", sort=False)["value"].sum()
+    assert grouped.tolist() == [1, 2, 3, 4]
+    assert [value.format() for value in grouped.index] == [
+        "2024 Jan",
+        "2024 Feb",
+        "2024",
+        "2025",
+    ]
+
+    left = pd.DataFrame({"when": series, "left": [1, 2, 3, 4]})
+    right = pd.DataFrame({"when": series, "right": [5, 6, 7, 8]})
+    merged = left.merge(right, on="when").sort_values("left")
+    assert merged["left"].tolist() == [1, 2, 3, 4]
+    assert merged["right"].tolist() == [5, 6, 7, 8]
+    assert merged["when"].dtype == mt.MixtimeDtype()
+
+    concatenated = pd.concat([series, series], ignore_index=True)
+    assert concatenated.dtype == mt.MixtimeDtype()
+    assert len(concatenated) == 8
+    assert len(pd.concat([series, series]).drop_duplicates()) == 4
+    assert len(series.unique()) == 4
+
+
+def test_pandas_cyclical_sort_and_between():
+    pd = pytest.importorskip("pandas")
+
+    cyc = mt.mixtime(
+        mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"]),
+        mt.month_of_year(["2024-03-15"]),
+    )
+    series = cyc.to_pandas_series()
+
+    assert [value.format() for value in series.sort_values()] == [
+        "Jan",
+        "Mar",
+        "Jun",
+        "Dec",
+    ]
+    assert series.min().format() == "Mar"
+    assert series.max().format() == "Jan"
+    assert series.between(
+        mt.month_of_year(["2024-01-15"]).scalar(0),
+        mt.month_of_year(["2024-03-15"]).scalar(0),
+    ).tolist() == [False, True, False, True]
 
 
 def test_pandas_extension_take_concat_and_numpy():

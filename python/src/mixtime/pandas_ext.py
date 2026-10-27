@@ -305,20 +305,98 @@ class MixtimeArray(ExtensionArray):
         return np.asarray(self, dtype=object), self.dtype.na_value
 
     def _values_for_argsort(self) -> np.ndarray:
-        scalars = [self._data.scalar(i) for i in range(len(self))]
-        nonmissing = [scalar for scalar in scalars if not scalar.isna()]
-        if not nonmissing:
-            return np.arange(len(self), dtype=np.int64)
-        metadata = nonmissing[0]._meta_key()
-        if all(scalar._meta_key() == metadata for scalar in nonmissing):
-            return np.asarray(
-                [np.nan if scalar.isna() else scalar.value for scalar in scalars],
-                dtype=float,
+        return self._data.order_values()
+
+    def _comparison_operand(self, other: Any) -> Any:
+        if isinstance(other, MixtimeArray):
+            return other._data
+        if isinstance(other, (Mixtime, TimeVector, TimeScalar)):
+            return other
+        if _is_missing_value(other):
+            return TimeScalar.missing()
+        if isinstance(other, (list, tuple, np.ndarray)):
+            try:
+                return _mixtime_from_scalars(list(other))
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _compare(self, other: Any, op: str) -> Any:
+        operand = self._comparison_operand(other)
+        if operand is None:
+            return NotImplemented
+        operands = self._data._operand_scalars(operand)
+        if operands is None:
+            return NotImplemented
+        return self._data._compare_scalars_against(operands, op)
+
+    def __eq__(self, other: Any) -> Any:
+        return self._compare(other, "==")
+
+    def __ne__(self, other: Any) -> Any:
+        result = self._compare(other, "==")
+        if result is NotImplemented:
+            return NotImplemented
+        return np.logical_not(result)
+
+    def __lt__(self, other: Any) -> Any:
+        return self._compare(other, "<")
+
+    def __le__(self, other: Any) -> Any:
+        return self._compare(other, "<=")
+
+    def __gt__(self, other: Any) -> Any:
+        return self._compare(other, ">")
+
+    def __ge__(self, other: Any) -> Any:
+        return self._compare(other, ">=")
+
+    def min(self, skipna: bool = True) -> Any:
+        """Return the earliest value, skipping missing values by default."""
+        return self._data.min(skipna=skipna)
+
+    def max(self, skipna: bool = True) -> Any:
+        """Return the latest value, skipping missing values by default."""
+        return self._data.max(skipna=skipna)
+
+    def between(
+        self,
+        left: Any,
+        right: Any,
+        inclusive: str = "both",
+    ) -> np.ndarray:
+        """Return a boolean mask for values between ``left`` and ``right``."""
+        left_operand = self._comparison_operand(left)
+        right_operand = self._comparison_operand(right)
+        if left_operand is None or right_operand is None:
+            raise TypeError("between() bounds must be mixtime values")
+        left_values = self._data._operand_scalars(left_operand)
+        right_values = self._data._operand_scalars(right_operand)
+        if left_values is None or right_values is None:
+            raise TypeError("between() bounds must be mixtime values")
+        if inclusive == "both":
+            lower, upper = ">=", "<="
+        elif inclusive == "left":
+            lower, upper = ">=", "<"
+        elif inclusive == "right":
+            lower, upper = ">", "<="
+        elif inclusive == "neither":
+            lower, upper = ">", "<"
+        else:
+            raise ValueError(
+                "inclusive has to be 'both', 'left', 'right', or 'neither'"
             )
-        # Mixed granularities have no single natural numeric order.  Keep the
-        # existing order rather than inventing one that disagrees with the
-        # vector's part-based ordering.
-        return np.arange(len(self), dtype=np.int64)
+        return self._data._compare_scalars_against(
+            left_values, lower
+        ) & self._data._compare_scalars_against(right_values, upper)
+
+    def nlargest(self, n: int = 5, keep: str = "first") -> "MixtimeArray":
+        """Return the ``n`` latest values."""
+        return MixtimeArray(self._data.nlargest(n, keep=keep))
+
+    def nsmallest(self, n: int = 5, keep: str = "first") -> "MixtimeArray":
+        """Return the ``n`` earliest values."""
+        return MixtimeArray(self._data.nsmallest(n, keep=keep))
 
     def _formatter(self, boxed: bool = False):
         def format_value(value: Any) -> str:
@@ -327,36 +405,6 @@ class MixtimeArray(ExtensionArray):
             return str(value)
 
         return format_value
-
-    def __eq__(self, other: Any) -> Any:
-        if isinstance(other, MixtimeArray):
-            if len(self) != len(other):
-                return NotImplemented
-            other_values = [other._data.scalar(i) for i in range(len(other))]
-        elif isinstance(other, TimeScalar):
-            other_values = [other] * len(self)
-        elif isinstance(other, (TimeVector, Mixtime)):
-            if len(self) != len(other):
-                return NotImplemented
-            other_values = [other.scalar(i) for i in range(len(other))]
-        else:
-            return NotImplemented
-        return np.asarray(
-            [
-                left == right
-                for left, right in zip(
-                    (self._data.scalar(i) for i in range(len(self))),
-                    other_values,
-                )
-            ],
-            dtype=bool,
-        )
-
-    def __ne__(self, other: Any) -> Any:
-        result = self.__eq__(other)
-        if result is NotImplemented:
-            return NotImplemented
-        return np.logical_not(result)
 
 
 if pd is None:  # pragma: no cover - depends on environment

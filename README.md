@@ -43,7 +43,9 @@ There are two layers:
   `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
   `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
   (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
-  and `time_is_complete_at`, and an optional pandas extension dtype.
+  and `time_is_complete_at`, mixed-vector comparison/ordering
+  (`Mixtime.sort`, `argsort`, `min`, `max`), and an optional pandas extension
+  dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -188,6 +190,37 @@ print(mixed.format())
 
 Each part keeps its own chronon, cycle, calendar, and timezone.
 
+### Mixed comparison and ordering
+
+Time points compare as half-open intervals: a discrete value spans its whole
+granule, while a continuous value is an instant. Comparisons across
+granularities therefore follow R's interval relations rather than comparing
+converted start values.
+
+```python
+import mixtime as mt
+
+mixed = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.year(["2024", "2025"]),
+)
+print(mixed.sort().format())   # ['2024 Jan', '2024 Feb', '2024', '2025']
+print(mixed.min().format())    # 2024 Jan
+print(mixed.max().format())    # 2025 Jan
+
+months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
+print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
+```
+
+Mixed ordering uses R's order proxy: parts convert to their finest shared
+chronon, discrete values shift by half a chronon so a span sorts at its
+midpoint, and cyclical values order by position within the cycle. `Mixtime`
+comparisons broadcast a length-one operand and raise on other length
+mismatches. Missing values compare equal in `==` masks; ordering comparisons
+involving a missing value are `False`, where R would return `NA`.
+`min()`/`max()` skip missing values by default; pass `skipna=False` for R's
+`na.rm = FALSE` behaviour.
+
 ### pandas columns
 
 pandas is optional; install the extra with `uv add "mixtime[pandas]"` (or the
@@ -213,9 +246,12 @@ print(frame["when"].isna().tolist()) # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
 missing values, slicing, `take`, `fillna`, `where`, `concat`, and object-array
-conversion. Constructors also accept one-dimensional pandas `Series`/`Index`
-inputs, and `to_pandas()` is unchanged: it still returns a
-`PeriodIndex`/`DatetimeIndex` for linear time.
+conversion. Mixed-granularity columns sort chronologically, and comparisons,
+`between()`, `min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
+`drop_duplicates()`, and `unique()` follow the core interval rules.
+Constructors also accept one-dimensional pandas `Series`/`Index` inputs, and
+`to_pandas()` is unchanged: it still returns a `PeriodIndex`/`DatetimeIndex`
+for linear time.
 
 ### Timezones
 
@@ -337,7 +373,8 @@ Ported:
 - time arithmetic, comparison, rounding, and sequences, including DST-aware
   day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
   calendar-aware date/datetime sequences, continuous shifts within a category,
-  and common-chronon differences
+  common-chronon differences, R's half-open interval comparisons, and
+  mixed-granularity `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -346,7 +383,9 @@ Ported:
 - chronon bounds (`chronon_glb`, `chronon_lub`, `chronon_common`) and circular
   sums (`circsum`)
 - optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
-  and `"mixtime"` ExtensionArray columns for Series/DataFrame
+  and `"mixtime"` ExtensionArray columns for Series/DataFrame, including
+  chronological sorting, filtering, `between`, `min`/`max`, grouping, merging,
+  de-duplication, and concatenation
 - the low-level Rust chronon splits
 
 Not yet ported:

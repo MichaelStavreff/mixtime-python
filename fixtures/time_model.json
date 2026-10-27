@@ -1428,11 +1428,188 @@
       "result": true
     }
   ],
+  "mixed_comparisons": [
+    {
+      "name": "mixed_linear_self",
+      "left": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "right": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "results": {
+        "==": [true, true, true, true],
+        "!=": [false, false, false, false],
+        "<": [false, false, false, false],
+        "<=": [true, true, true, true],
+        ">": [false, false, false, false],
+        ">=": [true, true, true, true]
+      }
+    },
+    {
+      "name": "mixed_linear_scalar",
+      "left": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "right": "2024 Jan",
+      "results": {
+        "==": [true, false, false, false],
+        "!=": [false, true, true, true],
+        "<": [false, false, false, false],
+        "<=": [true, false, false, false],
+        ">": [false, true, false, true],
+        ">=": [true, true, true, true]
+      }
+    },
+    {
+      "name": "year_vs_month_interval",
+      "left": "1980",
+      "right": "1980 Dec",
+      "results": {
+        "==": false,
+        "!=": true,
+        "<": false,
+        "<=": true,
+        ">": false,
+        ">=": false
+      }
+    },
+    {
+      "name": "mixed_instant_span",
+      "left": ["2024 Jan", "2024-01-15", "2024"],
+      "right": "2024-02-01",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [true, true, false],
+        "<=": [true, true, false],
+        ">": [false, false, false],
+        ">=": [false, false, false]
+      }
+    },
+    {
+      "name": "cyclical_positions",
+      "left": ["Dec", "Jan", "Jun"],
+      "right": "Mar",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [false, true, false],
+        "<=": [false, true, false],
+        ">": [true, false, true],
+        ">=": [true, false, true]
+      }
+    },
+    {
+      "name": "cyclical_mixed_chronon",
+      "left": ["Dec", "Jan", "D153"],
+      "right": "D61",
+      "results": {
+        "==": [false, false, false],
+        "!=": [true, true, true],
+        "<": [false, true, false],
+        "<=": [false, true, false],
+        ">": [true, false, true],
+        ">=": [true, false, true]
+      }
+    }
+  ],
   "mixed": [
     {
       "name": "month_quarter",
       "values": [648, 649, 217, 218],
       "formatted": ["2024 Jan", "2024 Feb", "2024 Q2", "2024 Q3"]
+    }
+  ],
+  "ordering": [
+    {
+      "name": "linear_mixed",
+      "formatted": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "order": [1, 2, 3, 4],
+      "sorted": ["2024 Jan", "2024 Feb", "2024", "2025"],
+      "decreasing": ["2025", "2024", "2024 Feb", "2024 Jan"],
+      "min": "2024 Jan",
+      "max": "2025 Jan",
+      "min_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "linear_mixed_instants",
+      "formatted": ["2024 Jan", "2024-01-15", "2024", "2024 Feb"],
+      "order": [2, 1, 4, 3],
+      "sorted": ["2024-01-15", "2024 Jan", "2024 Feb", "2024"],
+      "decreasing": ["2024", "2024 Feb", "2024 Jan", "2024-01-15"],
+      "min": "2024-01-01",
+      "max": "2024-02-01",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "linear_continuous_mixed",
+      "formatted": ["2024 Jan 45.2%", "2024-01-20 0.0%", "2024.41530054645 41.5%"],
+      "order": [1, 2, 3],
+      "sorted": ["2024 Jan 45.2%", "2024-01-20 0.0%", "2024.41530054645 41.5%"],
+      "decreasing": ["2024.41530054645 41.5%", "2024-01-20 0.0%", "2024 Jan 45.2%"],
+      "min": "2024-01-15 0.0%",
+      "max": "2024-06-01 0.0%",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": false,
+      "max_discrete": false
+    },
+    {
+      "name": "cyclical_months",
+      "formatted": ["Dec", "Jan", "Jun", "Mar"],
+      "order": [2, 4, 3, 1],
+      "sorted": ["Jan", "Mar", "Jun", "Dec"],
+      "decreasing": ["Dec", "Jun", "Mar", "Jan"],
+      "min": "Mar",
+      "max": "Jan",
+      "min_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
+    },
+    {
+      "name": "cyclical_mixed_chronon",
+      "formatted": ["Dec", "Jan", "D153"],
+      "order": [2, 3, 1],
+      "sorted": ["Jan", "D153", "Dec"],
+      "decreasing": ["Dec", "D153", "Jan"],
+      "min": "D153",
+      "max": "D01",
+      "min_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "max_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "min_discrete": true,
+      "max_discrete": true
     }
   ],
   "predicates": [

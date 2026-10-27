@@ -8,6 +8,31 @@
 performance exercise but insufficient as a product. The port now includes a
 Pythonic Gregorian/ISO-week time model on top of the Rust kernel.
 
+## 2026-10-27 update: mixed comparison, ordering, and pandas operations
+
+Phase 1 adds R-compatible comparison and ordering for mixed chronons plus the
+pandas operations that depend on them. Time points compare as half-open
+intervals, matching `compare.R`: a discrete value spans its granule and a
+continuous value is an instant. `Mixtime` comparisons are element-wise,
+broadcast a length-one operand, and raise on other length mismatches instead of
+silently returning `False`.
+
+Mixed ordering follows R's `vec_proxy_order`: convert every part to the finest
+shared chronon, add half a chronon to discrete parts so a span sorts at its
+midpoint, and order cyclical parts by position within their shared cycle.
+`Mixtime.sort`/`argsort`/`min`/`max` expose this. `min`/`max` convert to the
+common chronon and return a `TimeScalar`; R returns a length-one mixtime with
+the same chronon.
+
+pandas columns now sort, filter, use `between`, reduce with `min`/`max`, and
+participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and
+`value_counts` with the same interval rules. `TimeScalar` equality stays strict
+about metadata so factorization and joins keep different chronons distinct.
+Missing values compare equal in `==` masks; ordering comparisons involving a
+missing value are `False`. This is a documented divergence from R's
+three-valued `NA`. Phase 2 still defers mixed arithmetic, string coercion, and
+broader vctrs parity.
+
 ## 2026-10-27 update: pandas columns and scalars
 
 The core `TimeVector`/`Mixtime` API remains primary. `TimeScalar` and

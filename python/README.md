@@ -85,6 +85,49 @@ print(changes["time"].format())
 # ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
 ```
 
+## Comparison and ordering
+
+Time points compare as half-open intervals, matching R: a discrete value spans
+its whole granule, while a continuous value is an instant. For two time points
+`a` and `b`, with `start`/`end` measured in their finest shared chronon:
+
+| Operator | Holds when |
+| --- | --- |
+| `a == b` | `start(a) == start(b)` and `end(a) == end(b)` |
+| `a != b` | not `a == b` |
+| `a < b` | `end(a) <= start(b)` |
+| `a > b` | `start(a) >= end(b)` |
+| `a <= b` | `end(a) <= end(b)` |
+| `a >= b` | `start(a) >= start(b)` |
+
+`<=`/`>=` are therefore not shorthand for `(< or ==)`/`(> or ==)` across
+different granularities. `Mixtime` comparisons apply the same rules
+element-wise; a length-one operand is broadcast and other length mismatches
+raise instead of silently returning `False`.
+
+```python
+import mixtime as mt
+
+mixed = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.year(["2024", "2025"]),
+)
+print(mixed.sort().format())   # ['2024 Jan', '2024 Feb', '2024', '2025']
+print(mixed.min().format())    # 2024 Jan
+print(mixed.max().format())    # 2025 Jan
+
+months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
+print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
+```
+
+`Mixtime.sort()` and `argsort()` use R's order proxy: every part is converted
+to the finest shared chronon, discrete values are nudged by half a chronon so a
+span sorts at its midpoint, and cyclical parts order by position within their
+shared cycle. `sort()` drops missing values by default (as R does); pass
+`na_position="first"` or `"last"` to keep them. `min()`/`max()` convert to the
+common chronon and return a `TimeScalar` with that chronon. They skip missing
+values by default; pass `skipna=False` for R's `na.rm = FALSE` behaviour.
+
 ## pandas interop
 
 pandas is optional. Install the extra and use `to_pandas_series()` when a
@@ -109,11 +152,15 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
 `isna`, `take`, `fillna`, `where`, `concat`, slicing, `astype(object)`, and
-`to_numpy()` (object array of `TimeScalar`). Homogeneous columns sort by value;
-mixed-granularity `sort_values()` preserves part order rather than inventing a
-cross-chronon ordering. `to_pandas()` remains available for a
-`PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
-extension dtype.
+`to_numpy()` (object array of `TimeScalar`). Columns sort chronologically even
+when granularities are mixed, and comparisons, `between()`, `min()`/`max()`,
+`idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
+and `value_counts()` follow the same interval rules as the core vectors.
+`MixtimeArray.nlargest()`/`nsmallest()` are available directly; pandas'
+`Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
+dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
+`to_pandas()` remains available for a `PeriodIndex`/`DatetimeIndex`; it is a
+separate API and is not changed by the extension dtype.
 
 ## Divergences from R
 
@@ -227,10 +274,12 @@ Gregorian chronon values and default formatted output.
   loaded. `to_pandas()` continues to return a
   `PeriodIndex`/`DatetimeIndex` and is not replaced.
 - **pandas scalar equality.** `TimeScalar` equality is strict about chronon,
-  cycle, calendar, timezone, and discreteness so pandas factorization is
-  stable. Vector equality keeps R's half-open interval semantics. Missing
-  scalars compare equal to other missing scalars in pandas masks; R's
-  three-valued `NA` propagation is not reproduced there.
+  cycle, calendar, timezone, and discreteness so pandas factorization and joins
+  keep different chronons distinct, matching R's `unique()`. Vector and pandas
+  mask comparisons use R's half-open interval semantics instead. Missing
+  values compare equal to other missing values in equality masks, while
+  ordering comparisons involving a missing value are `False`; R's three-valued
+  `NA` propagation is not reproduced in boolean masks.
 - **Predicate missing values.** `time_is_determinate_at()` and
   `time_is_complete_at()` return object arrays with `None` for missing or
   infinite values, whereas R returns logical `NA`.
@@ -253,13 +302,19 @@ Gregorian chronon values and default formatted output.
   granule differs from the input chronon. `time_compose()` accepts one
   linear anchor and a connected cyclical chain, and rejects mixed-chronon
   `Mixtime` components.
-- **Comparison operands.** Equality for linear time points uses R's half-open
-  interval rule, so a discrete month is not equal to its first day. Ordering
-  between different chronons is position-based and can differ from R's interval
-  relation; compare after `astype()` for exact ordering. `Mixtime` equality is
-  elementwise scalar equality, which is strict about chronon metadata; mixed
-  ordering is not defined. Bare chronon counts are not accepted as comparison
-  operands.
+- **Comparison operands.** Time points use R's half-open interval rule, so a
+  discrete month is not equal to its first day and ordering is interval-based
+  across chronons. `Mixtime` comparisons are element-wise, broadcast a
+  length-one operand, and raise on other length mismatches. Mixed `Mixtime`
+  ordering follows R's order proxy, including the half-chronon offset for
+  discrete parts and position-within-cycle ordering for cyclical parts. Bare
+  chronon counts and character operands are not accepted.
+- **Missing comparisons.** Missing values compare equal to other missing values
+  in `==` masks and unequal in `!=`; ordering operators involving a missing
+  value are `False`. R returns a logical `NA` instead.
+- **min/max missing values.** `Mixtime.min()`/`max()` default to
+  `skipna=True`; R's `min()`/`max()` default to `na.rm = FALSE` and return
+  `NA` when any value is missing. Pass `skipna=False` for R's default.
 - **Missing values.** Missing time values are represented by `NaN` in a float
   array and formatted as `"NA"`; `TimeScalar` stores missing as `None`.
   pandas `pd.NA` and `NaT` normalize to missing. R distinguishes typed `NA`
