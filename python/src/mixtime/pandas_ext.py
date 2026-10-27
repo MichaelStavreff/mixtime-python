@@ -80,6 +80,22 @@ def _fill_values(value: Any, length: int) -> list[TimeScalar] | None:
     return values
 
 
+def _string_dtype_kind(dtype: Any, np_dtype: Any) -> str | None:
+    """Classify a requested string dtype for :meth:`MixtimeArray.astype`."""
+    if dtype is str:
+        return "pandas"
+    if isinstance(dtype, str):
+        if dtype in {"str", "string"}:
+            return "pandas"
+        if dtype in {"U", "unicode"}:
+            return "numpy"
+    if pd is not None and isinstance(dtype, pd.StringDtype):
+        return "pandas"
+    if np_dtype is not None and np_dtype.kind in {"U", "S"}:
+        return "numpy"
+    return None
+
+
 @register_extension_dtype
 class MixtimeDtype(ExtensionDtype):
     """pandas dtype for a column of :class:`~mixtime.scalar.TimeScalar`."""
@@ -276,9 +292,29 @@ class MixtimeArray(ExtensionArray):
     def astype(self, dtype: Any, copy: bool = True) -> Any:
         if isinstance(dtype, MixtimeDtype) or dtype == MixtimeDtype.name:
             return self.copy() if copy else self
-        if dtype is object or np.dtype(dtype) == np.dtype(object):
+        if dtype is object:
             return np.asarray(self, dtype=object)
-        return np.asarray(self, dtype=dtype)
+        try:
+            np_dtype = np.dtype(dtype)
+        except (TypeError, ValueError):
+            np_dtype = None
+        if np_dtype is not None and np_dtype == np.dtype(object):
+            return np.asarray(self, dtype=object)
+
+        string_kind = _string_dtype_kind(dtype, np_dtype)
+        if string_kind == "pandas":
+            target = "string" if dtype is str or dtype == "str" else dtype
+            values = [
+                pd.NA if value.isna() else value.format() for value in self
+            ]
+            return pd.array(values, dtype=target)
+        if string_kind == "numpy":
+            values = [value.format() for value in self]
+            return np.asarray(values, dtype=np_dtype)
+
+        if np_dtype is None:
+            raise TypeError(f"cannot interpret {dtype!r} as a data type")
+        return np.asarray(self, dtype=np_dtype)
 
     def to_numpy(
         self,

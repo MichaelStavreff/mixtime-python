@@ -32,8 +32,9 @@ participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and
 about metadata so factorization and joins keep different chronons distinct.
 Missing values compare equal in `==` masks; ordering comparisons involving a
 missing value are `False`. This is a documented divergence from R's
-three-valued `NA`. Phase 2 still defers mixed arithmetic, string coercion, and
-broader vctrs parity.
+three-valued `NA`. pandas string conversion now uses `TimeScalar.format()`,
+including `astype(str)`/`astype("string")`; Phase 2 still defers mixed
+arithmetic and broader vctrs parity.
 
 ## 2026-10-27 update: pandas columns and scalars
 

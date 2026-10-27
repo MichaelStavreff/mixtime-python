@@ -1452,6 +1452,29 @@ def test_pandas_cyclical_sort_and_between():
     ).tolist() == [False, True, False, True]
 
 
+def test_pandas_extension_string_conversion():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.year(["2024"]),
+    )
+    series = values.to_pandas_series()
+
+    text = series.astype(str)
+    assert text.tolist()[0] == "2024 Jan"
+    assert text.tolist()[2] == "2024"
+    assert text.isna().tolist() == [False, True, False]
+
+    string = series.astype("string")
+    assert string.tolist()[0] == "2024 Jan"
+    assert string.isna().tolist() == [False, True, False]
+
+    unicode_array = series.array.astype("U")
+    assert unicode_array.tolist() == ["2024 Jan", "NA", "2024"]
+    assert series.astype("mixtime").dtype == mt.MixtimeDtype()
+
+
 def test_pandas_extension_take_concat_and_numpy():
     pd = pytest.importorskip("pandas")
 
