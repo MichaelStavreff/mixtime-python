@@ -38,7 +38,8 @@ There are two layers:
   `datetime`, cyclical components such as `month_of_year`, durations such as
   `months(1)`, a `Mixtime` container for mixed granularities, component helpers
   (`lin`, `cyc`, `time_components`, `time_compose`), chronon bounds
-  (`chronon_glb`, `chronon_lub`), timezone helpers (`tz_name`,
+  (`chronon_glb`, `chronon_lub`), metadata accessors (`time_chronon`,
+  `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
   `tz_abbreviation`, `tz_offset`, `tz_transitions`), and predicates such as
   `time_is_determinate_at` and `time_is_complete_at`.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,

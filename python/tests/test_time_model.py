@@ -714,6 +714,71 @@ def test_offset_date_strings_convert_to_requested_timezone():
     assert mt.yearweek("2024-01-15T23:00:00-05:00").format() == ["2024 W03"]
 
 
+METADATA_INPUTS = {
+    "yearmonth": lambda: mt.yearmonth("2024-01"),
+    "yearquarter": lambda: mt.yearquarter("2024-Q1"),
+    "yearweek": lambda: mt.yearweek("2024-W03"),
+    "date": lambda: mt.date("2024-01-15"),
+    "datetime": lambda: mt.datetime("2024-01-15 12:00:00", tz="UTC"),
+    "month_of_year": lambda: mt.month_of_year(dt.date(2024, 1, 15)),
+    "day_of_week": lambda: mt.day_of_week(dt.date(2024, 1, 15)),
+    "time_of_day": lambda: mt.time_of_day(
+        dt.datetime(2024, 1, 15, 12, 34, 56, tzinfo=ZoneInfo("UTC"))
+    ),
+    "duration_months": lambda: mt.months(2),
+    "mixed": lambda: mt.mixtime(
+        mt.yearmonth("2024-01"), mt.date("2024-01-15"), mt.months(2)
+    ),
+}
+
+
+def _unit_text(unit):
+    return "NA" if unit is None else repr(unit)
+
+
+@pytest.mark.parametrize("case", FIXTURES["metadata"], ids=lambda c: c["name"])
+def test_metadata(case):
+    x = METADATA_INPUTS[case["name"]]()
+    chronon = mt.time_chronon(x)
+    if isinstance(chronon, list):
+        assert [_unit_text(unit) for unit in chronon] == _listify(
+            case["chronon"]
+        )
+    else:
+        assert [_unit_text(chronon)] == _listify(case["chronon"])
+
+    cycle = mt.time_cycle(x)
+    if isinstance(cycle, list):
+        assert [_unit_text(unit) for unit in cycle] == _listify(case["cycle"])
+    else:
+        assert [_unit_text(cycle)] == _listify(case["cycle"])
+
+    calendar = mt.time_calendar(x)
+    assert not isinstance(calendar, list)
+    # Python has one Gregorian calendar with a week unit rather than R's
+    # separate cal_isoweek calendar.
+    expected_calendar = (
+        "gregorian" if case["calendar"] == "isoweek" else case["calendar"]
+    )
+    assert calendar.name == expected_calendar
+    assert mt.is_mixtime(x) is (case["name"] == "mixed")
+
+
+def test_metadata_accepts_python_temporal_values():
+    assert mt.time_chronon(dt.date(2024, 1, 15)) == mt.cal_gregorian.day
+    assert (
+        mt.time_chronon(dt.datetime(2024, 1, 15))
+        == mt.cal_gregorian.second
+    )
+    assert mt.time_cycle(dt.date(2024, 1, 15)) is None
+    assert mt.time_calendar(dt.date(2024, 1, 15)) is mt.cal_gregorian
+    unit = mt.cal_gregorian.month(3)
+    assert mt.time_chronon(unit) == unit
+    assert mt.time_cycle(unit) is None
+    assert mt.time_calendar(unit) is mt.cal_gregorian
+    assert mt.is_mixtime(unit) is False
+
+
 TIMEZONE_INPUTS = {
     "naive_datetime": lambda: mt.datetime("2024-01-15 12:00:00"),
     "utc_datetime": lambda: mt.datetime("2024-01-15 12:00:00", tz="UTC"),

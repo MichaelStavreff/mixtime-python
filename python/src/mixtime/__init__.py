@@ -27,6 +27,7 @@ from .components import (
     time_compose,
 )
 from .granules import chronon_common, chronon_glb, chronon_lub
+from .metadata import is_mixtime, time_calendar, time_chronon, time_cycle
 from .ops import circsum, seq, time_ceiling, time_floor, time_round, time_shift
 from .predicates import (
     time_is_complete_at,
@@ -122,6 +123,11 @@ __all__ = [
     "chronon_glb",
     "chronon_lub",
     "chronon_common",
+    # metadata
+    "is_mixtime",
+    "time_chronon",
+    "time_cycle",
+    "time_calendar",
     # timezones
     "tz_name",
     "tz_abbreviation",

@@ -32,6 +32,7 @@ out <- list(
   compose = list(),
   circsum = list(),
   granules = list(),
+  metadata = list(),
   timezones = list(),
   transitions = list()
 )
@@ -158,6 +159,15 @@ add_granule <- function(name, x) {
     name = name,
     glb = glb,
     lub = lub
+  )
+}
+
+add_metadata <- function(name, x) {
+  out$metadata[[length(out$metadata) + 1L]] <<- list(
+    name = name,
+    chronon = as.character(format(time_chronon(x))),
+    cycle = as.character(format(time_cycle(x))),
+    calendar = sub("^cal_", "", class(time_calendar(x))[1L])
   )
 }
 
@@ -588,6 +598,22 @@ add_granule(
 add_granule(
   "year_week",
   c(year(1L), yearweek(as.Date("2024-01-01")))
+)
+
+# -- metadata accessors ----------------------------------------------------
+add_metadata("yearmonth", yearmonth("2024-01"))
+add_metadata("yearquarter", yearquarter("2024-Q1"))
+add_metadata("yearweek", yearweek("2024-W03"))
+add_metadata("date", date("2024-01-15"))
+add_metadata("datetime", datetime("2024-01-15 12:00:00", tz = "UTC"))
+add_metadata("month_of_year", month_of_year(as.Date("2024-01-15")))
+add_metadata("day_of_week", day_of_week(as.Date("2024-01-15")))
+add_metadata("time_of_day",
+             time_of_day(as.POSIXct("2024-01-15 12:34:56", tz = "UTC")))
+add_metadata("duration_months", months(2))
+add_metadata(
+  "mixed",
+  c(yearmonth("2024-01"), date("2024-01-15"), months(2))
 )
 
 # -- timezone helpers ------------------------------------------------------

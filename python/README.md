@@ -23,6 +23,8 @@ low-level NumPy kernel.
   rebuild Gregorian linear/cyclical components.
 - `mixtime.chronon_glb`, `chronon_lub`, and `chronon_common` select a common
   Gregorian chronon; `mixtime.circsum` sums circular windows.
+- `mixtime.time_chronon`, `time_cycle`, `time_calendar`, and `is_mixtime`
+  expose chronon, cycle, calendar, and container metadata.
 - `mixtime.tz_name`, `tz_abbreviation`, `tz_offset`, and `tz_transitions`
   inspect timezones and daylight-saving transitions.
 - `mixtime.day_to_month`, `day_to_quarter`, `day_to_year`, `month_to_day`,
@@ -57,6 +59,11 @@ print(mt.time_compose(mt.lin("year", 1980), mt.cyc("month", "year", 3)).format()
 print(mt.chronon_glb(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 day
 print(mt.chronon_lub(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 month
 print(mt.circsum([1, 2, 3, 4], 2, 2))  # [3. 7.]
+
+when = mt.month_of_year("2024-03")
+print(mt.time_chronon(when))  # 1 month
+print(mt.time_cycle(when))    # 1 year
+print(mt.time_calendar(when).name)  # gregorian
 
 ny = mt.datetime("2024-07-15 12:00:00", tz="America/New_York")
 print(mt.tz_name(ny))             # ['America/New_York']
@@ -132,6 +139,12 @@ Gregorian chronon values and default formatted output.
 - **Offset-only datetimes.** A datetime string with a UTC offset but no `tz=`
   argument is normalized to UTC for storage and display. Pass `tz=` to display
   it in a named zone.
+- **Metadata accessors.** R's `time_chronon()` and `time_cycle()` return
+  duration vectors; this port returns the underlying `Unit` metadata (or a
+  list of units for a `Mixtime`). `time_calendar()` returns a `Calendar`; a
+  `Mixtime` with differing calendars returns a list. Python has one Gregorian
+  calendar with a week unit, so `time_calendar(yearweek(...))` is Gregorian
+  rather than R's separate `cal_isoweek`.
 - **Timezone helpers.** `tz_name()` returns `None` for naive time (R returns
   `NA_character_`), while `tz_abbreviation()` returns `""` there, as R does.
   `tz_offset()` returns a `Duration` in the element's chronon and scales by R's

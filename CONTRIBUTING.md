@@ -57,6 +57,7 @@ against GitHub `main` (`mixtime 0.4.0.9000`), starting from the pinned CRAN
                  b["compose"] == a["compose"],
                  b["circsum"] == a["circsum"],
                  b["granules"] == a["granules"],
+                 b["metadata"] == a["metadata"],
                  b["timezones"] == a["timezones"],
                  b["transitions"] == a["transitions"],
                  b["package_version"], "->", a["package_version"])

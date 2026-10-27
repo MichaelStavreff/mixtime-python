@@ -1690,6 +1690,68 @@
       "lub": null
     }
   ],
+  "metadata": [
+    {
+      "name": "yearmonth",
+      "chronon": "1 month",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "yearquarter",
+      "chronon": "1 quarter",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "yearweek",
+      "chronon": "1 week",
+      "cycle": "NA",
+      "calendar": "isoweek"
+    },
+    {
+      "name": "date",
+      "chronon": "1 day",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "datetime",
+      "chronon": "1 second",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "month_of_year",
+      "chronon": "1 month",
+      "cycle": "1 year",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "day_of_week",
+      "chronon": "1 day",
+      "cycle": "1 week",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "time_of_day",
+      "chronon": "1 second",
+      "cycle": "1 day",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "duration_months",
+      "chronon": "1 month",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "mixed",
+      "chronon": ["1 month", "1 day", "1 month"],
+      "cycle": ["NA", "NA", "NA"],
+      "calendar": "gregorian"
+    }
+  ],
   "timezones": [
     {
       "name": "naive_datetime",
