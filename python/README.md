@@ -1,16 +1,193 @@
 # mixtime (Python port)
 
-Python bindings for the Rust port of `mixtime`'s Gregorian `chronon_divmod`
-methods. The Rust crate lives in `../rust` and is built with maturin; this
-package re-exports it with type hints.
+A Pythonic time-vector package built on the Rust port of `mixtime`'s Gregorian
+chronon arithmetic. The Rust crate lives in `../rust` and is built with maturin;
+this package provides the time model, parsing, formatting, timezones, and the
+low-level NumPy kernel.
 
-Scope: `day -> month/quarter/year` and `month/year -> day` chronon splits,
-matching mixtime 0.4.0 exactly (see `../fixtures/fixtures.json`).
+## Layers
 
-The API takes one-dimensional `float64` NumPy arrays and returns two `float64`
-NumPy arrays. The Rust extension reads the input buffer in place and fills the
-output buffers directly (no `Vec` or list intermediate). A Python list is
-rejected rather than converted.
+- `mixtime.yearmonth`, `yearquarter`, `yearweek`, `date`, `datetime` create
+  linear time vectors.
+- `mixtime.month_of_year`, `day_of_year`, `day_of_month`, `day_of_week`,
+  `week_of_year`, `time_of_day` create cyclical time vectors.
+- `mixtime.years`, `quarters`, `months`, `weeks`, `days`, `hours`, `minutes`,
+  `seconds`, `milliseconds` create durations.
+- `mixtime.mixtime(...)` combines vectors of different granularities.
+- `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
+  provide calendar-aware operations.
+- `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
+  `time_is_determinate_at`, and `time_is_complete_at` inspect vector type and
+  granularity.
+- `mixtime.lin`, `cyc`, `time_components`, and `time_compose` extract and
+  rebuild Gregorian linear/cyclical components.
+- `mixtime.chronon_glb`, `chronon_lub`, and `chronon_common` select a common
+  Gregorian chronon; `mixtime.circsum` sums circular windows.
+- `mixtime.time_chronon`, `time_cycle`, `time_calendar`, and `is_mixtime`
+  expose chronon, cycle, calendar, and container metadata.
+- `mixtime.tz_name`, `tz_abbreviation`, `tz_offset`, and `tz_transitions`
+  inspect timezones and daylight-saving transitions.
+- `mixtime.day_to_month`, `day_to_quarter`, `day_to_year`, `month_to_day`,
+  `year_to_day` expose the low-level Rust kernel.
+
+Time points are stored as chronon counts since 1970-01-01. Durations store plain
+counts of their unit. `values` is a NumPy array; `format()` returns a list of
+strings. Constructors accept one-dimensional pandas `Series`/`Index` objects
+and `to_pandas()` is available when pandas is installed.
+
+## Example
+
+```python
+import mixtime as mt
+
+x = mt.yearmonth(["2024-01", "2024-02"])
+print(x.values)          # [648 649]
+print(x.format())        # ['2024 Jan', '2024 Feb']
+print((x + mt.months(1)).format())
+
+when = mt.date(["2024-01-15", "2024-02-29"])
+print(mt.month_of_year(when).format())  # ['Jan', 'Feb']
+print(mt.day_of_week(when).format())    # ['Mon', 'Thu']
+print(mt.time_is_determinate_at(when, "week"))  # [True True]
+print(mt.time_is_complete_at(when, "year"))     # [False False]
+
+parts = mt.time_components(when, yr=mt.lin("year"), mth=mt.cyc("month", "year"))
+print(parts["mth"].format())  # ['Jan', 'Feb']
+print(mt.time_compose(mt.lin("year", 1980), mt.cyc("month", "year", 3)).format())
+# ['1980 Mar']
+
+print(mt.chronon_glb(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 day
+print(mt.chronon_lub(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 month
+print(mt.circsum([1, 2, 3, 4], 2, 2))  # [3. 7.]
+
+when = mt.month_of_year("2024-03")
+print(mt.time_chronon(when))  # 1 month
+print(mt.time_cycle(when))    # 1 year
+print(mt.time_calendar(when).name)  # gregorian
+
+ny = mt.datetime("2024-07-15 12:00:00", tz="America/New_York")
+print(mt.tz_name(ny))             # ['America/New_York']
+print(mt.tz_abbreviation(ny))     # ['EDT']
+print(mt.tz_offset(ny).format())  # ['-14400.0 seconds']
+changes = mt.tz_transitions(
+    mt.datetime("2024-01-01", tz="America/New_York"),
+    mt.datetime("2024-12-31", tz="America/New_York"),
+)
+print(changes["time"].format())
+# ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
+```
+
+## Divergences from R
+
+These are intentional Pythonic choices, not accidental behavior changes. The
+R-generated fixtures in `../fixtures/time_model.json` still pin the shared
+Gregorian chronon values and default formatted output.
+
+- **Discrete inference.** Time constructors infer discrete chronons from the
+  input type: integer counts, strings, and temporal objects are discrete;
+  floating-point counts are continuous. R makes the same integer/double
+  distinction, but Python integer literals are not R's default doubles. Pass
+  `discrete=True` or `discrete=False` to override the inference.
+- **Superset parsing.** R's constructors apply one candidate format to a whole
+  character vector. The Python constructors parse each element independently,
+  so a vector can mix `"2024 Jan"` and `"Jan 2024"`. Python also accepts full
+  date strings where R's `yearmonth()`/`yearquarter()` parsers reject them.
+- **Format tokens.** Both R-style `{lin(year)}` / `{cyc(month,year)}` tokens and
+  strftime-style `%Y-%m-%d` tokens are supported. R's `format()` treats `%`
+  strings as literal text.
+- **ISO week metadata.** `yearweek()` and `week_of_year()` reproduce R's week
+  values and formatting, but the Python objects use the Gregorian calendar with
+  a `week` chronon and a `year` cycle. R reports `cal_isoweek` and `isoyear`.
+- **ISO week to date.** Week chronons are Monday-start blocks. `date(yearweek(...))`
+  yields the Monday start, matching R's value, but Python formats it as an ISO
+  date (`2024-01-15`) rather than R's ISO-week label (`2024-W03-Mon`).
+- **Time-vector indexing.** `x[i]` returns a length-one time vector, not a
+  Python scalar, mirroring R's length-one result. Use `.values[0]` for the
+  scalar chronon count.
+- **Mutable values.** `TimeVector.values` and `np.asarray(vector)` expose the
+  underlying NumPy buffer. In-place edits mutate the vector, unlike R's
+  copy-on-modify; copy first when sharing or modifying values.
+- **Different-chronon subtraction.** Subtracting two discrete time vectors of
+  different chronons raises, matching R's indeterminacy rule. Continuous
+  differences use the finest common chronon (for example, month − day is a
+  duration in days) and always return a continuous duration.
+- **Discrete shifts.** Adding a duration that does not nest within the time
+  chronon raises. For example, `yearquarter(...) + months(1)` is indeterminate,
+  while `+ months(3)` is allowed.
+- **Continuous cross-category shifts.** Continuous shifts within one category
+  are supported: calendar + calendar (`yearmonth + months(1)`) and fixed +
+  fixed (`date + days(1)`). Continuous shifts between calendar and fixed units
+  (`date + months(1)`, `yearmonth + days(1)`) raise `NotImplementedError`
+  because R clamps to calendar fields at the shifted date. Use discrete
+  calendar chronons or convert explicitly.
+- **Duration defaults.** Duration helpers are continuous by default, matching
+  R's double-valued helpers (`years(1)` formats as `1.0 years`). Pass
+  `discrete=True` for whole-granule durations (`years(1, discrete=True)`
+  formats as `1 year`). Duration conversion between calendar and fixed units
+  raises, as it does in R without a time context.
+- **Sequences.** `seq()` rejects incompatible chronons instead of converting
+  the endpoint. It supports `from`/`to` with `by` or `length_out`; R's
+  `from` + `length_out` + `by` form is not implemented. Calendar steps on
+  day/second time (for example, `seq(date, by="month")`) raise; use calendar
+  chronons or explicit dates.
+- **Rounding granules.** `time_floor(x, mt.year(1))` treats the vector's chronon
+  as the granule. R's `year(1L)` is a linear time value and is easy to misuse as
+  a granule; use `"year"`, `mt.cal_gregorian.year`, or `mt.years(1)` in Python.
+- **Python date range.** Date formatting uses `datetime.date`, so the supported
+  display range is 0001-01-01 through 9999-12-31. The Rust kernel remains usable
+  outside that range.
+- **Offset-only datetimes.** A datetime string with a UTC offset but no `tz=`
+  argument is normalized to UTC for storage and display. Pass `tz=` to display
+  it in a named zone.
+- **Metadata accessors.** R's `time_chronon()` and `time_cycle()` return
+  duration vectors; this port returns the underlying `Unit` metadata (or a
+  list of units for a `Mixtime`). `time_calendar()` returns a `Calendar`; a
+  `Mixtime` with differing calendars returns a list. Python has one Gregorian
+  calendar with a week unit, so `time_calendar(yearweek(...))` is Gregorian
+  rather than R's separate `cal_isoweek`.
+- **Timezone helpers.** `tz_name()` returns `None` for naive time (R returns
+  `NA_character_`), while `tz_abbreviation()` returns `""` there, as R does.
+  `tz_offset()` returns a `Duration` in the element's chronon and scales by R's
+  nominal cardinalities (31 days per month, 365/4 days per quarter, 365 days
+  per year), not by the actual local interval. `tz_transitions()` returns a
+  dictionary of `time`, `offset_before`, and `offset_after` vectors instead of
+  an R data frame; a naive start requires an explicit `tz=` because Python has
+  no portable `Sys.timezone()` equivalent. Transition scanning uses one-hour
+  steps, so two offset changes inside the same hour could be missed.
+- **pandas week output.** `yearweek(...).to_pandas()` returns a Monday–Sunday
+  `PeriodIndex` with `freq="W-SUN"`, not an ISO week label.
+- **pandas input.** Constructors accept one-dimensional `Series` and `Index`
+  objects; `DataFrame` and other columnar inputs are not coerced. `pd.NA` and
+  `pd.NaT` become `NaN`, so the usual missing-value rules apply.
+- **Predicate missing values.** `time_is_determinate_at()` and
+  `time_is_complete_at()` return object arrays with `None` for missing or
+  infinite values, whereas R returns logical `NA`.
+- **Completeness with mixed granularity.** `time_is_complete_at()` rejects a
+  `Mixtime` with more than one part, matching R's current restriction; a
+  single-part `Mixtime` is accepted.
+- **Chronon bounds.** `chronon_glb()`/`chronon_lub()` implement the Gregorian
+  partial order directly. Week and calendar units have no common coarser
+  chronon, so `chronon_lub()` raises `ValueError` for that combination, as R
+  does. A supplied `ptype` is returned unchecked, matching R's current TODO.
+  `circsum()` returns a NumPy array rather than R's numeric vector.
+- **Component API.** R uses `time_components(x, yr = lin(year))` and formula
+  composition such as `time_compose(lin(year) ~ 1980)`. Python uses
+  `time_components(x, yr=lin("year"))`, returns a dictionary of columns rather
+  than a data frame, and composes with `lin("year", 1980)` (or a
+  `(spec, value)` pair). `cyc()` composition values are 1-indexed, matching R.
+  `time_components()` columns store absolute chronon counts; formatting reduces
+  them to the position within the cycle. Discrete components that cannot be
+  resolved are `NA`; continuous components follow R's flooring when the target
+  granule differs from the input chronon. `time_compose()` accepts one
+  linear anchor and a connected cyclical chain, and rejects mixed-chronon
+  `Mixtime` components.
+- **Comparison operands.** Equality for linear time points uses R's half-open
+  interval rule, so a discrete month is not equal to its first day. Ordering
+  between different chronons is position-based and can differ from R's interval
+  relation; compare after `astype()` for exact ordering. Bare chronon counts
+  are not accepted as comparison operands.
+- **Missing values.** Missing time values are represented by `NaN` in a float
+  array and formatted as `"NA"`. R distinguishes typed `NA` variants.
 
 ## Upstream sync
 

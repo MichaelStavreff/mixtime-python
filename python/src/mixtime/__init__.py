@@ -1,13 +1,15 @@
-"""Python wrapper around the Rust port of mixtime's Gregorian chronon arithmetic.
+"""mixtime: Gregorian time vectors for Python.
 
-The functions mirror `chronon_divmod()` from mixtime 0.4.0 (`R/cal_gregorian.R`).
-Values are chronon counts relative to the Gregorian epoch, 1970-01-01.
+The package has two layers:
 
-Every function takes a one-dimensional ``float64`` NumPy array and returns two
-one-dimensional ``float64`` NumPy arrays. Both directions are zero-copy: the
-input buffer is read in place, and the Rust kernels fill freshly allocated
-NumPy output buffers directly. A list or any other dtype is rejected by the
-extension module.
+* a low-level kernel (``day_to_month``, ``month_to_day``, ...) implemented in
+  Rust and exposed through PyO3; and
+* a Pythonic time-vector model (``yearmonth``, ``date``, ``datetime``, ...)
+  built on top of that kernel.
+
+The high-level API is deliberately Pythonic rather than a literal port of R's
+S7/vctrs classes. Observable Gregorian chronon semantics are kept compatible
+with mixtime 0.4.0.
 """
 
 from __future__ import annotations
@@ -16,12 +18,134 @@ import numpy as np
 
 import mixtime_rs as _rs
 
+from .components import (
+    ComponentSpec,
+    ComponentValue,
+    cyc,
+    lin,
+    time_components,
+    time_compose,
+)
+from .granules import chronon_common, chronon_glb, chronon_lub
+from .metadata import is_mixtime, time_calendar, time_chronon, time_cycle
+from .ops import circsum, seq, time_ceiling, time_floor, time_round, time_shift
+from .predicates import (
+    time_is_complete_at,
+    time_is_cyclical,
+    time_is_determinate_at,
+    time_is_duration,
+    time_is_linear,
+)
+from .time import (
+    CyclicalTime,
+    Duration,
+    LinearTime,
+    Mixtime,
+    TimeVector,
+    cyclical_time,
+    date,
+    datetime,
+    day_of_month,
+    day_of_week,
+    day_of_year,
+    days,
+    duration,
+    hours,
+    linear_time,
+    milliseconds,
+    minutes,
+    mixtime,
+    month_of_year,
+    months,
+    quarters,
+    seconds,
+    time_of_day,
+    week_of_year,
+    weeks,
+    year,
+    yearmonth,
+    yearquarter,
+    yearweek,
+    years,
+)
+from .timezones import tz_abbreviation, tz_name, tz_offset, tz_transitions
+from .units import Calendar, GregorianCalendar, Unit, cal_gregorian
+
 __all__ = [
+    # low-level kernel
     "day_to_month",
     "day_to_quarter",
     "day_to_year",
     "month_to_day",
     "year_to_day",
+    # model
+    "TimeVector",
+    "LinearTime",
+    "CyclicalTime",
+    "Duration",
+    "Mixtime",
+    "Unit",
+    "Calendar",
+    "GregorianCalendar",
+    "cal_gregorian",
+    "linear_time",
+    "cyclical_time",
+    "duration",
+    "mixtime",
+    "year",
+    "yearquarter",
+    "yearmonth",
+    "yearweek",
+    "date",
+    "datetime",
+    "month_of_year",
+    "day_of_year",
+    "day_of_month",
+    "day_of_week",
+    "week_of_year",
+    "time_of_day",
+    "years",
+    "quarters",
+    "months",
+    "weeks",
+    "days",
+    "hours",
+    "minutes",
+    "seconds",
+    "milliseconds",
+    # operations
+    "time_floor",
+    "time_ceiling",
+    "time_round",
+    "time_shift",
+    "seq",
+    "circsum",
+    "chronon_glb",
+    "chronon_lub",
+    "chronon_common",
+    # metadata
+    "is_mixtime",
+    "time_chronon",
+    "time_cycle",
+    "time_calendar",
+    # timezones
+    "tz_name",
+    "tz_abbreviation",
+    "tz_offset",
+    "tz_transitions",
+    # predicates
+    "time_is_linear",
+    "time_is_cyclical",
+    "time_is_duration",
+    "time_is_determinate_at",
+    "time_is_complete_at",
+    # components
+    "ComponentSpec",
+    "ComponentValue",
+    "lin",
+    "cyc",
+    "time_components",
+    "time_compose",
 ]
 
 

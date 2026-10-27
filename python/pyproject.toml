@@ -1,11 +1,14 @@
 [project]
 name = "mixtime"
-version = "0.1.0"
-description = "Python bindings for the Rust port of mixtime Gregorian chronon arithmetic"
+version = "0.3.0"
+description = "Pythonic mixed-granularity time vectors with a Rust Gregorian chronon kernel"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 dependencies = ["mixtime-rs", "numpy>=2.0"]
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.0"]
 
 [tool.uv.sources]
 mixtime-rs = { path = "../rust", editable = true }
@@ -18,7 +21,7 @@ build-backend = "hatchling.build"
 packages = ["src/mixtime"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "pandas>=2.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

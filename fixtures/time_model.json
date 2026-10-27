@@ -1,0 +1,1920 @@
+{
+  "package_version": "0.4.0",
+  "constructors": [
+    {
+      "name": "year_strings",
+      "kind": "linear",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [54, 55],
+      "formatted": ["2024", "2025"]
+    },
+    {
+      "name": "yearquarter_strings",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [216, 217, 215],
+      "formatted": ["2024 Q1", "2024 Q2", "2023 Q4"]
+    },
+    {
+      "name": "yearmonth_strings",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 649, 650],
+      "formatted": ["2024 Jan", "2024 Feb", "2024 Mar"]
+    },
+    {
+      "name": "yearweek_strings",
+      "kind": "linear",
+      "chronon": "week",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "cal_isoweek",
+      "discrete": true,
+      "values": [2818, 2820, 2826],
+      "formatted": ["2024 W01", "2024 W03", "2024 W09"]
+    },
+    {
+      "name": "date_strings",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19737, 19782, 0],
+      "formatted": ["2024-01-15", "2024-02-29", "1970-01-01"]
+    },
+    {
+      "name": "datetime_strings",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1705322096, 1705276800],
+      "formatted": ["2024-01-15 12:34:56", "2024-01-15 00:00:00"]
+    },
+    {
+      "name": "yearmonth_numeric_double",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 648,
+      "formatted": "2024 Jan 0.0%"
+    },
+    {
+      "name": "yearmonth_numeric_integer",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 648,
+      "formatted": "2024 Jan"
+    },
+    {
+      "name": "yearmonth_continuous",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 648.451612903226,
+      "formatted": "2024 Jan 45.2%"
+    },
+    {
+      "name": "yearquarter_continuous",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 216.494252873563,
+      "formatted": "2024 Q1 49.4%"
+    },
+    {
+      "name": "year_continuous",
+      "kind": "linear",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 54.4972677595628,
+      "formatted": "2024.49726775956 49.7%"
+    },
+    {
+      "name": "date_continuous",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737.5,
+      "formatted": "2024-01-15 50.0%"
+    },
+    {
+      "name": "datetime_continuous",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 1705320000.25,
+      "formatted": "2024-01-15 12:00:00 25.0%"
+    }
+  ],
+  "parsing": [
+    {
+      "name": "yearmonth_2024_jan",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 648,
+      "formatted": "2024 Jan"
+    },
+    {
+      "name": "yearmonth_jan_2024",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 648,
+      "formatted": "2024 Jan"
+    },
+    {
+      "name": "yearmonth_slash",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 648,
+      "formatted": "2024 Jan"
+    },
+    {
+      "name": "yearmonth_dash",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 648,
+      "formatted": "2024 Jan"
+    },
+    {
+      "name": "yearquarter_2024_q1",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 216,
+      "formatted": "2024 Q1"
+    },
+    {
+      "name": "yearquarter_compact",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 216,
+      "formatted": "2024 Q1"
+    },
+    {
+      "name": "yearquarter_q1_2024",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 216,
+      "formatted": "2024 Q1"
+    },
+    {
+      "name": "yearquarter_slash",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 216,
+      "formatted": "2024 Q1"
+    },
+    {
+      "name": "yearquarter_month",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 216,
+      "formatted": "2024 Q1"
+    },
+    {
+      "name": "date_day_month_name",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19737,
+      "formatted": "2024-01-15"
+    },
+    {
+      "name": "date_month_name_day",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19737,
+      "formatted": "2024-01-15"
+    },
+    {
+      "name": "date_slash",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19737,
+      "formatted": "2024-01-15"
+    },
+    {
+      "name": "date_short_digits",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19727,
+      "formatted": "2024-01-05"
+    },
+    {
+      "name": "datetime_iso_t",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 1705322096,
+      "formatted": "2024-01-15 12:34:56"
+    }
+  ],
+  "cyclical": [
+    {
+      "name": "month_of_year",
+      "kind": "cyclical",
+      "chronon": "month",
+      "n": 1,
+      "cycle": "year",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 649, 659],
+      "formatted": ["Jan", "Feb", "Dec"]
+    },
+    {
+      "name": "day_of_year",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "year",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19737, 19782, 20088],
+      "formatted": ["D15", "D60", "D366"]
+    },
+    {
+      "name": "day_of_month",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "month",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19737, 19782, 20088],
+      "formatted": ["D15", "D29", "D31"]
+    },
+    {
+      "name": "day_of_week",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "week",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19737, 19782, 20088],
+      "formatted": ["Mon", "Thu", "Tue"]
+    },
+    {
+      "name": "week_of_year",
+      "kind": "cyclical",
+      "chronon": "week",
+      "n": 1,
+      "cycle": "isoyear",
+      "cycle_n": 1,
+      "calendar": "cal_isoweek",
+      "discrete": true,
+      "values": [2820, 2826, 2870],
+      "formatted": ["W03", "W09", "W01"]
+    },
+    {
+      "name": "time_of_day",
+      "kind": "cyclical",
+      "chronon": "second",
+      "n": 1,
+      "cycle": "day",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1705322096, 1705276800],
+      "formatted": ["12:34:56", "00:00:00"]
+    },
+    {
+      "name": "month_of_year_continuous",
+      "kind": "cyclical",
+      "chronon": "month",
+      "n": 1,
+      "cycle": "year",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 648.451612903226,
+      "formatted": "Jan 45.2%"
+    },
+    {
+      "name": "day_of_year_continuous",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "year",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737,
+      "formatted": "D15 0.0%"
+    },
+    {
+      "name": "day_of_month_continuous",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "month",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737,
+      "formatted": "D15 0.0%"
+    },
+    {
+      "name": "day_of_week_continuous",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "week",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737,
+      "formatted": "Mon 0.0%"
+    },
+    {
+      "name": "day_of_week_continuous_datetime",
+      "kind": "cyclical",
+      "chronon": "day",
+      "n": 1,
+      "cycle": "week",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737.5,
+      "formatted": "Mon 50.0%"
+    },
+    {
+      "name": "week_of_year_continuous",
+      "kind": "cyclical",
+      "chronon": "week",
+      "n": 1,
+      "cycle": "isoyear",
+      "cycle_n": 1,
+      "calendar": "cal_isoweek",
+      "discrete": false,
+      "values": 2820,
+      "formatted": "W03 0.0%"
+    },
+    {
+      "name": "time_of_day_continuous",
+      "kind": "cyclical",
+      "chronon": "second",
+      "n": 1,
+      "cycle": "day",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 1705322096.25,
+      "formatted": "12:34:56 25.0%"
+    }
+  ],
+  "durations": [
+    {
+      "name": "years",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 years", "2.0 years", "0.5 years"]
+    },
+    {
+      "name": "quarters",
+      "kind": "duration",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 quarters", "2.0 quarters", "0.5 quarters"]
+    },
+    {
+      "name": "months",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 months", "2.0 months", "0.5 months"]
+    },
+    {
+      "name": "weeks",
+      "kind": "duration",
+      "chronon": "week",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "cal_isoweek",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 weeks", "2.0 weeks", "0.5 weeks"]
+    },
+    {
+      "name": "days",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 days", "2.0 days", "0.5 days"]
+    },
+    {
+      "name": "hours",
+      "kind": "duration",
+      "chronon": "hour",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 hours", "2.0 hours", "0.5 hours"]
+    },
+    {
+      "name": "minutes",
+      "kind": "duration",
+      "chronon": "minute",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 minutes", "2.0 minutes", "0.5 minutes"]
+    },
+    {
+      "name": "seconds",
+      "kind": "duration",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 seconds", "2.0 seconds", "0.5 seconds"]
+    },
+    {
+      "name": "milliseconds",
+      "kind": "duration",
+      "chronon": "millisecond",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 0.5],
+      "formatted": ["1.0 milliseconds", "2.0 milliseconds", "0.5 milliseconds"]
+    },
+    {
+      "name": "years_fractional",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [0.333333333333333, 1.5, 2],
+      "formatted": ["0.3333333 years", "1.5000000 years", "2.0000000 years"]
+    },
+    {
+      "name": "months_fractional",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 0.967741935483871,
+      "formatted": "0.9677419 months"
+    },
+    {
+      "name": "days_fractional",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [0.333333333333333, -0.5],
+      "formatted": ["0.3333333 days", "-0.5000000 days"]
+    },
+    {
+      "name": "seconds_fractional",
+      "kind": "duration",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 0.123456789,
+      "formatted": "0.1234568 seconds"
+    },
+    {
+      "name": "milliseconds_fractional",
+      "kind": "duration",
+      "chronon": "millisecond",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 1.2345,
+      "formatted": "1.2345 milliseconds"
+    },
+    {
+      "name": "years_discrete",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1, 2, 0, -1],
+      "formatted": ["1 year", "2 years", "0 years", "-1 years"]
+    },
+    {
+      "name": "days_discrete",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1, 2, 0, -1],
+      "formatted": ["1 day", "2 days", "0 days", "-1 days"]
+    },
+    {
+      "name": "months_3_discrete",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 3,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [1, 2],
+      "formatted": ["3 months", "6 months"]
+    },
+    {
+      "name": "months_3_continuous",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 3,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1.5, 2.5],
+      "formatted": ["4.5 months", "7.5 months"]
+    }
+  ],
+  "operations": [
+    {
+      "name": "floor_year",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 648, 648, 648],
+      "formatted": ["2024 Jan", "2024 Jan", "2024 Jan", "2024 Jan"]
+    },
+    {
+      "name": "ceiling_year",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [660, 660, 660, 660],
+      "formatted": ["2025 Jan", "2025 Jan", "2025 Jan", "2025 Jan"]
+    },
+    {
+      "name": "round_year",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 648, 648, 660],
+      "formatted": ["2024 Jan", "2024 Jan", "2024 Jan", "2025 Jan"]
+    },
+    {
+      "name": "seq_by_two",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 650, 652],
+      "formatted": ["2024 Jan", "2024 Mar", "2024 May"]
+    },
+    {
+      "name": "add_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [649, 650, 655, 660],
+      "formatted": ["2024 Feb", "2024 Mar", "2024 Aug", "2025 Jan"]
+    },
+    {
+      "name": "subtract_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [647, 648, 653, 658],
+      "formatted": ["2023 Dec", "2024 Jan", "2024 Jun", "2024 Nov"]
+    },
+    {
+      "name": "difference_months",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 2, 7, 12],
+      "formatted": ["1.0 months", "2.0 months", "7.0 months", "12.0 months"]
+    },
+    {
+      "name": "difference_cross",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 30,
+      "formatted": "30.0 days"
+    },
+    {
+      "name": "difference_quarter_month",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 0.9677419354839,
+      "formatted": "0.9677419 months"
+    },
+    {
+      "name": "difference_month_week",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 30,
+      "formatted": "30.0 days"
+    },
+    {
+      "name": "add_continuous_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 649.967741935484,
+      "formatted": "2024 Feb 96.8%"
+    },
+    {
+      "name": "duration_common_weeks_days",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 14,
+      "formatted": "14.0 days"
+    },
+    {
+      "name": "duration_common_months_years",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 13,
+      "formatted": "13.0 months"
+    },
+    {
+      "name": "duration_discrete_add",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 13,
+      "formatted": "13.0 months"
+    },
+    {
+      "name": "duration_discrete_sub",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 11,
+      "formatted": "11.0 months"
+    },
+    {
+      "name": "duration_discrete_scalar_add",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 2,
+      "formatted": "2.0 years"
+    },
+    {
+      "name": "duration_discrete_scalar_sub",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 0.5,
+      "formatted": "0.5 years"
+    },
+    {
+      "name": "duration_discrete_scalar_mul",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 2,
+      "formatted": "2.0 years"
+    },
+    {
+      "name": "duration_discrete_scalar_div",
+      "kind": "duration",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 0.5,
+      "formatted": "0.5 years"
+    },
+    {
+      "name": "time_shift_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [649, 650, 655, 660],
+      "formatted": ["2024 Feb", "2024 Mar", "2024 Aug", "2025 Jan"]
+    },
+    {
+      "name": "time_shift_days",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19738, 19783],
+      "formatted": ["2024-01-16", "2024-03-01"]
+    },
+    {
+      "name": "date_timezone_utc",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": 19738,
+      "formatted": "2024-01-16"
+    },
+    {
+      "name": "time_shift_continuous_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 649.967741935484,
+      "formatted": "2024 Feb 96.8%"
+    },
+    {
+      "name": "continuous_string_month",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 648,
+      "formatted": "2024 Jan 0.0%"
+    },
+    {
+      "name": "continuous_string_quarter",
+      "kind": "linear",
+      "chronon": "quarter",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 216,
+      "formatted": "2024 Q1 0.0%"
+    },
+    {
+      "name": "continuous_string_week",
+      "kind": "linear",
+      "chronon": "week",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "cal_isoweek",
+      "discrete": false,
+      "values": 2820,
+      "formatted": "2024 W03 0.0%"
+    },
+    {
+      "name": "continuous_string_year",
+      "kind": "linear",
+      "chronon": "year",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 54,
+      "formatted": "2024 0.0%"
+    },
+    {
+      "name": "continuous_string_date",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 19737,
+      "formatted": "2024-01-15 0.0%"
+    },
+    {
+      "name": "continuous_string_datetime",
+      "kind": "linear",
+      "chronon": "second",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": 1705322096,
+      "formatted": "2024-01-15 12:34:56 0.0%"
+    },
+    {
+      "name": "seq_length_out_fractional",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [648, 650.75, 653.5, 656.25, 659],
+      "formatted": ["2024 Jan 0.0%", "2024 Mar 75.0%", "2024 Jun 50.0%", "2024 Sep 25.0%", "2024 Dec 0.0%"]
+    },
+    {
+      "name": "seq_length_out_integral",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19723, 19726, 19729, 19732],
+      "formatted": ["2024-01-01", "2024-01-04", "2024-01-07", "2024-01-10"]
+    },
+    {
+      "name": "seq_fractional_step_month",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 648, 649],
+      "formatted": ["2024 Jan", "2024 Jan", "2024 Feb"]
+    },
+    {
+      "name": "seq_fractional_step_date",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19723, 19723, 19724],
+      "formatted": ["2024-01-01", "2024-01-01", "2024-01-02"]
+    },
+    {
+      "name": "seq_fractional_step_date_06",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19723, 19723],
+      "formatted": ["2024-01-01", "2024-01-01"]
+    }
+  ],
+  "comparisons": [
+    {
+      "name": "month_vs_day_start",
+      "result": false
+    },
+    {
+      "name": "month_vs_day_end",
+      "result": false
+    },
+    {
+      "name": "month_vs_month",
+      "result": true
+    },
+    {
+      "name": "continuous_month_vs_day",
+      "result": true
+    },
+    {
+      "name": "span_vs_instant_same_value",
+      "result": false
+    },
+    {
+      "name": "duration_discrete_vs_continuous",
+      "result": true
+    },
+    {
+      "name": "month_vs_day_gt",
+      "result": false
+    },
+    {
+      "name": "month_vs_day_lt",
+      "result": false
+    },
+    {
+      "name": "month_vs_day_ge",
+      "result": true
+    }
+  ],
+  "mixed": [
+    {
+      "name": "month_quarter",
+      "values": [648, 649, 217, 218],
+      "formatted": ["2024 Jan", "2024 Feb", "2024 Q2", "2024 Q3"]
+    }
+  ],
+  "predicates": [
+    {
+      "name": "linear_yearmonth",
+      "result": [true, true]
+    },
+    {
+      "name": "linear_month_of_year",
+      "result": [false, false]
+    },
+    {
+      "name": "cyclical_yearmonth",
+      "result": [false, false]
+    },
+    {
+      "name": "cyclical_month_of_year",
+      "result": [true, true]
+    },
+    {
+      "name": "duration_months",
+      "result": [true, true]
+    },
+    {
+      "name": "duration_yearmonth",
+      "result": [false, false]
+    },
+    {
+      "name": "determinate_year_month",
+      "result": false
+    },
+    {
+      "name": "determinate_continuous_year_month",
+      "result": true
+    },
+    {
+      "name": "determinate_month_year",
+      "result": true
+    },
+    {
+      "name": "determinate_month_week",
+      "result": false
+    },
+    {
+      "name": "determinate_day_month",
+      "result": true
+    },
+    {
+      "name": "determinate_day_week",
+      "result": true
+    },
+    {
+      "name": "determinate_week_month",
+      "result": false
+    },
+    {
+      "name": "determinate_quarter_month",
+      "result": false
+    },
+    {
+      "name": "determinate_datetime_hour",
+      "result": true
+    },
+    {
+      "name": "complete_year_partial",
+      "result": [false, false, false, false, false, false, false, false, false, false]
+    },
+    {
+      "name": "complete_year_full",
+      "result": [true, true, true, true, true, true, true, true, true, true, true, true, false, false, false]
+    },
+    {
+      "name": "complete_quarter_full",
+      "result": [true, true, true, true]
+    },
+    {
+      "name": "complete_month_missing",
+      "result": [false, false]
+    },
+    {
+      "name": "complete_days_month",
+      "result": [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]
+    },
+    {
+      "name": "complete_days_week",
+      "result": [false, false, false, false, false, false, false]
+    }
+  ],
+  "components": [
+    {
+      "name": "yearmonth",
+      "columns": {
+        "yr": {
+          "values": [56, 56, 57],
+          "formatted": ["2026", "2026", "2027"],
+          "chronon": {
+            "name": "year",
+            "n": 1
+          },
+          "cycle": null
+        },
+        "mth": {
+          "values": [673, 674, 686],
+          "formatted": ["Feb", "Mar", "Mar"],
+          "chronon": {
+            "name": "month",
+            "n": 1
+          },
+          "cycle": {
+            "name": "year",
+            "n": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "date_week",
+      "columns": {
+        "dow": {
+          "values": [20437, 20438, 20439, 20440],
+          "formatted": ["Mon", "Tue", "Wed", "Thu"],
+          "chronon": {
+            "name": "day",
+            "n": 1
+          },
+          "cycle": {
+            "name": "week",
+            "n": 1
+          }
+        },
+        "doy": {
+          "values": [20437, 20438, 20439, 20440],
+          "formatted": ["D349", "D350", "D351", "D352"],
+          "chronon": {
+            "name": "day",
+            "n": 1
+          },
+          "cycle": {
+            "name": "year",
+            "n": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "datetime",
+      "columns": {
+        "yr": {
+          "values": 54,
+          "formatted": "2024",
+          "chronon": {
+            "name": "year",
+            "n": 1
+          },
+          "cycle": null
+        },
+        "mth": {
+          "values": 650,
+          "formatted": "Mar",
+          "chronon": {
+            "name": "month",
+            "n": 1
+          },
+          "cycle": {
+            "name": "year",
+            "n": 1
+          }
+        },
+        "dom": {
+          "values": 19797,
+          "formatted": "D15",
+          "chronon": {
+            "name": "day",
+            "n": 1
+          },
+          "cycle": {
+            "name": "month",
+            "n": 1
+          }
+        },
+        "hod": {
+          "values": 475140,
+          "formatted": "h12",
+          "chronon": {
+            "name": "hour",
+            "n": 1
+          },
+          "cycle": {
+            "name": "day",
+            "n": 1
+          }
+        },
+        "min": {
+          "values": 28508434,
+          "formatted": "m34",
+          "chronon": {
+            "name": "minute",
+            "n": 1
+          },
+          "cycle": {
+            "name": "hour",
+            "n": 1
+          }
+        },
+        "sec": {
+          "values": 1710506096,
+          "formatted": "s56",
+          "chronon": {
+            "name": "second",
+            "n": 1
+          },
+          "cycle": {
+            "name": "minute",
+            "n": 1
+          }
+        },
+        "mq": {
+          "values": 650,
+          "formatted": "M2",
+          "chronon": {
+            "name": "month",
+            "n": 1
+          },
+          "cycle": {
+            "name": "quarter",
+            "n": 1
+          }
+        },
+        "qy": {
+          "values": 216,
+          "formatted": "Q1",
+          "chronon": {
+            "name": "quarter",
+            "n": 1
+          },
+          "cycle": {
+            "name": "year",
+            "n": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "indeterminate",
+      "columns": {
+        "day": {
+          "values": null,
+          "formatted": "NA",
+          "chronon": {
+            "name": "day",
+            "n": 1
+          },
+          "cycle": {
+            "name": "month",
+            "n": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "continuous",
+      "columns": {
+        "yr": {
+          "values": 54,
+          "formatted": "2024 0.0%",
+          "chronon": {
+            "name": "year",
+            "n": 1
+          },
+          "cycle": null
+        },
+        "mth": {
+          "values": 648.451612903226,
+          "formatted": "Jan 45.2%",
+          "chronon": {
+            "name": "month",
+            "n": 1
+          },
+          "cycle": {
+            "name": "year",
+            "n": 1
+          }
+        },
+        "dom": {
+          "values": 19737,
+          "formatted": "D15 0.0%",
+          "chronon": {
+            "name": "day",
+            "n": 1
+          },
+          "cycle": {
+            "name": "month",
+            "n": 1
+          }
+        }
+      }
+    }
+  ],
+  "compose": [
+    {
+      "name": "year_month_day",
+      "values": 3726,
+      "formatted": "1980-03-15",
+      "chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "cycle": null
+    },
+    {
+      "name": "year",
+      "values": 10,
+      "formatted": "1980",
+      "chronon": {
+        "name": "year",
+        "n": 1
+      },
+      "cycle": null
+    },
+    {
+      "name": "month",
+      "values": 2,
+      "formatted": "Mar",
+      "chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "cycle": {
+        "name": "year",
+        "n": 1
+      }
+    },
+    {
+      "name": "day_month",
+      "values": 73,
+      "formatted": "D74",
+      "chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "cycle": {
+        "name": "year",
+        "n": 1
+      }
+    },
+    {
+      "name": "multi_unit",
+      "values": 11,
+      "formatted": "1970 Dec",
+      "chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "cycle": null
+    },
+    {
+      "name": "tagged",
+      "values": 19797,
+      "formatted": "2024-03-15",
+      "chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "cycle": null
+    }
+  ],
+  "circsum": [
+    {
+      "name": "basic",
+      "x": [1, 2, 3, 4],
+      "size": 2,
+      "step": 2,
+      "result": [3, 7]
+    },
+    {
+      "name": "window3",
+      "x": [1, 2, 3, 4, 5],
+      "size": 3,
+      "step": 3,
+      "result": [6, 10, 9, 8, 12]
+    },
+    {
+      "name": "negative_step",
+      "x": [1, 2, 3, 4, 5],
+      "size": 1,
+      "step": -1,
+      "result": [1, 5, 4, 3, 2]
+    },
+    {
+      "name": "negative_size",
+      "x": [1, 2, 3, 4, 5],
+      "size": -2,
+      "step": 1,
+      "result": [6, 3, 5, 7, 9]
+    },
+    {
+      "name": "step_one",
+      "x": [1, 2, 3, 4],
+      "size": 2,
+      "step": 1,
+      "result": [3, 5, 7, 5]
+    },
+    {
+      "name": "single_step_two",
+      "x": [1, 2, 3, 4],
+      "size": 1,
+      "step": 2,
+      "result": [1, 3]
+    },
+    {
+      "name": "oversized",
+      "x": [1, 2, 3, 4],
+      "size": 6,
+      "step": 1,
+      "result": [13, 15, 17, 15]
+    },
+    {
+      "name": "empty",
+      "x": [],
+      "size": 2,
+      "step": 1,
+      "result": []
+    },
+    {
+      "name": "zero_size",
+      "x": [1, 2, 3, 4],
+      "size": 0,
+      "step": 1,
+      "result": []
+    },
+    {
+      "name": "zero_step",
+      "x": [1, 2, 3, 4],
+      "size": 2,
+      "step": 0,
+      "result": []
+    }
+  ],
+  "granules": [
+    {
+      "name": "yearmonth_date",
+      "glb": {
+        "name": "day",
+        "n": 1
+      },
+      "lub": {
+        "name": "month",
+        "n": 1
+      }
+    },
+    {
+      "name": "week_month",
+      "glb": {
+        "name": "day",
+        "n": 1
+      },
+      "lub": null
+    },
+    {
+      "name": "week_hour",
+      "glb": {
+        "name": "hour",
+        "n": 1
+      },
+      "lub": {
+        "name": "week",
+        "n": 1
+      }
+    },
+    {
+      "name": "second_minute",
+      "glb": {
+        "name": "second",
+        "n": 1
+      },
+      "lub": {
+        "name": "minute",
+        "n": 1
+      }
+    },
+    {
+      "name": "year_quarter",
+      "glb": {
+        "name": "quarter",
+        "n": 1
+      },
+      "lub": {
+        "name": "year",
+        "n": 1
+      }
+    },
+    {
+      "name": "month_2_3",
+      "glb": {
+        "name": "month",
+        "n": 1
+      },
+      "lub": {
+        "name": "month",
+        "n": 1
+      }
+    },
+    {
+      "name": "year_2_month",
+      "glb": {
+        "name": "month",
+        "n": 1
+      },
+      "lub": {
+        "name": "year",
+        "n": 1
+      }
+    },
+    {
+      "name": "week_day",
+      "glb": {
+        "name": "day",
+        "n": 1
+      },
+      "lub": {
+        "name": "week",
+        "n": 1
+      }
+    },
+    {
+      "name": "year_week",
+      "glb": {
+        "name": "day",
+        "n": 1
+      },
+      "lub": null
+    }
+  ],
+  "metadata": [
+    {
+      "name": "yearmonth",
+      "chronon": "1 month",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "yearquarter",
+      "chronon": "1 quarter",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "yearweek",
+      "chronon": "1 week",
+      "cycle": "NA",
+      "calendar": "isoweek"
+    },
+    {
+      "name": "date",
+      "chronon": "1 day",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "datetime",
+      "chronon": "1 second",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "month_of_year",
+      "chronon": "1 month",
+      "cycle": "1 year",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "day_of_week",
+      "chronon": "1 day",
+      "cycle": "1 week",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "time_of_day",
+      "chronon": "1 second",
+      "cycle": "1 day",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "duration_months",
+      "chronon": "1 month",
+      "cycle": "NA",
+      "calendar": "gregorian"
+    },
+    {
+      "name": "mixed",
+      "chronon": ["1 month", "1 day", "1 month"],
+      "cycle": ["NA", "NA", "NA"],
+      "calendar": "gregorian"
+    }
+  ],
+  "timezones": [
+    {
+      "name": "naive_datetime",
+      "tz_name": null,
+      "abbreviation": "",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "0.0 seconds"
+    },
+    {
+      "name": "utc_datetime",
+      "tz_name": "UTC",
+      "abbreviation": "UTC",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "0.0 seconds"
+    },
+    {
+      "name": "ny_winter_datetime",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -18000,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "-18000.0 seconds"
+    },
+    {
+      "name": "ny_summer_datetime",
+      "tz_name": "America/New_York",
+      "abbreviation": "EDT",
+      "offset_values": -14400,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "-14400.0 seconds"
+    },
+    {
+      "name": "sydney_datetime",
+      "tz_name": "Australia/Sydney",
+      "abbreviation": "AEDT",
+      "offset_values": 39600,
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": "39600.0 seconds"
+    },
+    {
+      "name": "naive_date",
+      "tz_name": null,
+      "abbreviation": "",
+      "offset_values": 0,
+      "offset_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "offset_formatted": "0.0 days"
+    },
+    {
+      "name": "ny_date",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.208333333333333,
+      "offset_chronon": {
+        "name": "day",
+        "n": 1
+      },
+      "offset_formatted": "-0.2083333 days"
+    },
+    {
+      "name": "ny_yearmonth",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.00672043010752688,
+      "offset_chronon": {
+        "name": "month",
+        "n": 1
+      },
+      "offset_formatted": "-0.00672043 months"
+    },
+    {
+      "name": "ny_yearquarter",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.00228310502283105,
+      "offset_chronon": {
+        "name": "quarter",
+        "n": 1
+      },
+      "offset_formatted": "-0.002283105 quarters"
+    },
+    {
+      "name": "ny_year",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.000570776255707763,
+      "offset_chronon": {
+        "name": "year",
+        "n": 1
+      },
+      "offset_formatted": "-0.0005707763 years"
+    },
+    {
+      "name": "ny_week",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -0.0297619047619048,
+      "offset_chronon": {
+        "name": "week",
+        "n": 1
+      },
+      "offset_formatted": "-0.0297619 weeks"
+    },
+    {
+      "name": "ny_hour",
+      "tz_name": "America/New_York",
+      "abbreviation": "EST",
+      "offset_values": -5,
+      "offset_chronon": {
+        "name": "hour",
+        "n": 1
+      },
+      "offset_formatted": "-5.0 hours"
+    },
+    {
+      "name": "mixed",
+      "tz_name": ["America/New_York", "America/New_York", "America/New_York"],
+      "abbreviation": ["EST", "EST", "EST"],
+      "offset_values": [-18000, -0.208333333333333, -0.00672043010752688],
+      "offset_chronon": {
+        "name": "second",
+        "n": 1
+      },
+      "offset_formatted": ["-18000.0 seconds", "-0.2083333 days", "-0.00672043 months"]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "ny_2024",
+      "time": [1710054000, 1730613600],
+      "offset_before": [-18000, -14400],
+      "offset_after": [-14400, -18000]
+    },
+    {
+      "name": "london_2024",
+      "time": [1711846800, 1729990800],
+      "offset_before": [0, 3600],
+      "offset_after": [3600, 0]
+    },
+    {
+      "name": "utc_2024",
+      "time": [],
+      "offset_before": [],
+      "offset_after": []
+    }
+  ]
+}

@@ -18,6 +18,7 @@ test: test-rust test-python
 # Regenerate the R golden fixtures (requires mixtime installed in R; set R_LIBS if non-default).
 fixtures:
     Rscript fixtures/generate_fixtures.R
+    Rscript fixtures/generate_time_model_fixtures.R
 
 # Remove build and test artifacts.
 clean:
