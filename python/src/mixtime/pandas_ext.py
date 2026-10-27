@@ -396,7 +396,9 @@ class MixtimeArray(ExtensionArray):
         return self.__add__(other)
 
     def __sub__(self, other: Any) -> Any:
-        if isinstance(other, Duration):
+        if isinstance(other, MixtimeArray):
+            return MixtimeArray(self._data - other._data)
+        if isinstance(other, (Duration, Mixtime, TimeVector, TimeScalar)):
             return MixtimeArray(self._data - other)
         return NotImplemented
 

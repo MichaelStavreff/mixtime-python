@@ -53,6 +53,16 @@ print(x.values)          # [648 649]
 print(x.format())        # ['2024 Jan', '2024 Feb']
 print((x + mt.months(1)).format())
 
+mixed = mt.mixtime(
+    mt.yearmonth(["2024-02"]),
+    mt.year(["2025"]),
+)
+earlier = mt.mixtime(
+    mt.yearmonth(["2024-01"]),
+    mt.year(["2024"]),
+)
+print((mixed - earlier).format())  # ['1.0 months', '1.0 years']
+
 when = mt.date(["2024-01-15", "2024-02-29"])
 print(mt.month_of_year(when).format())  # ['Jan', 'Feb']
 print(mt.day_of_week(when).format())    # ['Mon', 'Thu']
@@ -154,8 +164,9 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
 `isna`, `take`, `fillna`, `where`, `concat`, slicing, `astype(object)`,
-`astype(str)`/`astype("string")`, duration shifts (`series + months(1)`), and
-`to_numpy()` (object array of `TimeScalar`). String conversion uses
+`astype(str)`/`astype("string")`, duration shifts (`series + months(1)`),
+mixed time-point differences (`series - series`), and `to_numpy()` (object
+array of `TimeScalar`). String conversion uses
 `TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while
 NumPy unicode arrays use the literal `"NA"` because they cannot represent
 missing values. Columns sort chronologically even when granularities are

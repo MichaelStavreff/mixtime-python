@@ -510,6 +510,119 @@ def test_mixed_comparisons(case):
         assert actual == expected, op
 
 
+MIXED_ARITHMETIC_INPUTS = {
+    "same_month": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+    ),
+    "mixed_self": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+    ),
+    "mixed_shifted": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-02", "2024-03"]),
+            mt.year(["2025", "2026"]),
+        ),
+    ),
+    "date_month": lambda: (
+        mt.mixtime(mt.date("2024-01-31"), mt.yearmonth("2024-01")),
+        mt.mixtime(mt.date("2024-02-29"), mt.yearmonth("2024-02")),
+    ),
+    "recycle_scalar": lambda: (
+        mt.mixtime(mt.yearmonth("2024-01")),
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+    ),
+    "continuous_mixed": lambda: (
+        mt.mixtime(
+            mt.yearmonth(dt.date(2024, 1, 15), discrete=False),
+            mt.date(dt.date(2024, 1, 15), discrete=False),
+        ),
+        mt.mixtime(
+            mt.yearmonth(dt.date(2024, 2, 15), discrete=False),
+            mt.date(dt.date(2024, 2, 15), discrete=False),
+        ),
+    ),
+    "missing_month": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None])),
+        mt.mixtime(mt.yearmonth(["2024-02", "2024-03"])),
+    ),
+    "missing_mixed": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None]), mt.year(["2024"])),
+        mt.mixtime(
+            mt.yearmonth(["2024-02", "2024-03"]), mt.year(["2025"])
+        ),
+    ),
+    "missing_both": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None])),
+        mt.mixtime(mt.yearmonth([None, "2024-03"])),
+    ),
+    "cyclical_shifted": lambda: (
+        mt.mixtime(mt.month_of_year([1, 3])),
+        mt.mixtime(mt.month_of_year([2, 1])),
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["mixed_arithmetic"], ids=lambda c: c["name"]
+)
+def test_mixed_arithmetic(case):
+    left, right = MIXED_ARITHMETIC_INPUTS[case["name"]]()
+    _assert_formatted(left.format(), case["left"])
+    _assert_formatted(right.format(), case["right"])
+
+    actual = left - right
+    _assert_formatted(actual.format(), case["formatted"])
+    assert len(actual.parts) == len(case["parts"])
+    for part, expected in zip(actual.parts, case["parts"]):
+        assert part.kind == expected["kind"]
+        assert part.chronon.name == expected["chronon"]["name"]
+        assert float(part.chronon.n) == float(expected["chronon"]["n"])
+        assert part.discrete is expected["discrete"]
+        _assert_values(part.values, _listify(expected["values"]))
+        _assert_formatted(part.format(), expected["formatted"])
+
+
+def test_mixed_arithmetic_recycling_errors():
+    left = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    right = mt.mixtime(mt.yearmonth(["2024-01", "2024-02", "2024-03"]))
+    with pytest.raises(ValueError, match="recycle"):
+        left - right
+
+
+def test_mixed_arithmetic_rejects_discrete_different_chronons():
+    left = mt.mixtime(mt.yearmonth("2024-01"))
+    right = mt.mixtime(mt.year("2024"))
+    with pytest.raises(ValueError, match="indeterminate"):
+        left - right
+
+
+def test_mixed_arithmetic_rejects_duration_minus_time():
+    left = mt.mixtime(mt.months(1))
+    right = mt.mixtime(mt.yearmonth("2024-01"))
+    with pytest.raises(TypeError, match="duration"):
+        left - right
+
+
+def test_mixed_arithmetic_time_point_kinds_match_time_vector():
+    left = mt.month_of_year(["2024-01-15", "2024-03-15"])
+    right = mt.yearmonth(["2024-02", "2024-01"])
+    expected = left - right
+    actual = mt.mixtime(left) - mt.mixtime(right)
+    _assert_formatted(actual.format(), expected.format())
+
+
 ORDERING_INPUTS = {
     "linear_mixed": lambda: mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -1475,6 +1588,13 @@ def test_pandas_extension_duration_arithmetic():
     _assert_formatted(
         [value.format() for value in restored],
         ["2024 Jan", "2024 Feb", "2024-01-29"],
+    )
+
+    differences = series - series
+    assert differences.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in differences],
+        ["0.0 months", "0.0 months", "0.0 days"],
     )
 
 

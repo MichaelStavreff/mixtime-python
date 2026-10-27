@@ -34,8 +34,16 @@ Missing values compare equal in `==` masks; ordering comparisons involving a
 missing value are `False`. This is a documented divergence from R's
 three-valued `NA`. pandas string conversion now uses `TimeScalar.format()`,
 including `astype(str)`/`astype("string")`, and pandas columns support
-duration shifts (`series + months(1)`). Phase 2 still defers mixed time-point
-differences and broader vctrs parity.
+duration shifts (`series + months(1)`). Broader vctrs parity remains deferred.
+
+## 2026-10-27 update: mixed time-point subtraction
+
+Mixed time-point differences are elementwise. `Mixtime - Mixtime` returns a
+`Mixtime` whose parts are continuous `Duration` vectors: each pair uses its
+finest common chronon, a length-one operand recycles, and discrete pairs with
+different chronons raise. Missing results keep the pair's common chronon, so a
+missing month paired with a month stays a missing month duration. The optional
+pandas extension exposes the same operation as `series - series`.
 
 ## 2026-10-27 update: pandas columns and scalars
 
@@ -109,9 +117,9 @@ Deferred:
 - the complete vctrs/S7 coercion surface (a Gregorian `time_components()` /
   `time_compose()` subset is implemented),
 - ggplot2 and tsibble integration,
-- complete mixed-vector arithmetic; pandas duration shifts are covered by the
-  optional ExtensionArray, but mixed time-point differences, full non-pandas
-  columnar coercion, and other mixed-vector operators remain partial,
+- complete mixed-vector arithmetic beyond duration shifts and time-point
+  differences; full non-pandas columnar coercion and other mixed-vector
+  operators remain partial,
 - shifts from calendar chronons to finer fixed units (for example,
   `yearmonth + days(1)`),
 - shifts requiring a fractional month and R's alternative `on_invalid` DST

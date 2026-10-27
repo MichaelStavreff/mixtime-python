@@ -28,6 +28,7 @@ out <- list(
   comparisons = list(),
   mixed_comparisons = list(),
   mixed = list(),
+  mixed_arithmetic = list(),
   ordering = list(),
   predicates = list(),
   components = list(),
@@ -110,6 +111,26 @@ add_mixed_comparison <- function(name, e1, e2) {
     left = as.character(format(e1)),
     right = as.character(format(e2)),
     results = results
+  )
+}
+
+add_mixed_arithmetic <- function(name, e1, e2) {
+  result <- e1 - e2
+  parts <- lapply(result@x, function(part) {
+    list(
+      kind = sub("^mixtime::mt_", "", class(part)[1L]),
+      chronon = chronon_info(part),
+      discrete = is.integer(S7::S7_data(part)),
+      values = as.numeric(part),
+      formatted = as.character(format(part))
+    )
+  })
+  out$mixed_arithmetic[[length(out$mixed_arithmetic) + 1L]] <<- list(
+    name = name,
+    left = as.character(format(e1)),
+    right = as.character(format(e2)),
+    formatted = as.character(format(result)),
+    parts = parts
   )
 }
 
@@ -573,6 +594,53 @@ add_mixed_comparison(
   c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
     day_of_year(as.Date("2024-06-01"))),
   day_of_year(as.Date("2024-03-01"))
+)
+
+# -- mixed arithmetic ------------------------------------------------------
+month_pair <- c(yearmonth("2024-01"), yearmonth("2024-02"))
+add_mixed_arithmetic("same_month", month_pair, month_pair)
+add_mixed_arithmetic("mixed_self", mixed_linear, mixed_linear)
+add_mixed_arithmetic(
+  "mixed_shifted",
+  mixed_linear,
+  c(yearmonth(c("2024-02", "2024-03")), year(c(2025L, 2026L)))
+)
+add_mixed_arithmetic(
+  "date_month",
+  c(date("2024-01-31"), yearmonth("2024-01")),
+  c(date("2024-02-29"), yearmonth("2024-02"))
+)
+add_mixed_arithmetic(
+  "recycle_scalar",
+  yearmonth("2024-01"),
+  month_pair
+)
+add_mixed_arithmetic(
+  "continuous_mixed",
+  c(yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+    date(as.Date("2024-01-15"), discrete = FALSE)),
+  c(yearmonth(as.Date("2024-02-15"), discrete = FALSE),
+    date(as.Date("2024-02-15"), discrete = FALSE))
+)
+add_mixed_arithmetic(
+  "missing_month",
+  yearmonth(c("2024-01", NA)),
+  yearmonth(c("2024-02", "2024-03"))
+)
+add_mixed_arithmetic(
+  "missing_mixed",
+  c(yearmonth(c("2024-01", NA)), year(2024L)),
+  c(yearmonth(c("2024-02", "2024-03")), year(2025L))
+)
+add_mixed_arithmetic(
+  "missing_both",
+  yearmonth(c("2024-01", NA)),
+  yearmonth(c(NA, "2024-03"))
+)
+add_mixed_arithmetic(
+  "cyclical_shifted",
+  month_of_year(c(1L, 3L)),
+  month_of_year(c(2L, 1L))
 )
 
 # -- mixed granularity -----------------------------------------------------

@@ -823,7 +823,15 @@ class Mixtime:
     def __sub__(self, other: Any) -> "Mixtime":
         if isinstance(other, Duration):
             return Mixtime([part - other for part in self.parts])
-        return NotImplemented
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        from .scalar import _mixtime_from_scalars
+
+        return _mixtime_from_scalars(
+            _subtract_scalars(left, right)
+            for left, right in self._scalar_pairs(operands)
+        )
 
     def _operand_scalars(self, other: Any) -> list[Any] | None:
         if isinstance(other, Mixtime):
@@ -835,10 +843,10 @@ class Mixtime:
             return [other]
         return None
 
-    def _compare_scalars_against(
-        self, operands: list[Any], op: str
-    ) -> np.ndarray:
-        _mixtime_mode(self.parts)
+    def _scalar_pairs(
+        self, operands: list[Any]
+    ) -> Iterator[tuple[Any, Any]]:
+        """Pair this vector's scalars with ``operands``, recycling length 1."""
         n_self = len(self)
         n_other = len(operands)
         if n_self == 0 or n_other == 0:
@@ -847,24 +855,29 @@ class Mixtime:
                     f"Can't recycle a Mixtime of length {n_self} to match "
                     f"length {n_other}."
                 )
-            return np.asarray([], dtype=bool)
+            return iter(())
         if n_self == n_other:
-            pairs = zip(
-                (self.scalar(i) for i in range(n_self)), operands
-            )
-        elif n_other == 1:
+            return zip((self.scalar(i) for i in range(n_self)), operands)
+        if n_other == 1:
             right = operands[0]
-            pairs = ((self.scalar(i), right) for i in range(n_self))
-        elif n_self == 1:
+            return ((self.scalar(i), right) for i in range(n_self))
+        if n_self == 1:
             left = self.scalar(0)
-            pairs = ((left, right) for right in operands)
-        else:
-            raise ValueError(
-                f"Can't recycle a Mixtime of length {n_self} to match "
-                f"length {n_other}."
-            )
+            return ((left, right) for right in operands)
+        raise ValueError(
+            f"Can't recycle a Mixtime of length {n_self} to match "
+            f"length {n_other}."
+        )
+
+    def _compare_scalars_against(
+        self, operands: list[Any], op: str
+    ) -> np.ndarray:
+        _mixtime_mode(self.parts)
         return np.asarray(
-            [_compare_scalars(left, right, op) for left, right in pairs],
+            [
+                _compare_scalars(left, right, op)
+                for left, right in self._scalar_pairs(operands)
+            ],
             dtype=bool,
         )
 
@@ -1613,6 +1626,13 @@ def _compare_scalars(left: Any, right: Any, op: str) -> bool:
     x_start, x_end = _scalar_interval(left, common, cycle)
     y_start, y_end = _scalar_interval(right, common, cycle)
     return bool(_relation(op, x_start, x_end, y_start, y_end))
+
+
+def _subtract_scalars(left: Any, right: Any) -> Any:
+    """Subtract two scalars, returning a duration scalar."""
+    if (left.kind == "duration") != (right.kind == "duration"):
+        raise TypeError("Cannot subtract a duration from a time point")
+    return (left.to_vector() - right.to_vector()).scalar(0)
 
 
 def _mixtime_mode(parts: Iterable[Any]) -> str | None:

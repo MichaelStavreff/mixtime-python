@@ -190,6 +190,17 @@ print(mixed.format())
 
 Each part keeps its own chronon, cycle, calendar, and timezone.
 
+Subtracting two mixed vectors is elementwise and returns a mixed vector of
+durations. Each pair uses its finest common chronon; a length-one operand is
+recycled, and discrete operands with different chronons raise rather than
+silently choosing an anchor.
+
+```python
+later = mt.mixtime(mt.yearmonth(["2024-02"]), mt.year(["2025"]))
+earlier = mt.mixtime(mt.yearmonth(["2024-01"]), mt.year(["2024"]))
+print((later - earlier).format())  # ['1.0 months', '1.0 years']
+```
+
 ### Mixed comparison and ordering
 
 Time points compare as half-open intervals: a discrete value spans its whole
@@ -375,8 +386,9 @@ Ported:
 - time arithmetic, comparison, rounding, and sequences, including DST-aware
   day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
   calendar-aware date/datetime sequences, continuous shifts within a category,
-  common-chronon differences, R's half-open interval comparisons, and
-  mixed-granularity `Mixtime` sort/argsort/min/max
+  common-chronon differences, elementwise mixed time-point differences, R's
+  half-open interval comparisons, and mixed-granularity
+  `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -396,9 +408,8 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic; pandas duration shifts are covered, but
-  mixed time-point differences and full non-pandas columnar coercion remain
-  incomplete
+- complete `Mixtime` arithmetic beyond duration shifts and time-point
+  differences; full non-pandas columnar coercion remains incomplete
 - shifts requiring a fractional month and R's alternative `on_invalid` DST
   resolutions
 - shifts from calendar chronons to finer fixed units (for example,
