@@ -8,6 +8,16 @@
 performance exercise but insufficient as a product. The port now includes a
 Pythonic Gregorian/ISO-week time model on top of the Rust kernel.
 
+## 2026-10-27 update: pandas columns and scalars
+
+The core `TimeVector`/`Mixtime` API remains primary. `TimeScalar` and
+`.scalar(i)` provide explicit scalar access without changing the existing
+length-one `x[i]` behavior. An optional pandas `ExtensionArray`/`ExtensionDtype`
+(`MixtimeArray`, `MixtimeDtype`, `to_pandas_series()`) makes mixed-granularity
+values usable as Series/DataFrame columns. pandas stays an optional extra; the
+core package does not import it. Direct `pd.Series(vector)` is not the
+extension-dtype path because the core vector is not a pandas array.
+
 ## 2026-10-26 update: why kernel-only was not enough
 
 The kernel-only port reproduced the four Gregorian `chronon_divmod` splits and
@@ -43,7 +53,9 @@ Deferred:
 - the complete vctrs/S7 coercion surface (a Gregorian `time_components()` /
   `time_compose()` subset is implemented),
 - ggplot2 and tsibble integration,
-- complete mixed-vector arithmetic and columnar pandas/DataFrame coercion,
+- complete mixed-vector arithmetic; pandas Series/DataFrame columns are now
+  covered by an optional ExtensionArray, but full non-pandas columnar coercion
+  and all mixed-vector operators remain partial,
 - continuous calendar/fixed cross-category shifts and calendar-step `seq()` on
   day/second time,
 - R's `seq(from, length_out=, by=)` form.

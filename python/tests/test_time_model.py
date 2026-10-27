@@ -678,6 +678,61 @@ def test_indexing_returns_length_one_vectors():
     assert x[-1].format() == ["2024 Feb"]
 
 
+def test_scalar_access_preserves_metadata():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    scalar = x.scalar(0)
+    assert isinstance(scalar, mt.TimeScalar)
+    assert scalar.format() == "2024 Jan"
+    assert scalar.chronon.name == "month"
+    assert scalar.kind == "linear"
+    assert scalar.discrete is True
+    # Existing extraction behavior is intentionally unchanged.
+    assert x[0].format() == ["2024 Jan"]
+
+    cyclical = mt.month_of_year(["2024-01-15"]).scalar(0)
+    assert cyclical.kind == "cyclical"
+    assert cyclical.cycle is not None
+    assert cyclical.cycle.name == "year"
+
+    duration = mt.days(2).scalar(0)
+    assert duration.kind == "duration"
+    assert duration.format() == "2.0 days"
+
+
+def test_missing_scalars_and_masks():
+    x = mt.date(["2024-01-01", None])
+    assert x.isna().tolist() == [False, True]
+    assert x.notna().tolist() == [True, False]
+    assert x.scalar(1).isna()
+    assert x.scalar(1).format() == "NA"
+    assert mt.TimeScalar.missing(x.scalar(0)).format() == "NA"
+    assert x.scalar(0) == x.scalar(0)
+    assert hash(x.scalar(0)) == hash(x.scalar(0))
+    assert x.scalar(0) != x.scalar(1)
+
+
+def test_mixed_scalar_take_and_shift():
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    assert m.scalar(1).chronon.name == "month"
+    assert m.scalar(2).chronon.name == "day"
+    assert m.isna().tolist() == [False, False, False, True]
+    assert (m == m).tolist() == [True, True, True, True]
+    assert (m != m).tolist() == [False, False, False, False]
+
+    taken = m.take([2, -1, 0], allow_fill=True)
+    assert taken.format() == ["2024-03-01", "NA", "2024 Jan"]
+    assert [part.chronon.name for part in taken.parts] == ["day", "month"]
+
+    shifted = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.yearmonth(["2024-03"]),
+    ) + mt.months(1)
+    assert shifted.format() == ["2024 Feb", "2024 Mar", "2024 Apr"]
+
+
 def test_mixed_indexing_including_negative_index():
     m = mt.mixtime(mt.yearmonth(["2024-01"]), mt.yearquarter(["2024-Q2"]))
     assert m[0].format() == ["2024 Jan"]
@@ -906,6 +961,79 @@ def test_tz_transitions_accept_naive_values_with_explicit_tz():
         tz="America/New_York",
     )
     assert result["time"].values.tolist() == [1710054000.0, 1730613600.0]
+
+
+def test_pandas_extension_series_roundtrip():
+    pd = pytest.importorskip("pandas")
+
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    series = x.to_pandas_series(name="when")
+
+    assert series.dtype == mt.MixtimeDtype()
+    assert isinstance(series.array, mt.MixtimeArray)
+    assert series.name == "when"
+    assert series.iloc[0] == x.scalar(0)
+    assert [value.format() for value in series] == ["2024 Jan", "2024 Feb"]
+    assert series.isna().tolist() == [False, False]
+
+    constructed = pd.Series(mt.MixtimeArray(x))
+    assert constructed.dtype == mt.MixtimeDtype()
+    assert [value.format() for value in constructed] == ["2024 Jan", "2024 Feb"]
+
+    explicit = pd.Series([x.scalar(0), x.scalar(1)], dtype=mt.MixtimeDtype())
+    assert explicit.dtype == mt.MixtimeDtype()
+    assert explicit.iloc[1] == x.scalar(1)
+
+
+def test_pandas_mixed_extension_dataframe():
+    pd = pytest.importorskip("pandas")
+
+    m = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    series = m.to_pandas_series()
+    assert series.dtype == mt.MixtimeDtype()
+    assert series.iloc[1].chronon.name == "month"
+    assert series.iloc[2].chronon.name == "day"
+    assert series.iloc[3].isna()
+
+    frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+    assert frame["when"].dtype == mt.MixtimeDtype()
+    assert frame["when"].iloc[2].format() == "2024-03-01"
+    assert frame["when"].isna().tolist() == [False, False, False, True]
+
+
+def test_pandas_extension_take_concat_and_numpy():
+    pd = pytest.importorskip("pandas")
+
+    x = mt.date(["2024-01-01", None, "2024-01-02"])
+    array = mt.MixtimeArray(x)
+    taken = array.take([0, -1, 1], allow_fill=True)
+    assert taken.isna().tolist() == [False, True, True]
+    assert taken[0].format() == "2024-01-01"
+
+    left = pd.Series(array)
+    right = pd.Series(array)
+    joined = pd.concat([left, right], ignore_index=True)
+    assert joined.dtype == mt.MixtimeDtype()
+    assert len(joined) == 6
+
+    values = left.to_numpy()
+    assert all(isinstance(value, mt.TimeScalar) for value in values)
+    assert left.astype(object).iloc[0] == x.scalar(0)
+    assert left.astype("mixtime").dtype == mt.MixtimeDtype()
+    assert pd.array([x.scalar(0), x.scalar(2)], dtype="mixtime").dtype == mt.MixtimeDtype()
+
+    filled = left.fillna(x.scalar(0))
+    assert filled.isna().tolist() == [False, False, False]
+    assert filled.iloc[1].format() == "2024-01-01"
+    assert left.dropna().tolist() == [x.scalar(0), x.scalar(2)]
+    assert left.where(left.notna(), x.scalar(0)).isna().tolist() == [
+        False,
+        False,
+        False,
+    ]
 
 
 def test_pandas_is_optional():

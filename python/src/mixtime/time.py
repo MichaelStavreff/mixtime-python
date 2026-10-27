@@ -69,6 +69,29 @@ class TimeVector:
         for index in range(len(self)):
             yield self[index]
 
+    def scalar(self, index: int) -> Any:
+        """Return one element as a :class:`~mixtime.scalar.TimeScalar`.
+
+        ``x[i]`` deliberately keeps returning a length-one vector for
+        compatibility with R-style extraction.  Use this method when a real
+        scalar is needed, for example for pandas.
+        """
+        from .scalar import TimeScalar
+
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("TimeVector index out of range")
+        return TimeScalar.from_vector(self, self.values[index])
+
+    def isna(self) -> np.ndarray:
+        """Return a boolean mask for missing values."""
+        return np.asarray([_is_missing(value) for value in self.values], dtype=bool)
+
+    def notna(self) -> np.ndarray:
+        """Return the complement of :meth:`isna`."""
+        return np.logical_not(self.isna())
+
     def __array__(self, dtype: Any = None) -> np.ndarray:
         if dtype is None:
             return np.asarray(self.values)
@@ -412,6 +435,24 @@ class TimeVector:
             return pd.DatetimeIndex(values)
         raise NotImplementedError(f"to_pandas() is not implemented for {name}")
 
+    def to_pandas_series(self, name: str | None = None):
+        """Return this vector as a pandas Series with ``MixtimeDtype``.
+
+        This is separate from :meth:`to_pandas`, which returns a pandas
+        ``PeriodIndex``/``DatetimeIndex`` for linear time.
+        """
+        try:
+            import pandas as pd
+        except ImportError as exc:  # pragma: no cover - depends on env
+            raise ImportError(
+                "pandas is required for to_pandas_series(); "
+                "install mixtime[pandas]"
+            ) from exc
+
+        from .pandas_ext import MixtimeArray
+
+        return pd.Series(MixtimeArray(self), name=name)
+
     # -- default formatting ------------------------------------------------
     def _format_one(self, value: Any) -> str:
         if _is_missing(value):
@@ -545,6 +586,100 @@ class Mixtime:
         if not 0 <= index < len(self):
             raise IndexError("Mixtime index out of range")
         return self._slice(index, index + 1)
+
+    def scalar(self, index: int) -> Any:
+        """Return one element as a :class:`~mixtime.scalar.TimeScalar`."""
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("Mixtime index out of range")
+        offset = 0
+        for part in self.parts:
+            if index < offset + len(part):
+                return part.scalar(index - offset)
+            offset += len(part)
+        raise IndexError("Mixtime index out of range")
+
+    def isna(self) -> np.ndarray:
+        """Return a boolean mask for missing values."""
+        if not self.parts:
+            return np.asarray([], dtype=bool)
+        return np.concatenate([part.isna() for part in self.parts])
+
+    def notna(self) -> np.ndarray:
+        """Return the complement of :meth:`isna`."""
+        return np.logical_not(self.isna())
+
+    def take(
+        self,
+        indices: Any,
+        *,
+        allow_fill: bool = False,
+        fill_value: Any = None,
+    ) -> "Mixtime":
+        """Select positions, optionally filling ``-1`` with a missing value."""
+        from .scalar import TimeScalar, _mixtime_from_scalars
+
+        positions = np.asarray(indices, dtype=np.int64).ravel()
+        if not allow_fill:
+            return _mixtime_from_scalars(self.scalar(int(i)) for i in positions)
+
+        fill = (
+            fill_value
+            if isinstance(fill_value, TimeScalar)
+            else TimeScalar.missing()
+        )
+        scalars = [
+            fill if int(i) == -1 else self.scalar(int(i)) for i in positions
+        ]
+        return _mixtime_from_scalars(scalars)
+
+    def to_pandas_series(self, name: str | None = None):
+        """Return this mixed container as a pandas Series with ``MixtimeDtype``."""
+        try:
+            import pandas as pd
+        except ImportError as exc:  # pragma: no cover - depends on env
+            raise ImportError(
+                "pandas is required for to_pandas_series(); "
+                "install mixtime[pandas]"
+            ) from exc
+
+        from .pandas_ext import MixtimeArray
+
+        return pd.Series(MixtimeArray(self), name=name)
+
+    def __add__(self, other: Any) -> "Mixtime":
+        if isinstance(other, Duration):
+            return Mixtime([part + other for part in self.parts])
+        return NotImplemented
+
+    def __radd__(self, other: Any) -> "Mixtime":
+        return self.__add__(other)
+
+    def __sub__(self, other: Any) -> "Mixtime":
+        if isinstance(other, Duration):
+            return Mixtime([part - other for part in self.parts])
+        return NotImplemented
+
+    def __eq__(self, other: Any) -> np.ndarray:
+        if isinstance(other, Mixtime):
+            other_values = [other.scalar(i) for i in range(len(other))]
+        elif isinstance(other, TimeVector):
+            other_values = [other.scalar(i) for i in range(len(other))]
+        else:
+            return NotImplemented
+        if len(other_values) != len(self):
+            return NotImplemented
+        return np.asarray(
+            [self.scalar(i) == other_values[i] for i in range(len(self))],
+            dtype=bool,
+        )
+
+    def __ne__(self, other: Any) -> np.ndarray:
+        equal = self.__eq__(other)
+        if equal is NotImplemented:
+            return NotImplemented
+        return np.logical_not(equal)
 
     def _slice(self, start: int, stop: int) -> "Mixtime":
         if start < 0:

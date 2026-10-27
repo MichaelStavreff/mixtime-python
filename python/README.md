@@ -14,6 +14,11 @@ low-level NumPy kernel.
 - `mixtime.years`, `quarters`, `months`, `weeks`, `days`, `hours`, `minutes`,
   `seconds`, `milliseconds` create durations.
 - `mixtime.mixtime(...)` combines vectors of different granularities.
+- `TimeVector.scalar(i)` and `Mixtime.scalar(i)` return a `TimeScalar` with its
+  chronon metadata. `x[i]` still returns a length-one vector.
+- Optional pandas interop: `to_pandas_series()` and `MixtimeArray` expose time
+  columns through the `"mixtime"` extension dtype; pandas is not required by
+  the core package.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
   provide calendar-aware operations.
 - `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
@@ -32,8 +37,9 @@ low-level NumPy kernel.
 
 Time points are stored as chronon counts since 1970-01-01. Durations store plain
 counts of their unit. `values` is a NumPy array; `format()` returns a list of
-strings. Constructors accept one-dimensional pandas `Series`/`Index` objects
-and `to_pandas()` is available when pandas is installed.
+strings. Constructors accept one-dimensional pandas `Series`/`Index` objects.
+`to_pandas()` returns a pandas `PeriodIndex`/`DatetimeIndex` for linear time;
+`to_pandas_series()` returns a Series using mixtime's optional extension dtype.
 
 ## Example
 
@@ -77,6 +83,36 @@ print(changes["time"].format())
 # ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
 ```
 
+## pandas interop
+
+pandas is optional. Install the extra and use `to_pandas_series()` when a
+column should carry mixtime's `"mixtime"` extension dtype:
+
+```python
+import pandas as pd
+import mixtime as mt
+
+when = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.date(["2024-03-01", None]),
+)
+series = when.to_pandas_series(name="when")
+frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+
+print(series.dtype)       # mixtime
+print(series.iloc[0])     # 2024 Jan (a TimeScalar)
+print(series.iloc[0].chronon.name)  # month
+print(frame["when"].isna().tolist())  # [False, False, False, True]
+```
+
+`pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
+`isna`, `take`, `fillna`, `where`, `concat`, slicing, `astype(object)`, and
+`to_numpy()` (object array of `TimeScalar`). Homogeneous columns sort by value;
+mixed-granularity `sort_values()` preserves part order rather than inventing a
+cross-chronon ordering. `to_pandas()` remains available for a
+`PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
+extension dtype.
+
 ## Divergences from R
 
 These are intentional Pythonic choices, not accidental behavior changes. The
@@ -102,8 +138,9 @@ Gregorian chronon values and default formatted output.
   yields the Monday start, matching R's value, but Python formats it as an ISO
   date (`2024-01-15`) rather than R's ISO-week label (`2024-W03-Mon`).
 - **Time-vector indexing.** `x[i]` returns a length-one time vector, not a
-  Python scalar, mirroring R's length-one result. Use `.values[0]` for the
-  scalar chronon count.
+  Python scalar, mirroring R's length-one result. Use `.scalar(i)` for a
+  `TimeScalar` with chronon metadata, or `.values[0]` for the scalar chronon
+  count. pandas `series.iloc[i]` returns a `TimeScalar`.
 - **Mutable values.** `TimeVector.values` and `np.asarray(vector)` expose the
   underlying NumPy buffer. In-place edits mutate the vector, unlike R's
   copy-on-modify; copy first when sharing or modifying values.
@@ -159,6 +196,19 @@ Gregorian chronon values and default formatted output.
 - **pandas input.** Constructors accept one-dimensional `Series` and `Index`
   objects; `DataFrame` and other columnar inputs are not coerced. `pd.NA` and
   `pd.NaT` become `NaN`, so the usual missing-value rules apply.
+- **pandas extension dtype.** `to_pandas_series()` and
+  `pd.Series(mt.MixtimeArray(x))` produce a `"mixtime"` column. Direct
+  `pd.Series(x)` still treats the vector as its numeric chronon buffer, because
+  the core vector is not a pandas `ExtensionArray` and pandas remains optional.
+  Use the explicit series helper when column semantics are wanted; when passing
+  `dtype=` directly, use `dtype=mt.MixtimeDtype()` so the optional module is
+  loaded. `to_pandas()` continues to return a
+  `PeriodIndex`/`DatetimeIndex` and is not replaced.
+- **pandas scalar equality.** `TimeScalar` equality is strict about chronon,
+  cycle, calendar, timezone, and discreteness so pandas factorization is
+  stable. Vector equality keeps R's half-open interval semantics. Missing
+  scalars compare equal to other missing scalars in pandas masks; R's
+  three-valued `NA` propagation is not reproduced there.
 - **Predicate missing values.** `time_is_determinate_at()` and
   `time_is_complete_at()` return object arrays with `None` for missing or
   infinite values, whereas R returns logical `NA`.
@@ -184,10 +234,14 @@ Gregorian chronon values and default formatted output.
 - **Comparison operands.** Equality for linear time points uses R's half-open
   interval rule, so a discrete month is not equal to its first day. Ordering
   between different chronons is position-based and can differ from R's interval
-  relation; compare after `astype()` for exact ordering. Bare chronon counts
-  are not accepted as comparison operands.
+  relation; compare after `astype()` for exact ordering. `Mixtime` equality is
+  elementwise scalar equality, which is strict about chronon metadata; mixed
+  ordering is not defined. Bare chronon counts are not accepted as comparison
+  operands.
 - **Missing values.** Missing time values are represented by `NaN` in a float
-  array and formatted as `"NA"`. R distinguishes typed `NA` variants.
+  array and formatted as `"NA"`; `TimeScalar` stores missing as `None`.
+  pandas `pd.NA` and `NaT` normalize to missing. R distinguishes typed `NA`
+  variants.
 
 ## Upstream sync
 

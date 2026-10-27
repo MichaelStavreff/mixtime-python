@@ -9,8 +9,8 @@ timezone handling are Python.
 > vectors, parsing and formatting, cyclical components, durations, rounding,
 > sequences, arithmetic, timezone-aware `datetime`, timezone name/offset
 > helpers and transitions, type and completeness predicates, component
-> extraction/composition, chronon bounds, circular sums, and optional pandas
-> interop.
+> extraction/composition, chronon bounds, circular sums, scalar values, and an
+> optional pandas `"mixtime"` extension dtype for Series/DataFrame columns.
 > Non-Gregorian calendars, astronomical calendars, and the full R format-token
 > language remain out of scope. See [Scope](#scope) and
 > [`DECISION.md`](DECISION.md).
@@ -40,8 +40,9 @@ There are two layers:
   (`lin`, `cyc`, `time_components`, `time_compose`), chronon bounds
   (`chronon_glb`, `chronon_lub`), metadata accessors (`time_chronon`,
   `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
-  `tz_abbreviation`, `tz_offset`, `tz_transitions`), and predicates such as
-  `time_is_determinate_at` and `time_is_complete_at`.
+  `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
+  (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
+  and `time_is_complete_at`, and an optional pandas extension dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -155,6 +156,35 @@ print(mixed.format())
 
 Each part keeps its own chronon, cycle, calendar, and timezone.
 
+### pandas columns
+
+pandas is optional; install the extra with `uv add "mixtime[pandas]"` (or the
+equivalent `pip` extra). `to_pandas_series()` returns a Series backed by the
+`"mixtime"` extension dtype, including mixed-granularity `Mixtime` columns:
+
+```python
+import pandas as pd
+import mixtime as mt
+
+when = mt.mixtime(
+    mt.yearmonth(["2024-01", "2024-02"]),
+    mt.date(["2024-03-01", None]),
+)
+series = when.to_pandas_series(name="when")
+frame = pd.DataFrame({"when": series, "value": [1, 2, 3, 4]})
+
+print(series.dtype)                  # mixtime
+print(series.iloc[0])                # 2024 Jan (a TimeScalar)
+print(series.iloc[0].chronon.name)   # month
+print(frame["when"].isna().tolist()) # [False, False, False, True]
+```
+
+`pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
+missing values, slicing, `take`, `fillna`, `where`, `concat`, and object-array
+conversion. Constructors also accept one-dimensional pandas `Series`/`Index`
+inputs, and `to_pandas()` is unchanged: it still returns a
+`PeriodIndex`/`DatetimeIndex` for linear time.
+
 ### Timezones
 
 `datetime` values are stored as UTC seconds since the epoch. Pass `tz=` to
@@ -235,24 +265,6 @@ granule; continuous time points resolve every granule. `time_is_complete_at()`
 tests whether the vector contains every finer chronon of each coarser granule.
 Missing and infinite values are reported as `None`.
 
-### pandas interop
-
-pandas is optional. Install the extra, pass a one-dimensional `Series`/`Index`
-to a constructor, or call `to_pandas()`:
-
-```sh
-uv add "mixtime[pandas]"
-```
-
-```python
-import pandas as pd
-
-x = mt.date(pd.Series(["2024-01-15", None]))
-print(x.format())  # ['2024-01-15', 'NA']
-
-idx = mt.yearmonth(["2024-01", "2024-02"]).to_pandas()
-```
-
 ### Low-level Rust kernel
 
 The original NumPy kernel remains available:
@@ -298,8 +310,8 @@ Ported:
   `time_compose`, `lin`, `cyc`)
 - chronon bounds (`chronon_glb`, `chronon_lub`, `chronon_common`) and circular
   sums (`circsum`)
-- optional pandas `Series`/`Index` input and `PeriodIndex`/`DatetimeIndex`
-  output
+- optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
+  and `"mixtime"` ExtensionArray columns for Series/DataFrame
 - the low-level Rust chronon splits
 
 Not yet ported:
@@ -308,7 +320,8 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic and columnar pandas/DataFrame coercion
+- complete `Mixtime` arithmetic; pandas Series/DataFrame columns are covered,
+  but full non-pandas columnar coercion remains incomplete
 - continuous calendar/fixed cross-category shifts (for example,
   `date + months(1)`) and calendar-step `seq()` on day/second time
 - R's `seq(from, length.out=, by=)` form
