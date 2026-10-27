@@ -20,7 +20,8 @@ low-level NumPy kernel.
   columns through the `"mixtime"` extension dtype; pandas is not required by
   the core package.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
-  provide calendar-aware operations.
+  provide calendar-aware operations, including DST-aware day/week shifts and
+  clamped month/quarter/year shifts on `date` and `datetime`.
 - `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
   `time_is_determinate_at`, and `time_is_complete_at` inspect vector type and
   granularity.
@@ -150,13 +151,26 @@ Gregorian chronon values and default formatted output.
   duration in days) and always return a continuous duration.
 - **Discrete shifts.** Adding a duration that does not nest within the time
   chronon raises. For example, `yearquarter(...) + months(1)` is indeterminate,
-  while `+ months(3)` is allowed.
-- **Continuous cross-category shifts.** Continuous shifts within one category
-  are supported: calendar + calendar (`yearmonth + months(1)`) and fixed +
-  fixed (`date + days(1)`). Continuous shifts between calendar and fixed units
-  (`date + months(1)`, `yearmonth + days(1)`) raise `NotImplementedError`
-  because R clamps to calendar fields at the shifted date. Use discrete
-  calendar chronons or convert explicitly.
+  while `+ months(3)` is allowed. `date` and `datetime` are exceptions for
+  day-or-longer durations because they use calendar-field arithmetic.
+- **Calendar shifts and DST.** `date`/`datetime` plus `days`, `weeks`,
+  `months`, `quarters`, or `years` uses local wall-clock arithmetic for
+  datetimes: New York `2024-03-09 12:00` plus one day stays at 12:00 after the
+  DST change, while plus 24 hours is one hour later. Month, quarter, and year
+  shifts clamp the day to the target month (`2024-01-31 + months(1)` becomes
+  `2024-02-29`). A local time skipped by a DST gap clamps backward by the gap,
+  and an ambiguous local time resolves to its first occurrence. These are R's
+  defaults (`on_invalid = "clamp"`); the other `on_invalid` modes are not
+  exposed. Shifts that require a fractional month (including fractional
+  quarters) raise `NotImplementedError`; fractional day/week shifts are
+  supported, and fractional years that resolve to whole months are allowed
+  (`years(1.5)` is 18 months).
+- **Continuous cross-category shifts.** Fixed-to-calendar shifts on
+  `date`/`datetime` are supported with clamping. Shifts from a calendar chronon
+  to a finer fixed unit (`yearmonth + days(1)`) still raise
+  `NotImplementedError` because R's continuous result needs calendar
+  decomposition that is not yet ported. `date + hours(1)` remains
+  indeterminate.
 - **Duration defaults.** Duration helpers are continuous by default, matching
   R's double-valued helpers (`years(1)` formats as `1.0 years`). Pass
   `discrete=True` for whole-granule durations (`years(1, discrete=True)`
@@ -175,7 +189,8 @@ Gregorian chronon values and default formatted output.
   outside that range.
 - **Offset-only datetimes.** A datetime string with a UTC offset but no `tz=`
   argument is normalized to UTC for storage and display. Pass `tz=` to display
-  it in a named zone.
+  it in a named zone. Non-UTC named zones append their abbreviation to default
+  `datetime` formatting, matching R; UTC and naive datetimes do not.
 - **Metadata accessors.** R's `time_chronon()` and `time_cycle()` return
   duration vectors; this port returns the underlying `Unit` metadata (or a
   list of units for a `Mixtime`). `time_calendar()` returns a `Calendar`; a

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import re
+from calendar import monthrange
 from typing import Any, Iterable, Iterator
 from zoneinfo import ZoneInfo
 
@@ -30,6 +31,13 @@ _MONTH_FULL = ("January", "February", "March", "April", "May", "June",
 _WEEKDAY_ABBR = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _WEEKDAY_FULL = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
                  "Saturday", "Sunday")
+_UTC_TIMEZONES = {None, "", "UTC", "Etc/UTC"}
+_CALENDAR_SHIFT_UNITS = {"day", "week", "month", "quarter", "year"}
+_MONTHS_PER_UNIT = {"month": 1, "quarter": 3, "year": 12}
+
+
+def _timezone_is_utc(tz: str | None) -> bool:
+    return tz in _UTC_TIMEZONES
 
 
 class TimeVector:
@@ -173,6 +181,9 @@ class TimeVector:
                     discrete=False,
                     calendar=self.calendar,
                 )
+            shifted = self._calendar_shift_values(other, 1)
+            if shifted is not None:
+                return self._new(_coerce_values(shifted, self.discrete))
             values = self._duration_values_in_chronon(other)
             return self._new(_coerce_values(self.values + values, self.discrete))
         if isinstance(self, Duration) and isinstance(other, TimeVector):
@@ -217,6 +228,9 @@ class TimeVector:
                 calendar=self.calendar,
             )
         if isinstance(other, Duration) and not isinstance(self, Duration):
+            shifted = self._calendar_shift_values(other, -1)
+            if shifted is not None:
+                return self._new(_coerce_values(shifted, self.discrete))
             values = self._duration_values_in_chronon(other)
             return self._new(_coerce_values(self.values - values, self.discrete))
         if isinstance(self, TimeVector) and isinstance(other, TimeVector) and not isinstance(self, Duration):
@@ -267,6 +281,30 @@ class TimeVector:
         if self.discrete:
             _check_discrete_shift(self.chronon, other.chronon, values)
         return values
+
+    def _calendar_shift_values(
+        self, other: "Duration", sign: int
+    ) -> np.ndarray | None:
+        """Shift dates and datetimes with calendar-field arithmetic.
+
+        Day-or-longer durations keep the local wall-clock reading for
+        datetimes, which is what R does in a time zone. Month/year shifts clamp
+        the day to the last valid day of the target month. Returns ``None``
+        when the ordinary chronon conversion path should be used instead.
+        """
+        if self.kind != "linear" or isinstance(self, Duration):
+            return None
+        duration_name = other.chronon.name
+        if duration_name not in _CALENDAR_SHIFT_UNITS:
+            return None
+        time_name = self.chronon.name
+        if time_name == "day":
+            return _shift_date_values(self.values, other, sign, self.discrete)
+        if time_name == "second":
+            return _shift_datetime_values(
+                self.values, other, sign, self.timezone
+            )
+        return None
 
     def __mul__(self, other: Any) -> "Duration":
         if isinstance(self, Duration) and np.isscalar(other):
@@ -483,10 +521,13 @@ class TimeVector:
         if name == "day":
             return f"{_date_from_day(value).isoformat()}{suffix}"
         if name in {"second", "millisecond", "microsecond", "nanosecond"}:
-            base = _datetime_from_seconds(value, self.timezone).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            return f"{base}{suffix}"
+            local = _datetime_from_seconds(value, self.timezone)
+            result = f"{local.strftime('%Y-%m-%d %H:%M:%S')}{suffix}"
+            if not _timezone_is_utc(self.timezone):
+                abbreviation = local.tzname()
+                if abbreviation:
+                    result = f"{result} {abbreviation}"
+            return result
         if name == "week":
             iso = _date_from_day(float(value) * 7.0).isocalendar()
             return f"{iso.year} W{iso.week:02d}{suffix}"
@@ -1387,8 +1428,196 @@ def _date_from_day(value: Any) -> _dt.date:
 
 
 def _datetime_from_seconds(value: Any, tz: str | None) -> _dt.datetime:
-    zone = _dt.timezone.utc if tz in (None, "", "UTC") else ZoneInfo(tz)
+    zone = _dt.timezone.utc if _timezone_is_utc(tz) else ZoneInfo(tz)
     return _dt.datetime.fromtimestamp(float(value), tz=zone)
+
+
+def _shift_count(values: np.ndarray, duration: Duration) -> int:
+    time_count = len(values)
+    duration_count = len(duration.values)
+    if time_count == duration_count:
+        return time_count
+    if time_count == 1:
+        return duration_count
+    if duration_count == 1:
+        return time_count
+    raise ValueError(
+        "duration length must be 1 or match the time vector length"
+    )
+
+
+def _duration_amounts(
+    duration: Duration, count: int, sign: int
+) -> np.ndarray:
+    """Broadcast a duration's values and convert to its base unit."""
+    values = np.asarray(duration.values, dtype=float).reshape(-1)
+    if values.size == 1:
+        values = np.full(count, float(values[0]), dtype=float)
+    elif values.size != count:
+        raise ValueError(
+            "duration length must be 1 or match the time vector length"
+        )
+    return values * float(duration.chronon.n) * float(sign)
+
+
+def _calendar_month_amounts(
+    duration: Duration, count: int, sign: int
+) -> np.ndarray:
+    unit = duration.chronon.name
+    months = _duration_amounts(duration, count, sign) * float(
+        _MONTHS_PER_UNIT[unit]
+    )
+    finite = np.isfinite(months)
+    if np.any(finite & (months != np.floor(months))):
+        raise NotImplementedError(
+            "fractional month shifts are not implemented; the shift must be "
+            "a whole number of months. Use a whole-month duration or a "
+            "day/week duration."
+        )
+    return months
+
+
+def _day_fraction(value: _dt.datetime) -> float:
+    seconds = (
+        value.hour * 3600
+        + value.minute * 60
+        + value.second
+        + value.microsecond / 1_000_000.0
+    )
+    return seconds / 86_400.0
+
+
+def _add_months_local(
+    value: _dt.datetime, months: float
+) -> _dt.datetime:
+    """Add whole months, clamping the day to the target month."""
+    total = value.year * 12 + (value.month - 1) + int(months)
+    year, month_index = divmod(total, 12)
+    month = month_index + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def _shift_date_values(
+    values: np.ndarray, duration: Duration, sign: int, discrete: bool
+) -> np.ndarray:
+    count = _shift_count(values, duration)
+    values = np.broadcast_to(values, count)
+    unit = duration.chronon.name
+    if unit in {"day", "week"}:
+        amounts = _duration_amounts(duration, count, sign)
+        day_factor = 7.0 if unit == "week" else 1.0
+        months = None
+    else:
+        amounts = None
+        day_factor = 1.0
+        months = _calendar_month_amounts(duration, count, sign)
+
+    out = np.empty(count, dtype=float)
+    for index in range(count):
+        value = values[index]
+        if _is_missing(value):
+            out[index] = np.nan
+            continue
+        base_day = int(np.floor(float(value)))
+        fraction = float(value) - base_day
+        local = _dt.datetime.combine(
+            _EPOCH_DATE + _dt.timedelta(days=base_day), _dt.time()
+        ) + _dt.timedelta(days=fraction)
+
+        if months is None:
+            amount = float(amounts[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local += _dt.timedelta(days=amount * day_factor)
+        else:
+            amount = float(months[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local = _add_months_local(local, amount)
+
+        shifted = (local.date() - _EPOCH_DATE).days + _day_fraction(local)
+        out[index] = np.floor(shifted) if discrete else shifted
+    return out
+
+
+def _local_naive_from_seconds(
+    value: Any, tz: str | None
+) -> _dt.datetime:
+    return _datetime_from_seconds(value, tz).replace(tzinfo=None)
+
+
+def _local_naive_to_seconds(
+    value: _dt.datetime, tz: str | None
+) -> float:
+    """Resolve a naive local time to UTC seconds.
+
+    With R's default ``clamp`` strategy, an ambiguous local time resolves to
+    its first occurrence, while a local time skipped by a DST gap moves back by
+    the size of the gap.
+    """
+    if _timezone_is_utc(tz):
+        return value.replace(tzinfo=_dt.timezone.utc).timestamp()
+
+    zone = ZoneInfo(tz)
+    candidates: list[tuple[float, bool]] = []
+    for fold in (0, 1):
+        aware = value.replace(tzinfo=zone, fold=fold)
+        seconds = aware.timestamp()
+        round_trip = _dt.datetime.fromtimestamp(seconds, zone).replace(
+            tzinfo=None
+        )
+        candidates.append((seconds, round_trip == value))
+
+    valid = [seconds for seconds, ok in candidates if ok]
+    if valid:
+        return min(valid)
+    return min(seconds for seconds, _ in candidates)
+
+
+def _shift_datetime_values(
+    values: np.ndarray,
+    duration: Duration,
+    sign: int,
+    tz: str | None,
+) -> np.ndarray:
+    count = _shift_count(values, duration)
+    values = np.broadcast_to(values, count)
+    unit = duration.chronon.name
+    if unit in {"day", "week"}:
+        amounts = _duration_amounts(duration, count, sign)
+        day_factor = 7.0 if unit == "week" else 1.0
+        months = None
+    else:
+        amounts = None
+        day_factor = 1.0
+        months = _calendar_month_amounts(duration, count, sign)
+
+    out = np.empty(count, dtype=float)
+    for index in range(count):
+        value = values[index]
+        if _is_missing(value):
+            out[index] = np.nan
+            continue
+        local = _local_naive_from_seconds(value, tz)
+
+        if months is None:
+            amount = float(amounts[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local += _dt.timedelta(days=amount * day_factor)
+        else:
+            amount = float(months[index])
+            if not np.isfinite(amount):
+                out[index] = np.nan
+                continue
+            local = _add_months_local(local, amount)
+
+        out[index] = _local_naive_to_seconds(local, tz)
+    return out
 
 
 def _cycle_offset(

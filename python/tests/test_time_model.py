@@ -267,6 +267,51 @@ OPERATION_INPUTS = {
     "time_shift_days": lambda: mt.time_shift(
         mt.date(["2024-01-15", "2024-02-29"]), mt.days(1)
     ),
+    "time_shift_date_months_clamp": lambda: mt.time_shift(
+        mt.date("2024-01-31"), mt.months(1)
+    ),
+    "time_shift_date_years_leap": lambda: mt.time_shift(
+        mt.date("2024-02-29"), mt.years(1)
+    ),
+    "time_shift_datetime_days_dst_forward": lambda: mt.time_shift(
+        mt.datetime("2024-03-09 12:00:00", tz="America/New_York"),
+        mt.days(1),
+    ),
+    "time_shift_datetime_hours_dst_forward": lambda: mt.time_shift(
+        mt.datetime("2024-03-09 12:00:00", tz="America/New_York"),
+        mt.hours(24),
+    ),
+    "time_shift_datetime_days_dst_backward": lambda: mt.time_shift(
+        mt.datetime("2024-11-02 12:00:00", tz="America/New_York"),
+        mt.days(1),
+    ),
+    "time_shift_datetime_days_vector": lambda: mt.time_shift(
+        mt.datetime(
+            ["2024-03-09 12:00:00", "2024-11-02 12:00:00"],
+            tz="America/New_York",
+        ),
+        mt.days(1),
+    ),
+    "time_shift_datetime_months_clamp_tz": lambda: mt.time_shift(
+        mt.datetime("2021-01-31 09:30:00", tz="America/New_York"),
+        mt.months(1),
+    ),
+    "time_shift_datetime_years_leap_tz": lambda: mt.time_shift(
+        mt.datetime("2024-02-29 09:30:00", tz="America/New_York"),
+        mt.years(1),
+    ),
+    "time_shift_datetime_quarters_tz": lambda: mt.time_shift(
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York"),
+        mt.quarters(1),
+    ),
+    "time_shift_melbourne_gap": lambda: mt.time_shift(
+        mt.datetime("2025-10-04 02:30:00", tz="Australia/Melbourne"),
+        mt.days(1),
+    ),
+    "time_shift_melbourne_ambiguous": lambda: mt.time_shift(
+        mt.datetime("2025-04-05 02:30:00", tz="Australia/Melbourne"),
+        mt.days(1),
+    ),
     "date_timezone_utc": lambda: mt.date(
         dt.datetime(
             2024,
@@ -761,6 +806,18 @@ def test_timezone_aware_datetime():
     assert x.format() == ["2024-01-15 12:34:56"]
 
 
+def test_non_utc_datetime_format_includes_abbreviation():
+    x = mt.datetime("2024-01-15 12:34:56", tz="America/New_York")
+    assert x.format() == ["2024-01-15 12:34:56 EST"]
+
+
+def test_fractional_calendar_shifts_are_explicitly_unsupported():
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.date("2024-01-31") + mt.months(1.5)
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York") + mt.quarters(0.5)
+
+
 def test_offset_date_strings_convert_to_requested_timezone():
     assert mt.date("2024-01-15T23:00:00-05:00").format() == ["2024-01-16"]
     assert mt.date(
@@ -1076,7 +1133,7 @@ def test_pandas_input_coercion():
     ]
     aware = pd.Series(pd.to_datetime(["2024-01-15 12:00:00+00:00"]))
     assert mt.datetime(aware, tz="America/New_York").format() == [
-        "2024-01-15 07:00:00"
+        "2024-01-15 07:00:00 EST"
     ]
     assert mt.date(pd.NaT).format() == ["NA"]
     assert mt.date(np.datetime64("NaT", "ns")).format() == ["NA"]
@@ -1092,8 +1149,7 @@ def test_discrete_shift_rejects_indeterminate_duration():
     assert (quarters + mt.months(3)).format() == ["2024 Q3", "2024 Q4"]
 
     dates = mt.date(["2024-01-15", "2024-02-29"])
-    with pytest.raises(ValueError, match="temporally indeterminate"):
-        dates + mt.months(1)
+    assert (dates + mt.months(1)).format() == ["2024-02-15", "2024-03-29"]
     assert (dates + mt.weeks(1)).format() == ["2024-01-22", "2024-03-07"]
 
 
@@ -1165,9 +1221,9 @@ def test_yearweek_to_date_uses_monday_start():
     assert mt.date(weeks).values.tolist() == [19723, 19737]
 
 
-def test_continuous_cross_category_shifts_are_explicitly_unsupported():
-    with pytest.raises(NotImplementedError, match="Continuous shifts"):
-        mt.date(dt.date(2024, 1, 31), discrete=False) + mt.months(1)
+def test_continuous_calendar_shifts_and_unsupported_cross_category_shifts():
+    continuous_date = mt.date(dt.date(2024, 1, 31), discrete=False)
+    assert (continuous_date + mt.months(1)).format() == ["2024-02-29 0.0%"]
     with pytest.raises(NotImplementedError, match="Continuous shifts"):
         mt.yearmonth(dt.date(2024, 1, 31), discrete=False) + mt.days(1)
     with pytest.raises(ValueError, match="calendar and fixed"):

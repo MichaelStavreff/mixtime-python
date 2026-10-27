@@ -364,6 +364,47 @@ add_case("operations", "duration_discrete_scalar_div", years(1L) / 2,
 add_case("operations", "time_shift_months", time_shift(x, months(1)), "linear")
 add_case("operations", "time_shift_days",
          time_shift(date(c("2024-01-15", "2024-02-29")), days(1)), "linear")
+add_case("operations", "time_shift_date_months_clamp",
+         time_shift(date("2024-01-31"), months(1)), "linear")
+add_case("operations", "time_shift_date_years_leap",
+         time_shift(date("2024-02-29"), years(1)), "linear")
+add_case("operations", "time_shift_datetime_days_dst_forward",
+         time_shift(datetime("2024-03-09 12:00:00",
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_hours_dst_forward",
+         time_shift(datetime("2024-03-09 12:00:00",
+                             tz = "America/New_York"), hours(24)),
+         "linear")
+add_case("operations", "time_shift_datetime_days_dst_backward",
+         time_shift(datetime("2024-11-02 12:00:00",
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_days_vector",
+         time_shift(datetime(c("2024-03-09 12:00:00",
+                               "2024-11-02 12:00:00"),
+                             tz = "America/New_York"), days(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_months_clamp_tz",
+         time_shift(datetime("2021-01-31 09:30:00",
+                             tz = "America/New_York"), months(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_years_leap_tz",
+         time_shift(datetime("2024-02-29 09:30:00",
+                             tz = "America/New_York"), years(1)),
+         "linear")
+add_case("operations", "time_shift_datetime_quarters_tz",
+         time_shift(datetime("2024-01-31 09:30:00",
+                             tz = "America/New_York"), quarters(1)),
+         "linear")
+add_case("operations", "time_shift_melbourne_gap",
+         time_shift(datetime("2025-10-04 02:30:00",
+                             tz = "Australia/Melbourne"), days(1)),
+         "linear")
+add_case("operations", "time_shift_melbourne_ambiguous",
+         time_shift(datetime("2025-04-05 02:30:00",
+                             tz = "Australia/Melbourne"), days(1)),
+         "linear")
 add_case("operations", "date_timezone_utc",
          date(as.POSIXct("2024-01-15 23:00:00", tz = "America/New_York"),
               tz = "UTC"),

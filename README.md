@@ -7,13 +7,13 @@ timezone handling are Python.
 
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
-> sequences, arithmetic, timezone-aware `datetime`, timezone name/offset
-> helpers and transitions, type and completeness predicates, component
-> extraction/composition, chronon bounds, circular sums, scalar values, and an
-> optional pandas `"mixtime"` extension dtype for Series/DataFrame columns.
-> Non-Gregorian calendars, astronomical calendars, and the full R format-token
-> language remain out of scope. See [Scope](#scope) and
-> [`DECISION.md`](DECISION.md).
+> sequences, arithmetic, DST-aware calendar shifts, timezone-aware `datetime`,
+> timezone name/offset helpers and transitions, type and completeness
+> predicates, component extraction/composition, chronon bounds, circular sums,
+> scalar values, and an optional pandas `"mixtime"` extension dtype for
+> Series/DataFrame columns. Non-Gregorian calendars, astronomical calendars,
+> and the full R format-token language remain out of scope. See [Scope](#scope)
+> and [`DECISION.md`](DECISION.md).
 
 ## Credits
 
@@ -143,6 +143,24 @@ Durations are continuous by default, matching R's double-valued helpers:
 `mt.years(1)` formats as `1.0 years`. Pass `discrete=True` for whole-granule
 durations, such as `mt.years(1, discrete=True)`.
 
+Day-or-longer shifts on `date` and `datetime` use calendar fields. For a
+timezone-aware `datetime`, day and week shifts preserve the local wall-clock
+time across DST changes, while sub-day durations add elapsed time. Month,
+quarter, and year shifts clamp the day to the target month:
+
+```python
+ny = mt.datetime("2024-03-09 12:00:00", tz="America/New_York")
+print((ny + mt.days(1)).format())    # ['2024-03-10 12:00:00 EDT']
+print((ny + mt.hours(24)).format())  # ['2024-03-10 13:00:00 EDT']
+print((mt.date("2024-01-31") + mt.months(1)).format())  # ['2024-02-29']
+```
+
+DST gaps and ambiguous local times use R's default clamp behavior: a skipped
+local time moves back by the gap, and an ambiguous time resolves to its first
+occurrence. Shifts requiring a fractional month (including fractional
+quarters) are not implemented; fractional years that resolve to whole months
+are allowed.
+
 ### Mixed granularity
 
 ```python
@@ -216,7 +234,8 @@ print(changes["time"].format())
 `tz_name()` returns `None` for naive time; `tz_abbreviation()` returns an empty
 string there, matching R. `tz_offset()` returns a `Duration` in each element's
 own chronon: seconds for `datetime`, days for `date`, months for `yearmonth`,
-and so on.
+and so on. Default `datetime` formatting appends the zone abbreviation for
+non-UTC named zones, matching R.
 
 ### Components
 
@@ -301,8 +320,9 @@ Ported:
   `day_of_week`, `week_of_year`, `time_of_day`)
 - durations (`years`, `quarters`, `months`, `weeks`, `days`, `hours`,
   `minutes`, `seconds`, `milliseconds`)
-- time arithmetic, comparison, rounding, and sequences, including continuous
-  same-category shifts and common-chronon differences
+- time arithmetic, comparison, rounding, and sequences, including DST-aware
+  day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
+  continuous shifts within a category, and common-chronon differences
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -322,8 +342,10 @@ Not yet ported:
 - ggplot2 and tsibble integration
 - complete `Mixtime` arithmetic; pandas Series/DataFrame columns are covered,
   but full non-pandas columnar coercion remains incomplete
-- continuous calendar/fixed cross-category shifts (for example,
-  `date + months(1)`) and calendar-step `seq()` on day/second time
+- shifts requiring a fractional month and R's alternative `on_invalid` DST
+  resolutions
+- shifts from calendar chronons to finer fixed units (for example,
+  `yearmonth + days(1)`) and calendar-step `seq()` on day/second time
 - R's `seq(from, length.out=, by=)` form
 
 See [`COVERAGE.md`](COVERAGE.md) for the R branch-to-test map and
