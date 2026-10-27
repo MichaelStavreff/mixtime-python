@@ -21,6 +21,8 @@ low-level NumPy kernel.
   granularity.
 - `mixtime.lin`, `cyc`, `time_components`, and `time_compose` extract and
   rebuild Gregorian linear/cyclical components.
+- `mixtime.chronon_glb`, `chronon_lub`, and `chronon_common` select a common
+  Gregorian chronon; `mixtime.circsum` sums circular windows.
 - `mixtime.day_to_month`, `day_to_quarter`, `day_to_year`, `month_to_day`,
   `year_to_day` expose the low-level Rust kernel.
 
@@ -49,6 +51,10 @@ parts = mt.time_components(when, yr=mt.lin("year"), mth=mt.cyc("month", "year"))
 print(parts["mth"].format())  # ['Jan', 'Feb']
 print(mt.time_compose(mt.lin("year", 1980), mt.cyc("month", "year", 3)).format())
 # ['1980 Mar']
+
+print(mt.chronon_glb(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 day
+print(mt.chronon_lub(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 month
+print(mt.circsum([1, 2, 3, 4], 2, 2))  # [3. 7.]
 ```
 
 ## Divergences from R
@@ -124,6 +130,11 @@ Gregorian chronon values and default formatted output.
 - **Completeness with mixed granularity.** `time_is_complete_at()` rejects a
   `Mixtime` with more than one part, matching R's current restriction; a
   single-part `Mixtime` is accepted.
+- **Chronon bounds.** `chronon_glb()`/`chronon_lub()` implement the Gregorian
+  partial order directly. Week and calendar units have no common coarser
+  chronon, so `chronon_lub()` raises `ValueError` for that combination, as R
+  does. A supplied `ptype` is returned unchecked, matching R's current TODO.
+  `circsum()` returns a NumPy array rather than R's numeric vector.
 - **Component API.** R uses `time_components(x, yr = lin(year))` and formula
   composition such as `time_compose(lin(year) ~ 1980)`. Python uses
   `time_components(x, yr=lin("year"))`, returns a dictionary of columns rather

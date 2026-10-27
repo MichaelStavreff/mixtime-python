@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from math import gcd
 from typing import Any
 
 import numpy as np
@@ -214,3 +215,38 @@ def _step_in_unit(by: Any, start: TimeVector) -> float:
             _check_discrete_shift(start.chronon, unit, converted)
         return float(converted[0])
     return float(by)
+
+
+def circsum(x: Any, size: int, step: int | None = None) -> np.ndarray:
+    """Sum windows that wrap around a circular vector.
+
+    ``size`` is the window length; a negative size anchors the window at its
+    end. ``step`` is the starting-index increment and defaults to ``size``.
+    The result length is the number of windows before the pattern repeats.
+    """
+    values = np.asarray(x)
+    n = len(values)
+    size = int(size)
+    step = size if step is None else int(step)
+    size_abs = abs(size)
+    step_abs = abs(step)
+    if n == 0 or size_abs == 0 or step_abs == 0:
+        return np.asarray([], dtype=values.dtype)
+
+    offsets = np.arange(size_abs)
+    if size < 0:
+        offsets = -offsets[::-1]
+
+    if size_abs == 1:
+        if step == 1:
+            return values.copy()
+        windows = n // gcd(n, step_abs)
+        indices = ((np.arange(windows) * step) % n).astype(int)
+        return values[indices]
+
+    windows = n // gcd(n, step_abs)
+    result = np.empty(windows, dtype=np.result_type(values.dtype, float))
+    for index in range(windows):
+        start = (index * step) % n
+        result[index] = values[(start + offsets) % n].sum()
+    return result

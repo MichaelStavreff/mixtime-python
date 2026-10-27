@@ -27,8 +27,8 @@ The niche value of mixtime is the combination of:
 The selected niche MVP implements those capabilities for the Gregorian calendar
 and ISO weeks, while keeping the Rust kernel for chronon arithmetic. The Python
 layer owns classes, metadata, parsing, formatting, timezones, pandas interop,
-type/determinacy/completeness predicates, and Gregorian component extraction /
-composition;
+type/determinacy/completeness predicates, Gregorian component extraction /
+composition, and common-chronon selection;
 Rust remains the arithmetic kernel. Durations follow R's double-valued helpers
 by default (continuous), with `discrete=True` for whole granules. Time-point
 differences use the finest common chronon, and continuous shifts are supported

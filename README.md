@@ -8,7 +8,8 @@ timezone handling are Python.
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
 > sequences, arithmetic, timezone-aware `datetime`, type and completeness
-> predicates, component extraction/composition, and optional pandas interop.
+> predicates, component extraction/composition, chronon bounds, circular
+> sums, and optional pandas interop.
 > Non-Gregorian calendars, astronomical calendars, and the full R format-token
 > language remain out of scope. See [Scope](#scope) and
 > [`DECISION.md`](DECISION.md).
@@ -35,7 +36,8 @@ There are two layers:
 - **Python time model** — `yearmonth`, `yearquarter`, `yearweek`, `date`,
   `datetime`, cyclical components such as `month_of_year`, durations such as
   `months(1)`, a `Mixtime` container for mixed granularities, component helpers
-  (`lin`, `cyc`, `time_components`, `time_compose`), and predicates such as
+  (`lin`, `cyc`, `time_components`, `time_compose`), chronon bounds
+  (`chronon_glb`, `chronon_lub`), and predicates such as
   `time_is_determinate_at` and `time_is_complete_at`.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
@@ -185,6 +187,17 @@ print(mt.time_compose(
 ).format())  # ['1980-03-15']
 ```
 
+### Chronon bounds
+
+`chronon_glb()` returns the closest common chronon no coarser than every input;
+`chronon_lub()` returns the closest common chronon no finer than every input.
+
+```python
+print(mt.chronon_glb(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 day
+print(mt.chronon_lub(mt.yearmonth("2024-01"), mt.date("2024-01-01")))  # 1 month
+print(mt.circsum([1, 2, 3, 4], 2, 2))  # [3. 7.]
+```
+
 ### Predicates
 
 ```python
@@ -259,6 +272,8 @@ Ported:
 - type predicates and granule determinacy/completeness predicates
 - Gregorian component extraction and composition (`time_components`,
   `time_compose`, `lin`, `cyc`)
+- chronon bounds (`chronon_glb`, `chronon_lub`, `chronon_common`) and circular
+  sums (`circsum`)
 - optional pandas `Series`/`Index` input and `PeriodIndex`/`DatetimeIndex`
   output
 - the low-level Rust chronon splits

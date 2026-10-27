@@ -583,6 +583,90 @@ def test_components_and_compose_python_api():
         mt.time_compose(mt.lin("year"))
 
 
+GRANULE_INPUTS = {
+    "yearmonth_date": lambda: (
+        mt.yearmonth("2024-01"),
+        mt.date("2024-01-01"),
+    ),
+    "week_month": lambda: (
+        mt.yearweek("2024-W01"),
+        mt.yearmonth("2024-01"),
+    ),
+    "week_hour": lambda: (
+        mt.yearweek("2024-W01"),
+        mt.linear_time(1, "hour"),
+    ),
+    "second_minute": lambda: (
+        mt.linear_time(1, "second"),
+        mt.linear_time(1, "minute"),
+    ),
+    "year_quarter": lambda: (
+        mt.year("2024"),
+        mt.yearquarter("2024-Q1"),
+    ),
+    "month_2_3": lambda: (
+        mt.cal_gregorian.month(2),
+        mt.cal_gregorian.month(3),
+    ),
+    "year_2_month": lambda: (
+        mt.cal_gregorian.year(2),
+        mt.cal_gregorian.month(1),
+    ),
+    "week_day": lambda: (
+        mt.yearweek("2024-W01"),
+        mt.date("2024-01-01"),
+    ),
+    "year_week": lambda: (
+        mt.year("2024"),
+        mt.yearweek("2024-W01"),
+    ),
+}
+
+
+def _assert_unit(actual, expected):
+    assert actual.name == expected["name"]
+    assert float(actual.n) == float(expected["n"])
+
+
+@pytest.mark.parametrize("case", FIXTURES["granules"], ids=lambda c: c["name"])
+def test_chronon_bounds(case):
+    inputs = GRANULE_INPUTS[case["name"]]()
+    _assert_unit(mt.chronon_glb(*inputs), case["glb"])
+    if case["lub"] is None:
+        with pytest.raises(ValueError, match="common coarser chronon"):
+            mt.chronon_lub(*inputs)
+    else:
+        _assert_unit(mt.chronon_lub(*inputs), case["lub"])
+
+
+@pytest.mark.parametrize("case", FIXTURES["circsum"], ids=lambda c: c["name"])
+def test_circsum(case):
+    result = mt.circsum(case["x"], case["size"], case["step"])
+    _assert_values(result, case["result"])
+
+
+def test_circsum_default_step_and_chronon_helpers():
+    _assert_values(mt.circsum([1, 2, 3, 4, 5], 3), [6, 10, 9, 8, 12])
+
+    mixed = mt.mixtime(mt.yearmonth("2024-01"), mt.date("2024-01-01"))
+    _assert_unit(mt.chronon_glb(mixed), {"name": "day", "n": 1})
+    _assert_unit(mt.chronon_lub(mixed), {"name": "month", "n": 1})
+    _assert_unit(mt.chronon_common(mixed), {"name": "day", "n": 1})
+
+    _assert_unit(
+        mt.chronon_glb(mt.yearmonth("2024-01"), ptype="day"),
+        {"name": "day", "n": 1},
+    )
+    _assert_unit(
+        mt.chronon_lub(mt.yearmonth("2024-01"), ptype="year"),
+        {"name": "year", "n": 1},
+    )
+    with pytest.raises(ValueError, match="at least one chronon"):
+        mt.chronon_glb()
+    with pytest.raises(ValueError, match="at least one chronon"):
+        mt.chronon_lub()
+
+
 # -- Python API behaviours not directly represented in the R fixture --------
 
 

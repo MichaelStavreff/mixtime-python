@@ -26,7 +26,8 @@ from .components import (
     time_components,
     time_compose,
 )
-from .ops import seq, time_ceiling, time_floor, time_round, time_shift
+from .granules import chronon_common, chronon_glb, chronon_lub
+from .ops import circsum, seq, time_ceiling, time_floor, time_round, time_shift
 from .predicates import (
     time_is_complete_at,
     time_is_cyclical,
@@ -116,6 +117,10 @@ __all__ = [
     "time_round",
     "time_shift",
     "seq",
+    "circsum",
+    "chronon_glb",
+    "chronon_lub",
+    "chronon_common",
     # predicates
     "time_is_linear",
     "time_is_cyclical",

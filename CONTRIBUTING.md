@@ -55,6 +55,8 @@ against GitHub `main` (`mixtime 0.4.0.9000`), starting from the pinned CRAN
                  b["predicates"] == a["predicates"],
                  b["components"] == a["components"],
                  b["compose"] == a["compose"],
+                 b["circsum"] == a["circsum"],
+                 b["granules"] == a["granules"],
                  b["package_version"], "->", a["package_version"])
        else:
            print(name, b["cases"] == a["cases"], b["inputs"] == a["inputs"],

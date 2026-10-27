@@ -29,7 +29,9 @@ out <- list(
   mixed = list(),
   predicates = list(),
   components = list(),
-  compose = list()
+  compose = list(),
+  circsum = list(),
+  granules = list()
 )
 
 chronon_info <- function(x) {
@@ -130,6 +132,30 @@ add_compose <- function(name, x) {
     formatted = as.character(format(x)),
     chronon = chronon_info(x),
     cycle = cycle_info(x)
+  )
+}
+
+add_circsum <- function(name, x, size, step) {
+  out$circsum[[length(out$circsum) + 1L]] <<- list(
+    name = name,
+    x = as.numeric(x),
+    size = size,
+    step = step,
+    result = as.numeric(circsum(x, size, step))
+  )
+}
+
+unit_info <- function(x) {
+  list(name = sub("mixtime::tu_", "", class(x)[1L]), n = as.numeric(x@n))
+}
+
+add_granule <- function(name, x) {
+  glb <- tryCatch(unit_info(chronon_glb(x)), error = function(e) NULL)
+  lub <- tryCatch(unit_info(chronon_lub(x)), error = function(e) NULL)
+  out$granules[[length(out$granules) + 1L]] <<- list(
+    name = name,
+    glb = glb,
+    lub = lub
   )
 }
 
@@ -490,6 +516,52 @@ parts <- time_components(
   dom = cyc(day, month)
 )
 add_compose("tagged", time_compose(parts$yr, parts$mth, parts$dom))
+
+# -- utility and chronon-bound cases -------------------------------------
+add_circsum("basic", c(1, 2, 3, 4), 2, 2)
+add_circsum("window3", c(1, 2, 3, 4, 5), 3, 3)
+add_circsum("negative_step", c(1, 2, 3, 4, 5), 1, -1)
+add_circsum("negative_size", c(1, 2, 3, 4, 5), -2, 1)
+add_circsum("step_one", c(1, 2, 3, 4), 2, 1)
+add_circsum("single_step_two", c(1, 2, 3, 4), 1, 2)
+add_circsum("oversized", c(1, 2, 3, 4), 6, 1)
+add_circsum("empty", numeric(0), 2, 1)
+add_circsum("zero_size", c(1, 2, 3, 4), 0, 1)
+add_circsum("zero_step", c(1, 2, 3, 4), 2, 0)
+
+add_granule(
+  "yearmonth_date",
+  c(yearmonth(as.Date("2024-01-01")), date(as.Date("2024-01-01")))
+)
+add_granule(
+  "week_month",
+  c(yearweek(as.Date("2024-01-01")), yearmonth(as.Date("2024-01-01")))
+)
+add_granule(
+  "week_hour",
+  c(yearweek(as.Date("2024-01-01")), linear_time(1L, hour(1L)))
+)
+add_granule(
+  "second_minute",
+  c(linear_time(1L, second(1L)), linear_time(1L, minute(1L)))
+)
+add_granule("year_quarter", c(year(1L), yearquarter(1L)))
+add_granule(
+  "month_2_3",
+  c(linear_time(1L, month(2L)), linear_time(1L, month(3L)))
+)
+add_granule(
+  "year_2_month",
+  c(linear_time(1L, year(2L)), linear_time(1L, month(1L)))
+)
+add_granule(
+  "week_day",
+  c(yearweek(as.Date("2024-01-01")), date(as.Date("2024-01-01")))
+)
+add_granule(
+  "year_week",
+  c(year(1L), yearweek(as.Date("2024-01-01")))
+)
 
 json <- toJSON(out, auto_unbox = TRUE, pretty = TRUE, digits = NA,
                na = "null", null = "null")
