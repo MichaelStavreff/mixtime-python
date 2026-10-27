@@ -7,7 +7,8 @@ timezone handling are Python.
 
 > **Status:** niche MVP. The package now provides Gregorian and ISO-week time
 > vectors, parsing and formatting, cyclical components, durations, rounding,
-> sequences, arithmetic, DST-aware calendar shifts, timezone-aware `datetime`,
+> calendar-aware sequences, arithmetic, DST-aware calendar shifts,
+> timezone-aware `datetime`,
 > timezone name/offset helpers and transitions, type and completeness
 > predicates, component extraction/composition, chronon bounds, circular sums,
 > scalar values, and an optional pandas `"mixtime"` extension dtype for
@@ -133,11 +134,24 @@ print((x - mt.yearmonth("2023-12")).format())  # duration in months
 print(mt.time_floor(x, "year").format())
 print(mt.time_ceiling(x, "year").format())
 print(mt.seq(mt.yearmonth("2024-01"), mt.yearmonth("2024-06"), by=2).format())
+print(
+    mt.seq(mt.date("2024-01-31"), mt.date("2024-05-31"), by="month").format()
+)
+# ['2024-01-31', '2024-02-29', '2024-03-31', '2024-04-30', '2024-05-31']
 ```
 
 `time_floor`, `time_ceiling`, and `time_round` accept a unit name, a unit object
 such as `mt.cal_gregorian.year`, a duration such as `mt.years(1)`, or a time
 vector whose chronon is used.
+
+For `date` and `datetime`, `seq()` accepts day, week, month, quarter, and year
+steps as a duration, unit, or string (`"month"`, `"1 month"`, `"3 days"`). These
+steps use anchor-based calendar shifts: day/week sequences preserve local
+wall-clock time across DST changes, and month/quarter/year sequences clamp
+month ends. Month-like endpoint alignment follows R, so a clamped endpoint can
+be excluded when the end is earlier in its month/quarter/year than the start.
+For example, `seq(date("2024-01-31"), date("2024-04-30"), by="month")` stops at
+`2024-03-31`, while ending on `2024-05-31` includes all five month ends.
 
 Durations are continuous by default, matching R's double-valued helpers:
 `mt.years(1)` formats as `1.0 years`. Pass `discrete=True` for whole-granule
@@ -322,7 +336,8 @@ Ported:
   `minutes`, `seconds`, `milliseconds`)
 - time arithmetic, comparison, rounding, and sequences, including DST-aware
   day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
-  continuous shifts within a category, and common-chronon differences
+  calendar-aware date/datetime sequences, continuous shifts within a category,
+  and common-chronon differences
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -345,7 +360,7 @@ Not yet ported:
 - shifts requiring a fractional month and R's alternative `on_invalid` DST
   resolutions
 - shifts from calendar chronons to finer fixed units (for example,
-  `yearmonth + days(1)`) and calendar-step `seq()` on day/second time
+  `yearmonth + days(1)`)
 - R's `seq(from, length.out=, by=)` form
 
 See [`COVERAGE.md`](COVERAGE.md) for the R branch-to-test map and

@@ -32,6 +32,18 @@ month (including fractional quarters) raise `NotImplementedError`, while
 fractional day/week shifts are supported and fractional years that resolve to
 whole months are allowed.
 
+## 2026-10-27 update: calendar-aware sequences
+
+`seq()` now accepts day, week, month, quarter, and year steps for `date` and
+`datetime`, supplied as a duration, unit, or string. Counted strings such as
+`"1 month"` and `"3 days"` are supported. Day/week sequences use local anchor
+shifts, so they preserve wall-clock time across DST changes. Month-like
+sequences use anchor shifts with month-end clamping and reproduce R's endpoint
+alignment, including R's rule that can exclude a clamped endpoint when the end
+is earlier in its month/quarter/year than the start. R's clamping warning is
+not emitted. Counted strings honor fractional counts (`"1.5 years"` is 18
+months); R's parser truncates the numeric prefix to an integer.
+
 ## 2026-10-26 update: why kernel-only was not enough
 
 The kernel-only port reproduced the four Gregorian `chronon_divmod` splits and
@@ -72,7 +84,7 @@ Deferred:
   covered by an optional ExtensionArray, but full non-pandas columnar coercion
   and all mixed-vector operators remain partial,
 - shifts from calendar chronons to finer fixed units (for example,
-  `yearmonth + days(1)`) and calendar-step `seq()` on day/second time,
+  `yearmonth + days(1)`),
 - shifts requiring a fractional month and R's alternative `on_invalid` DST
   resolutions,
 - R's `seq(from, length_out=, by=)` form.

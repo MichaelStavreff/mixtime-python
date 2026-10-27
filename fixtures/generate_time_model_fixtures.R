@@ -438,6 +438,51 @@ add_case("operations", "seq_fractional_step_date",
          seq(date("2024-01-01"), date("2024-01-02"), by = 0.5), "linear")
 add_case("operations", "seq_fractional_step_date_06",
          seq(date("2024-01-01"), date("2024-01-02"), by = 0.6), "linear")
+add_case("operations", "seq_calendar_months_clamp",
+         suppressWarnings(seq(date("2024-01-31"), date("2024-05-31"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_months_endpoint_alignment",
+         suppressWarnings(seq(date("2024-01-31"), date("2024-04-30"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_months_reverse",
+         suppressWarnings(seq(date("2024-05-31"), date("2024-01-31"),
+                             by = "-1 month")), "linear")
+add_case("operations", "seq_calendar_two_months",
+         suppressWarnings(seq(date("2024-01-31"), date("2025-07-31"),
+                             by = months(2))), "linear")
+add_case("operations", "seq_calendar_fractional_years",
+         suppressWarnings(seq(date("2024-01-31"), date("2026-01-31"),
+                             by = years(1.5))), "linear")
+add_case("operations", "seq_calendar_quarters",
+         suppressWarnings(seq(date("2024-01-31"), date("2025-01-31"),
+                             by = "quarter")), "linear")
+add_case("operations", "seq_calendar_years_leap",
+         suppressWarnings(seq(date("2024-02-29"), date("2026-02-28"),
+                             by = "year")), "linear")
+add_case("operations", "seq_calendar_days",
+         suppressWarnings(seq(date("2024-01-01"), date("2024-01-10"),
+                             by = "3 days")), "linear")
+add_case("operations", "seq_calendar_weeks",
+         suppressWarnings(seq(date("2024-01-03"), date("2024-01-24"),
+                             by = "week")), "linear")
+add_case("operations", "seq_calendar_datetime_dst",
+         suppressWarnings(seq(datetime("2024-03-09 02:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-03-11 02:30:00",
+                                      tz = "America/New_York"),
+                             by = "day")), "linear")
+add_case("operations", "seq_calendar_datetime_month_dst",
+         suppressWarnings(seq(datetime("2024-02-10 02:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-05-10 02:30:00",
+                                      tz = "America/New_York"),
+                             by = "month")), "linear")
+add_case("operations", "seq_calendar_datetime_months_clamp",
+         suppressWarnings(seq(datetime("2024-01-31 09:30:00",
+                                       tz = "America/New_York"),
+                             datetime("2024-05-31 09:30:00",
+                                      tz = "America/New_York"),
+                             by = "month")), "linear")
 
 # -- comparisons -----------------------------------------------------------
 add_comparison("month_vs_day_start",

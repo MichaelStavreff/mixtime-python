@@ -354,6 +354,48 @@ OPERATION_INPUTS = {
     "seq_fractional_step_date_06": lambda: mt.seq(
         mt.date("2024-01-01"), mt.date("2024-01-02"), by=0.6
     ),
+    "seq_calendar_months_clamp": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2024-05-31"), by="month"
+    ),
+    "seq_calendar_months_endpoint_alignment": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2024-04-30"), by="month"
+    ),
+    "seq_calendar_months_reverse": lambda: mt.seq(
+        mt.date("2024-05-31"), mt.date("2024-01-31"), by="-1 month"
+    ),
+    "seq_calendar_two_months": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2025-07-31"), by=mt.months(2)
+    ),
+    "seq_calendar_fractional_years": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2026-01-31"), by=mt.years(1.5)
+    ),
+    "seq_calendar_quarters": lambda: mt.seq(
+        mt.date("2024-01-31"), mt.date("2025-01-31"), by="quarter"
+    ),
+    "seq_calendar_years_leap": lambda: mt.seq(
+        mt.date("2024-02-29"), mt.date("2026-02-28"), by="year"
+    ),
+    "seq_calendar_days": lambda: mt.seq(
+        mt.date("2024-01-01"), mt.date("2024-01-10"), by="3 days"
+    ),
+    "seq_calendar_weeks": lambda: mt.seq(
+        mt.date("2024-01-03"), mt.date("2024-01-24"), by="week"
+    ),
+    "seq_calendar_datetime_dst": lambda: mt.seq(
+        mt.datetime("2024-03-09 02:30:00", tz="America/New_York"),
+        mt.datetime("2024-03-11 02:30:00", tz="America/New_York"),
+        by="day",
+    ),
+    "seq_calendar_datetime_month_dst": lambda: mt.seq(
+        mt.datetime("2024-02-10 02:30:00", tz="America/New_York"),
+        mt.datetime("2024-05-10 02:30:00", tz="America/New_York"),
+        by="month",
+    ),
+    "seq_calendar_datetime_months_clamp": lambda: mt.seq(
+        mt.datetime("2024-01-31 09:30:00", tz="America/New_York"),
+        mt.datetime("2024-05-31 09:30:00", tz="America/New_York"),
+        by="month",
+    ),
 }
 
 
@@ -1266,6 +1308,76 @@ def test_sequence_by_week_name_adds_seven_days():
         "2024-01-29",
         "2024-02-05",
     ]
+
+
+def test_sequence_calendar_steps_accept_durations_units_and_counted_strings():
+    month_start = mt.date("2024-01-31")
+    month_end = mt.date("2024-05-31")
+    expected = mt.seq(month_start, month_end, by="month").format()
+    assert mt.seq(month_start, month_end, by=mt.months(1)).format() == expected
+    assert (
+        mt.seq(month_start, month_end, by=mt.cal_gregorian.month(1)).format()
+        == expected
+    )
+    assert mt.seq(month_start, month_end, by="1 month").format() == expected
+    assert mt.seq(month_start, month_end, by="months").format() == expected
+
+    two_month_end = mt.date("2025-07-31")
+    expected = mt.seq(month_start, two_month_end, by=mt.months(2)).format()
+    assert mt.seq(month_start, two_month_end, by="2 months").format() == expected
+
+    quarter_end = mt.date("2025-01-31")
+    expected = mt.seq(month_start, quarter_end, by="quarter").format()
+    assert mt.seq(month_start, quarter_end, by=mt.quarters(1)).format() == expected
+    assert (
+        mt.seq(
+            month_start, quarter_end, by=mt.cal_gregorian.quarter(1)
+        ).format()
+        == expected
+    )
+
+    day_end = mt.date("2024-01-10")
+    expected = mt.seq(mt.date("2024-01-01"), day_end, by="3 days").format()
+    assert mt.seq(mt.date("2024-01-01"), day_end, by=mt.days(3)).format() == expected
+    assert (
+        mt.seq(
+            mt.date("2024-01-01"), day_end, by=mt.cal_gregorian.day(3)
+        ).format()
+        == expected
+    )
+
+
+def test_sequence_counted_unit_strings_work_for_calendar_chronons():
+    start = mt.yearmonth("2024-01")
+    end = mt.yearmonth("2024-06")
+    assert mt.seq(start, end, by="2 months").format() == mt.seq(
+        start, end, by=mt.months(2)
+    ).format()
+
+
+def test_sequence_calendar_steps_return_empty_for_wrong_direction():
+    assert len(
+        mt.seq(mt.date("2024-05-31"), mt.date("2024-01-31"), by="month")
+    ) == 0
+    assert len(
+        mt.seq(mt.date("2024-01-31"), mt.date("2024-05-31"), by="-1 month")
+    ) == 0
+
+
+def test_sequence_rejects_fractional_month_steps():
+    start = mt.date("2024-01-31")
+    end = mt.date("2024-05-31")
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.seq(start, end, by=mt.months(1.5))
+    with pytest.raises(NotImplementedError, match="fractional month"):
+        mt.seq(start, end, by="1.5 months")
+
+
+def test_sequence_counted_fractional_years_use_whole_months():
+    start = mt.date("2024-01-31")
+    end = mt.date("2026-01-31")
+    expected = mt.seq(start, end, by=mt.years(1.5)).format()
+    assert mt.seq(start, end, by="1.5 years").format() == expected
 
 
 def test_duration_rejects_time_point_input():

@@ -20,8 +20,9 @@ low-level NumPy kernel.
   columns through the `"mixtime"` extension dtype; pandas is not required by
   the core package.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
-  provide calendar-aware operations, including DST-aware day/week shifts and
-  clamped month/quarter/year shifts on `date` and `datetime`.
+  provide calendar-aware operations, including DST-aware day/week shifts,
+  clamped month/quarter/year shifts, and calendar-aware sequences on `date`
+  and `datetime`.
 - `mixtime.time_is_linear`, `time_is_cyclical`, `time_is_duration`,
   `time_is_determinate_at`, and `time_is_complete_at` inspect vector type and
   granularity.
@@ -178,9 +179,15 @@ Gregorian chronon values and default formatted output.
   raises, as it does in R without a time context.
 - **Sequences.** `seq()` rejects incompatible chronons instead of converting
   the endpoint. It supports `from`/`to` with `by` or `length_out`; R's
-  `from` + `length_out` + `by` form is not implemented. Calendar steps on
-  day/second time (for example, `seq(date, by="month")`) raise; use calendar
-  chronons or explicit dates.
+  `from` + `length_out` + `by` form is not implemented. For `date` and
+  `datetime`, day/week/month/quarter/year steps are supported as a duration,
+  unit, or string. Day/week sequences use local anchor shifts and preserve
+  wall-clock time across DST; month-like sequences use anchor shifts with
+  month-end clamping. Month-like endpoint alignment follows R, so a clamped
+  endpoint can be excluded when the end is earlier in its month/quarter/year
+  than the start. R's clamping warning is not emitted. Counted unit strings
+  accept fractional counts (`by="1.5 years"` is 18 months); R's parser
+  truncates the numeric prefix to an integer.
 - **Rounding granules.** `time_floor(x, mt.year(1))` treats the vector's chronon
   as the granule. R's `year(1L)` is a linear time value and is easy to misuse as
   a granule; use `"year"`, `mt.cal_gregorian.year`, or `mt.years(1)` in Python.
