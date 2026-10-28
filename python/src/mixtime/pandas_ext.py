@@ -39,7 +39,8 @@ except ImportError as exc:  # pragma: no cover - depends on environment
     ExtensionDtype = object  # type: ignore[assignment,misc]
     _no_default = object()
 
-    def register_extension_dtype(cls):  # type: ignore[misc]
+    def register_extension_dtype(cls: Any) -> Any:  # type: ignore[misc]
+        """No-op stand-in used when pandas is not installed."""
         return cls
 
 else:
@@ -191,12 +192,17 @@ class MixtimeDtype(ExtensionDtype):
 
     @classmethod
     def construct_from_string(cls, string: str) -> "MixtimeDtype":
+        """Build the dtype from its string name ``"mixtime"``.
+
+        Any other name raises ``TypeError``, as pandas expects.
+        """
         if string == cls.name:
             return cls()
         raise TypeError(f"cannot construct a {cls.__name__} from {string!r}")
 
     @classmethod
     def construct_array_type(cls) -> type["MixtimeArray"]:
+        """Return the array type this dtype backs."""
         return MixtimeArray
 
     def __from_arrow__(self, array: Any) -> "MixtimeArray":
@@ -238,10 +244,12 @@ class MixtimeArray(ExtensionArray):
     # -- pandas ExtensionArray protocol -----------------------------------
     @property
     def dtype(self) -> MixtimeDtype:
+        """The pandas dtype of this array."""
         return MixtimeDtype()
 
     @property
     def nbytes(self) -> int:
+        """Total bytes used by the underlying chronon arrays."""
         return int(sum(np.asarray(part.values).nbytes for part in self._data.parts))
 
     def __len__(self) -> int:
@@ -279,6 +287,7 @@ class MixtimeArray(ExtensionArray):
         self._data = _mixtime_from_scalars(scalars)
 
     def isna(self) -> np.ndarray:
+        """Boolean mask of missing elements."""
         return self._data.isna()
 
     def fillna(
@@ -287,6 +296,11 @@ class MixtimeArray(ExtensionArray):
         limit: int | None = None,
         copy: bool = True,
     ) -> "MixtimeArray":
+        """Replace missing elements with ``value``.
+
+        ``value`` may be a scalar or a sequence of replacements. ``limit`` caps
+        how many elements are filled; negative limits raise ``ValueError``.
+        """
         mask = self.isna()
         if limit is not None and limit < 0:
             raise ValueError("limit must be non-negative")
@@ -315,6 +329,11 @@ class MixtimeArray(ExtensionArray):
         allow_fill: bool = False,
         fill_value: Any = None,
     ) -> "MixtimeArray":
+        """Select positions, optionally filling ``-1`` with a missing value.
+
+        With ``allow_fill``, ``fill_value`` may be a ``TimeScalar`` or a missing
+        value; anything else raises ``TypeError``.
+        """
         positions = np.asarray(indices, dtype=np.int64).ravel()
         if not allow_fill:
             return MixtimeArray(self._data.take(positions))
@@ -334,6 +353,7 @@ class MixtimeArray(ExtensionArray):
         )
 
     def copy(self) -> "MixtimeArray":
+        """Return a deep copy whose data can be mutated independently."""
         return MixtimeArray(self, copy=True)
 
     @classmethod
@@ -424,6 +444,12 @@ class MixtimeArray(ExtensionArray):
         return values.astype(dtype, copy=False)
 
     def astype(self, dtype: Any, copy: bool = True) -> Any:
+        """Convert to another dtype.
+
+        Supports ``MixtimeDtype``, pandas categorical dtypes, string dtypes,
+        object, and NumPy dtypes. String targets format each scalar; missing
+        values become ``pd.NA`` for pandas string dtypes.
+        """
         if isinstance(dtype, MixtimeDtype) or dtype == MixtimeDtype.name:
             return self.copy() if copy else self
         if pd is not None and isinstance(dtype, pd.CategoricalDtype):
@@ -469,6 +495,11 @@ class MixtimeArray(ExtensionArray):
         copy: bool = False,
         na_value: Any = _no_default,
     ) -> np.ndarray:
+        """Return the values as a NumPy array.
+
+        The default object dtype keeps :class:`~mixtime.scalar.TimeScalar`
+        elements; ``na_value`` replaces missing elements when given.
+        """
         if dtype is None or np.dtype(dtype) == np.dtype(object):
             values = np.asarray(self, dtype=object)
             if na_value is not _no_default:
@@ -487,7 +518,7 @@ class MixtimeArray(ExtensionArray):
     def _values_for_factorize(self) -> tuple[np.ndarray, Any]:
         return np.asarray(self, dtype=object), self.dtype.na_value
 
-    def value_counts(self, dropna: bool = True):
+    def value_counts(self, dropna: bool = True) -> Any:
         """Count unique values, honouring ``dropna`` for missing values.
 
         ``pd.isna`` cannot detect a missing :class:`TimeScalar` in an object
@@ -671,6 +702,7 @@ class MixtimeArray(ExtensionArray):
 
     def _formatter(self, boxed: bool = False):
         def format_value(value: Any) -> str:
+            """Render a scalar for pandas display."""
             if isinstance(value, TimeScalar):
                 return value.format()
             return str(value)
@@ -682,9 +714,13 @@ if pd is None:  # pragma: no cover - depends on environment
     # Keep the names importable so callers get a useful error at construction
     # time rather than a confusing import failure.
     class MixtimeDtype:  # type: ignore[no-redef]
+        """Placeholder that reports the missing pandas dependency."""
+
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             _require_pandas()
 
     class MixtimeArray:  # type: ignore[no-redef]
+        """Placeholder that reports the missing pandas dependency."""
+
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             _require_pandas()

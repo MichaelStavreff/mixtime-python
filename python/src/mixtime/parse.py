@@ -30,34 +30,70 @@ _MONTHS = {
 
 
 def parse_year(data: Any) -> np.ndarray:
+    """Parse years into year counts since 1970.
+
+    Accepts year strings, full dates, date/datetime objects, and integers;
+    missing values become ``NaN``.
+    """
     return _parse_each(data, _parse_year_one)
 
 
 def parse_quarter(data: Any) -> np.ndarray:
+    """Parse quarters into quarter counts since 1970 Q1.
+
+    Accepts ``"2024 Q3"``, ``"Q3 2024"``, month strings, and dates.
+    """
     return _parse_each(data, _parse_quarter_one)
 
 
 def parse_month(data: Any) -> np.ndarray:
+    """Parse months into month counts since 1970-01.
+
+    Accepts ``"2024-03"``, ``"2024 Mar"``, and dates.
+    """
     return _parse_each(data, _parse_month_one)
 
 
 def parse_date(data: Any, *, tz: str | None = None) -> np.ndarray:
+    """Parse dates into day counts since 1970-01-01.
+
+    ``tz`` interprets naive datetimes and decides which local date a datetime
+    belongs to.
+    """
     return _parse_each(data, lambda value: _parse_date_one(value, tz=tz))
 
 
 def parse_week(data: Any, *, tz: str | None = None) -> np.ndarray:
+    """Parse weeks into week counts since the epoch week.
+
+    Accepts ISO week strings such as ``"2024-W10"`` and dates, which map to
+    their ISO week. ``tz`` is used for datetime input.
+    """
     return _parse_each(data, lambda value: _parse_week_one(value, tz=tz))
 
 
 def parse_datetime(data: Any, *, tz: str | None = None) -> np.ndarray:
+    """Parse datetimes into seconds since the epoch.
+
+    Date-only input becomes midnight, and naive values are interpreted in
+    ``tz``.
+    """
     return _parse_each(data, lambda value: _parse_datetime_one(value, tz=tz))
 
 
 def parse_time(data: Any, *, tz: str | None = None) -> np.ndarray:
+    """Parse times of day into seconds since the epoch on 1970-01-01.
+
+    Accepts ``"12:30:00"``, datetimes, and dates (midnight).
+    """
     return _parse_each(data, lambda value: _parse_time_one(value, tz=tz))
 
 
 def date_to_days(value: Any, *, tz: str | None = None) -> float:
+    """Convert one date-like value to days since 1970-01-01.
+
+    Missing values return ``NaN``; datetimes use their local date in ``tz``.
+    """
     if _is_missing(value):
         return float("nan")
     value = _coerce_temporal(value, tz=tz)
@@ -67,6 +103,11 @@ def date_to_days(value: Any, *, tz: str | None = None) -> float:
 
 
 def datetime_to_seconds(value: Any, *, tz: str | None = None) -> float:
+    """Convert one datetime-like value to POSIX seconds.
+
+    Dates become midnight and naive values are interpreted in ``tz``; missing
+    values return ``NaN``.
+    """
     if _is_missing(value):
         return float("nan")
     value = _coerce_temporal(value, tz=tz)

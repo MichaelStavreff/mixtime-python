@@ -97,9 +97,11 @@ class TimeScalar:
 
     # -- properties --------------------------------------------------------
     def isna(self) -> bool:
+        """Return ``True`` when the value is missing."""
         return self.value is None
 
     def notna(self) -> bool:
+        """Return ``True`` when the value is present."""
         return self.value is not None
 
     def _raw_value(self) -> float:
@@ -141,6 +143,7 @@ class TimeScalar:
         return LinearTime(values, self.chronon, cycle=self.cycle, **kwargs)
 
     def format(self, fmt: str | None = None) -> str:
+        """Format the scalar, delegating to a length-one vector."""
         return self.to_vector().format(fmt)[0]
 
     def __str__(self) -> str:

@@ -350,6 +350,17 @@ class TimeVector:
 
     # -- display -----------------------------------------------------------
     def format(self, fmt: str | None = None) -> list[str]:
+        """Format every element as a string.
+
+        Without ``fmt``, each kind uses its canonical representation, for
+        example ``"2024 Mar"`` for months, ``"2024-03-01"`` for days, and
+        ``"1.0 months"`` for durations. Missing values render as ``"NA"``.
+
+        ``fmt`` accepts R-style component tokens (``{lin(year)}``,
+        ``{cyc(month, year)}``) and strftime-style tokens: ``%Y``, ``%y``,
+        ``%m``, ``%b``, ``%B``, ``%d``, ``%q``, ``%H``, ``%M``, ``%S``,
+        ``%f``, ``%j``, ``%a``, ``%A``, and ``%%``.
+        """
         if fmt is None:
             return [self._format_one(value) for value in self.values]
         return [self._format_with(value, fmt) for value in self.values]
@@ -363,6 +374,15 @@ class TimeVector:
 
     # -- conversion --------------------------------------------------------
     def astype(self, chronon: Unit | str, *, discrete: bool | None = None) -> "TimeVector":
+        """Convert to another chronon, keeping the vector kind.
+
+        Time points convert as anchored calendar positions, so a day inside a
+        month maps to that month. Durations convert as unanchored spans;
+        converting a duration between calendar units (month, quarter, year)
+        and fixed units (week, day, second) raises ``ValueError`` because the
+        ratio depends on the calendar position. ``discrete`` defaults to the
+        current setting, and discrete durations truncate fractions.
+        """
         unit = _normalize_unit(chronon, self.calendar)
         target_discrete = self.discrete if discrete is None else discrete
         convert_discrete = target_discrete and self.kind != "duration"
@@ -733,7 +753,7 @@ class TimeVector:
             result = np.where(missing, False, result)
         return result
 
-    def to_pandas(self):
+    def to_pandas(self) -> Any:
         """Return a pandas index for linear Gregorian time.
 
         pandas is optional; importing this method without pandas raises a
@@ -791,7 +811,7 @@ class TimeVector:
             return pd.DatetimeIndex(values)
         raise NotImplementedError(f"to_pandas() is not implemented for {name}")
 
-    def to_pandas_series(self, name: str | None = None):
+    def to_pandas_series(self, name: str | None = None) -> Any:
         """Return this vector as a pandas Series with ``MixtimeDtype``.
 
         This is separate from :meth:`to_pandas`, which returns a pandas
@@ -896,10 +916,25 @@ class TimeVector:
 
 
 class LinearTime(TimeVector):
+    """A vector of time points on a linear timeline.
+
+    Created by :func:`linear_time` or the granularity constructors such as
+    :func:`yearmonth` and :func:`date`. Values are chronon counts since
+    1970-01-01; ``chronon`` sets the resolution and ``discrete`` whether
+    values are whole granules or fractional positions.
+    """
+
     kind = "linear"
 
 
 class CyclicalTime(TimeVector):
+    """A vector of positions within a repeating cycle.
+
+    ``chronon`` is the position unit and ``cycle`` the unit that repeats, so
+    :func:`month_of_year` uses a month chronon within a year cycle. Values are
+    stored as absolute chronon counts and interpreted modulo ``cycle``.
+    """
+
     kind = "cyclical"
 
     def __init__(self, values: Any, chronon: Unit, cycle: Unit, **kwargs: Any) -> None:
@@ -907,9 +942,17 @@ class CyclicalTime(TimeVector):
 
 
 class Duration(TimeVector):
+    """A vector of elapsed time, stored as counts of ``chronon``.
+
+    Durations are unanchored: ``months(1)`` is one month of elapsed time, not a
+    calendar position, so adding it to a time point applies calendar clamping.
+    Continuous by default, matching R's ``years(1)``.
+    """
+
     kind = "duration"
 
     def format(self, fmt: str | None = None) -> list[str]:
+        """Format each duration, for example ``"1.5 months"``."""
         if fmt is None:
             return _format_duration_vector(
                 self.values, self.chronon, self.discrete
@@ -1024,7 +1067,7 @@ class Mixtime:
         """Return a copy whose parts can be mutated independently."""
         return Mixtime([part.copy() for part in self.parts])
 
-    def to_pandas_series(self, name: str | None = None):
+    def to_pandas_series(self, name: str | None = None) -> Any:
         """Return this mixed container as a pandas Series with ``MixtimeDtype``."""
         try:
             import pandas as pd
@@ -1265,6 +1308,7 @@ class Mixtime:
         missing = np.isnan(values)
 
         def scalar(value: float | None) -> Any:
+            """Build a scalar carrying the reduction's metadata."""
             return TimeScalar(
                 value,
                 common,
@@ -1345,6 +1389,10 @@ class Mixtime:
             yield from part
 
     def format(self, fmt: str | None = None) -> list[str]:
+        """Format every element across all parts, in part order.
+
+        ``fmt`` behaves as in :meth:`TimeVector.format`.
+        """
         out: list[str] = []
         for part in self.parts:
             out.extend(part.format(fmt))
@@ -1359,11 +1407,17 @@ class Mixtime:
 
     @property
     def values(self) -> np.ndarray:
+        """Concatenated raw chronon counts across parts.
+
+        Parts keep their own chronon, so convert with :meth:`astype` before
+        treating the result as a single scale.
+        """
         if not self.parts:
             return np.asarray([], dtype=np.float64)
         return np.concatenate([np.asarray(part.values) for part in self.parts])
 
     def astype(self, chronon: Unit | str, *, discrete: bool | None = None) -> "Mixtime":
+        """Convert every part to ``chronon``, keeping part boundaries."""
         return Mixtime([part.astype(chronon, discrete=discrete) for part in self.parts])
 
 
@@ -1463,104 +1517,205 @@ def duration(
 
 def year(data: Any, *, discrete: bool | None = None, calendar: Calendar = cal_gregorian,
          tz: str | None = None) -> LinearTime:
+    """Create a year-granularity time vector.
+
+    Accepts year strings such as ``"2024"``, full dates, ``date``/``datetime``
+    objects, or sequences of these. Numeric input counts years since 1970, so
+    ``year(2024)`` means 3994, not 2024.
+    """
     return linear_time(data, calendar.year, discrete=discrete, calendar=calendar, tz=tz)
 
 
 def yearquarter(data: Any, *, discrete: bool | None = None,
                 calendar: Calendar = cal_gregorian, tz: str | None = None) -> LinearTime:
+    """Create a quarter-granularity time vector.
+
+    Accepts quarter strings (``"2024 Q1"``, ``"Q1 2024"``), month strings or dates,
+    which map to their containing quarter, and numeric quarter counts since
+    1970 Q1.
+    """
     return linear_time(data, calendar.quarter, discrete=discrete, calendar=calendar, tz=tz)
 
 
 def yearmonth(data: Any, *, discrete: bool | None = None,
               calendar: Calendar = cal_gregorian, tz: str | None = None) -> LinearTime:
+    """Create a month-granularity time vector.
+
+    Accepts month strings (``"2024-03"``, ``"2024 Mar"``), dates and datetimes, and
+    numeric month counts since 1970-01.
+    """
     return linear_time(data, calendar.month, discrete=discrete, calendar=calendar, tz=tz)
 
 
 def yearweek(data: Any, *, discrete: bool | None = None,
              calendar: Calendar = cal_gregorian, tz: str | None = None) -> LinearTime:
+    """Create a week-granularity time vector.
+
+    Accepts ISO week strings (``"2024-W10"``), dates and datetimes, and numeric
+    week counts since the epoch week. Weeks start on Monday.
+    """
     return linear_time(data, _week_unit(calendar), discrete=discrete,
                        calendar=calendar, tz=tz)
 
 
 def date(data: Any, *, discrete: bool | None = None,
          calendar: Calendar = cal_gregorian, tz: str | None = None) -> LinearTime:
+    """Create a day-granularity time vector.
+
+    Accepts date strings (``"2024-03-01"``), ``date``/``datetime`` objects, and
+    numeric day counts since 1970-01-01. A datetime uses its local date in ``tz``.
+    """
     return linear_time(data, calendar.day, discrete=discrete, calendar=calendar, tz=tz)
 
 
 def datetime(data: Any, *, discrete: bool | None = None,
              calendar: Calendar = cal_gregorian, tz: str | None = None) -> LinearTime:
+    """Create a second-granularity time vector.
+
+    Accepts datetime strings (``"2024-03-01 12:30:00"``), date strings (which
+    become midnight), ``date``/``datetime`` objects, and numeric second counts since
+    the epoch. Naive input is interpreted in ``tz``.
+    """
     return linear_time(data, calendar.second, discrete=discrete, calendar=calendar, tz=tz)
 
 
 def month_of_year(data: Any, *, discrete: bool | None = None,
                   calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a month-within-year cyclical vector.
+
+    Values are month chronons interpreted modulo a year, so a date maps to its
+    month position and the pattern repeats every 12 months.
+    """
     return cyclical_time(data, calendar.month, calendar.year,
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def day_of_year(data: Any, *, discrete: bool | None = None,
                 calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a day-within-year cyclical vector.
+
+    Values are day chronons interpreted modulo a year and render as an ordinal day
+    (``"D61"``); the pattern repeats each year.
+    """
     return cyclical_time(data, calendar.day, calendar.year,
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def day_of_month(data: Any, *, discrete: bool | None = None,
                  calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a day-within-month cyclical vector.
+
+    Values are day chronons interpreted modulo a month and render as an ordinal day
+    (``"D01"``).
+    """
     return cyclical_time(data, calendar.day, calendar.month,
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def day_of_week(data: Any, *, discrete: bool | None = None,
                 calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a day-within-week cyclical vector.
+
+    Values are day chronons interpreted modulo a week and render as weekday names
+    (``"Mon"``, ``"Sun"``). Weeks start on Monday.
+    """
     return cyclical_time(data, calendar.day, _week_unit(calendar),
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def week_of_year(data: Any, *, discrete: bool | None = None,
                  calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a week-within-year cyclical vector.
+
+    Values are week chronons interpreted modulo a year and render as ISO week
+    numbers (``"W10"``).
+    """
     return cyclical_time(data, _week_unit(calendar), calendar.year,
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def time_of_day(data: Any, *, discrete: bool | None = None,
                 calendar: Calendar = cal_gregorian, tz: str | None = None) -> CyclicalTime:
+    """Create a time-of-day cyclical vector.
+
+    Values are second chronons interpreted modulo a day and render as
+    ``"HH:MM:SS"``; the pattern repeats every 24 hours.
+    """
     return cyclical_time(data, calendar.second, calendar.day,
                          discrete=discrete, calendar=calendar, tz=tz)
 
 
 def years(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` years.
+
+    Continuous by default, matching R's ``years(1)``; pass ``discrete=True`` for
+    whole-year durations.
+    """
     return duration(n, cal_gregorian.year, discrete=discrete)
 
 
 def quarters(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` quarters.
+
+    Continuous by default; pass ``discrete=True`` for whole-quarter durations.
+    """
     return duration(n, cal_gregorian.quarter, discrete=discrete)
 
 
 def months(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` months.
+
+    Continuous by default, matching R's ``months(1)``; pass ``discrete=True`` for
+    whole-month durations.
+    """
     return duration(n, cal_gregorian.month, discrete=discrete)
 
 
 def weeks(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` weeks.
+
+    Continuous by default; pass ``discrete=True`` for whole-week durations.
+    """
     return duration(n, _week_unit(cal_gregorian), discrete=discrete)
 
 
 def days(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` days.
+
+    Continuous by default; pass ``discrete=True`` for whole-day durations.
+    """
     return duration(n, cal_gregorian.day, discrete=discrete)
 
 
 def hours(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` hours.
+
+    Continuous by default; pass ``discrete=True`` for whole-hour durations.
+    """
     return duration(n, cal_gregorian.hour, discrete=discrete)
 
 
 def minutes(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` minutes.
+
+    Continuous by default; pass ``discrete=True`` for whole-minute durations.
+    """
     return duration(n, cal_gregorian.minute, discrete=discrete)
 
 
 def seconds(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` seconds.
+
+    Continuous by default; pass ``discrete=True`` for whole-second durations.
+    """
     return duration(n, cal_gregorian.second, discrete=discrete)
 
 
 def milliseconds(n: Any, *, discrete: bool = False) -> Duration:
+    """Create a duration of ``n`` milliseconds.
+
+    Continuous by default; pass ``discrete=True`` for whole-millisecond durations.
+    """
     return duration(n, cal_gregorian.millisecond, discrete=discrete)
 
 

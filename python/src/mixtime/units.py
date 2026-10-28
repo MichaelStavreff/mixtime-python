@@ -94,9 +94,20 @@ class Calendar:
         duration: bool = False,
         anchored: bool = True,
     ) -> np.ndarray:
+        """Convert ``values`` from ``from_unit`` to ``to_unit``.
+
+        Subclasses implement this. ``discrete`` requests whole target granules,
+        ``duration`` selects unanchored span conversion, and ``anchored`` keeps
+        time points aligned to the calendar.
+        """
         raise NotImplementedError
 
     def unit(self, name: str, n: int | float = 1, *, tz: str | None = None) -> Unit:
+        """Return the named unit scaled by ``n``.
+
+        Unknown names raise ``ValueError``; ``tz`` attaches a timezone to units
+        that accept one.
+        """
         if name not in self.units:
             raise ValueError(f"{name!r} is not a unit in the {self.name} calendar")
         return self.units[name](n, tz=tz)

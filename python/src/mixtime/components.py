@@ -29,7 +29,7 @@ from .time import (
     TimeVector,
     _cycle_offset,
 )
-from .units import Unit, _nests_in, cal_gregorian
+from .units import Calendar, Unit, _nests_in, cal_gregorian
 
 _UNSET = object()
 
@@ -99,7 +99,7 @@ def time_components(
 def time_compose(
     *components: ComponentValue | ComponentSpec | tuple[ComponentSpec, Any] | TimeVector,
     discrete: bool = True,
-    calendar=cal_gregorian,
+    calendar: Calendar = cal_gregorian,
 ) -> TimeVector:
     """Compose a time vector from linear and cyclical components.
 

@@ -386,6 +386,13 @@ output arrays are filled directly by Rust.
 | `month_to_day(x, from_n=1.0, to_n=1.0)` | month → day |
 | `year_to_day(x, from_n=1.0, to_n=1.0)` | year → day |
 
+### Typing
+
+The package ships `py.typed` and inline annotations, so mypy and pyright see
+real signatures for the Python layer. The Rust module also ships a stub
+(`mixtime/_rs.pyi`), so kernel calls are checked instead of treated as `Any`.
+Prefer the documented wrappers above over importing `mixtime._rs` directly.
+
 ## Scope
 
 Ported:

@@ -45,6 +45,14 @@ strings. Constructors accept one-dimensional pandas `Series`/`Index` objects.
 `to_pandas()` returns a pandas `PeriodIndex`/`DatetimeIndex` for linear time;
 `to_pandas_series()` returns a Series using mixtime's optional extension dtype.
 
+## Typing
+
+The package ships `py.typed` and inline annotations, so mypy and pyright see
+real signatures for the Python layer. The Rust module also ships a stub
+(`mixtime/_rs.pyi`), so kernel calls are checked instead of treated as `Any`.
+Prefer the documented wrappers (`mixtime.day_to_month`, …) over importing
+`mixtime._rs` directly.
+
 ## Example
 
 ```python

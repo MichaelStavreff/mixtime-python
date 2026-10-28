@@ -68,6 +68,7 @@ def _collect_units(objects: tuple[Any, ...]) -> list[Unit]:
     units: list[Unit] = []
 
     def add(value: Any) -> None:
+        """Collect one object's chronons, recursing into sequences and parts."""
         if isinstance(value, (list, tuple)):
             for item in value:
                 add(item)

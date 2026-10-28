@@ -254,6 +254,10 @@ fn output_pair<'py>(py: Python<'py>, n: usize) -> OutputPair<'py> {
 }
 
 #[pyfunction]
+/// Split day chronons into the containing month.
+///
+/// Returns `(div, mod)`: the containing month block and the day offset from
+/// the start of that block.
 #[pyo3(name = "day_to_month")]
 #[pyo3(signature = (x, from_n=1.0, to_n=1.0))]
 fn py_day_to_month<'py>(
@@ -278,6 +282,9 @@ fn py_day_to_month<'py>(
 }
 
 #[pyfunction]
+/// Split day chronons into the containing year.
+///
+/// Returns `(div, mod)`: the containing year and the day offset from its start.
 #[pyo3(name = "day_to_year")]
 #[pyo3(signature = (x, from_n=1.0, to_n=1.0))]
 fn py_day_to_year<'py>(
@@ -302,6 +309,9 @@ fn py_day_to_year<'py>(
 }
 
 #[pyfunction]
+/// Convert month chronons to the first day of the containing month.
+///
+/// Returns `(div, mod)`: the day count of the month start and the residual.
 #[pyo3(name = "month_to_day")]
 #[pyo3(signature = (x, from_n=1.0, to_n=1.0))]
 fn py_month_to_day<'py>(
@@ -326,6 +336,9 @@ fn py_month_to_day<'py>(
 }
 
 #[pyfunction]
+/// Convert year chronons to the first day of the containing year.
+///
+/// Returns `(div, mod)`: the day count of the year start and the residual.
 #[pyo3(name = "year_to_day")]
 #[pyo3(signature = (x, from_n=1.0, to_n=1.0))]
 fn py_year_to_day<'py>(
@@ -349,6 +362,7 @@ fn py_year_to_day<'py>(
     Ok((divs, mods))
 }
 
+/// Rust Gregorian chronon kernels used by the `mixtime` time model.
 #[pymodule]
 fn _rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_day_to_month, m)?)?;
