@@ -1,12 +1,28 @@
 # mixtime port — decision record
 
 **Date:** 2026-10-23  
-**Updated:** 2026-10-27 (niche MVP: Python time model + Rust kernel)
+**Updated:** 2026-10-28 (numeric arithmetic and pandas protocol gaps)
 **Pinned upstream:** CRAN `mixtime` 0.4.0 (`upstream/mixtime`)  
 **Ports:** Rust core + PyO3/Python wrapper  
 **Status:** **Niche MVP selected.** The kernel-only scope was correct as a
 performance exercise but insufficient as a product. The port now includes a
 Pythonic Gregorian/ISO-week time model on top of the Rust kernel.
+
+## 2026-10-28 update: numeric arithmetic and remaining pandas protocol gaps
+
+Time points now support R's implicit-chronon arithmetic: `time ± number` and
+`number - time` operate on raw chronon counts. Python `int` operands follow R
+integer semantics and preserve discreteness; Python `float` operands follow R
+double semantics and make the result continuous. Durations divide by numbers,
+and `duration / duration` returns a numeric ratio in the common chronon,
+raising across calendar/fixed units just as R does without a time context.
+`TimeVector.take()` joins the existing `Mixtime.take()` for positional
+selection with optional `-1` filling.
+
+The optional pandas array also implements cumulative `min`/`max`, formatted
+CSV/JSON export, and metadata-preserving `shift()`/`diff()`. `TimeVector.take`
+keeps an explicit fill value's chronon metadata, while `Mixtime.take` borrows
+the surrounding part's metadata for inserted missing values.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

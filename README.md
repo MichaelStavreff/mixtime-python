@@ -397,7 +397,8 @@ Ported:
 - time arithmetic, comparison, rounding, and sequences, including DST-aware
   day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
   calendar-aware date/datetime sequences, continuous shifts within a category,
-  common-chronon differences, elementwise mixed time-point differences, R's
+  common-chronon differences, elementwise mixed time-point differences, raw
+  numeric chronon arithmetic, duration ratios, R's
   half-open interval comparisons, and mixed-granularity
   `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,

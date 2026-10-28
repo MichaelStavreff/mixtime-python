@@ -228,11 +228,13 @@ class TimeVector:
             return np.asarray(self.values)
         return np.asarray(self.values, dtype=dtype)
 
-    def _new(self, values: Any) -> "TimeVector":
+    def _new(
+        self, values: Any, *, discrete: bool | None = None
+    ) -> "TimeVector":
         return type(self)(
             values,
             self.chronon,
-            discrete=self.discrete,
+            discrete=self.discrete if discrete is None else discrete,
             calendar=self.calendar,
             cycle=self.cycle,
             timezone=self.timezone,
@@ -318,6 +320,15 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
+        if not isinstance(self, Duration) and np.isscalar(other):
+            # A bare number advances raw chronon counts, mirroring R's
+            # implicit-chronon arithmetic. Python integers map to R integers
+            # (discrete) and Python floats to R doubles (continuous).
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(self.values + float(other), discrete),
+                discrete=discrete,
+            )
         return NotImplemented
 
     def __radd__(self, other: Any) -> "TimeVector":
@@ -389,6 +400,21 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
+        if not isinstance(self, Duration) and np.isscalar(other):
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(self.values - float(other), discrete),
+                discrete=discrete,
+            )
+        return NotImplemented
+
+    def __rsub__(self, other: Any) -> "TimeVector":
+        if np.isscalar(other):
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(float(other) - self.values, discrete),
+                discrete=discrete,
+            )
         return NotImplemented
 
     def _duration_values_in_chronon(self, other: "Duration") -> np.ndarray:
@@ -442,7 +468,27 @@ class TimeVector:
     def __rmul__(self, other: Any) -> "Duration":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Any) -> "Duration":
+    def __truediv__(self, other: Any) -> Any:
+        if isinstance(self, Duration) and isinstance(other, Duration):
+            unit = _common_unit(self.chronon, other.chronon, duration=True)
+            left = self.calendar.convert(
+                self.values,
+                self.chronon,
+                unit,
+                discrete=False,
+                duration=True,
+                anchored=False,
+            )
+            right = other.calendar.convert(
+                other.values,
+                other.chronon,
+                unit,
+                discrete=False,
+                duration=True,
+                anchored=False,
+            )
+            values = left / right
+            return float(values[0]) if values.size == 1 else values
         if isinstance(self, Duration) and np.isscalar(other):
             return Duration(
                 _coerce_values(self.values / float(other), False),

@@ -260,6 +260,11 @@ OPERATION_INPUTS = {
     "duration_discrete_scalar_sub": lambda: mt.years(1, discrete=True) - 0.5,
     "duration_discrete_scalar_mul": lambda: mt.years(1, discrete=True) * 2,
     "duration_discrete_scalar_div": lambda: mt.years(1, discrete=True) / 2,
+    "number_minus_duration": lambda: 1.0 - mt.days([3, 4]),
+    "time_plus_number": lambda: mt.date(["2024-01-01", "2024-01-02"]) + 1.0,
+    "number_plus_time": lambda: 1.0 + mt.date(["2024-01-01", "2024-01-02"]),
+    "time_minus_number": lambda: mt.date(["2024-01-01", "2024-01-02"]) - 1.0,
+    "number_minus_time": lambda: 1.0 - mt.date(["2024-01-01", "2024-01-02"]),
     "time_shift_months": lambda: mt.time_shift(
         mt.yearmonth(["2024-01", "2024-02", "2024-07", "2024-12"]),
         mt.months(1),
@@ -405,6 +410,36 @@ def test_operations(case):
     _assert_values(actual.values, _expected_values(case))
     _assert_formatted(actual.format(), case["formatted"])
     _assert_metadata(actual, case)
+
+
+NUMERIC_ARITHMETIC_INPUTS = {
+    "duration_ratio_days": lambda: mt.days([3, 4]) / mt.days(2),
+    "duration_ratio_hours": lambda: mt.hours(2) / mt.minutes(30),
+    "duration_ratio_months": lambda: mt.months(3) / mt.months(1),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["numeric_arithmetic"], ids=lambda c: c["name"]
+)
+def test_numeric_arithmetic(case):
+    actual = NUMERIC_ARITHMETIC_INPUTS[case["name"]]()
+    assert np.allclose(np.asarray(actual, dtype=float), case["values"])
+
+
+def test_time_vector_numeric_arithmetic_preserves_chronon():
+    x = mt.date(["2024-01-01", "2024-01-02"])
+
+    # Python integers map to R integers, so the result stays discrete;
+    # Python floats map to R doubles and make the result continuous.
+    assert (x + 1).format() == ["2024-01-02", "2024-01-03"]
+    assert (x + 1).discrete is True
+    assert (x + 1.0).discrete is False
+    assert (1 - x).format() == ["1916-01-03", "1916-01-02"]
+    assert (1 - x).discrete is True
+
+    with pytest.raises(ValueError, match="calendar and fixed units"):
+        mt.months(1) / mt.days(1)
 
 
 COMPARISON_INPUTS = {

@@ -934,6 +934,66 @@
       "formatted": "0.5 years"
     },
     {
+      "name": "number_minus_duration",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [-2, -3],
+      "formatted": ["-2.0 days", "-3.0 days"]
+    },
+    {
+      "name": "time_plus_number",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [19724, 19725],
+      "formatted": ["2024-01-02 0.0%", "2024-01-03 0.0%"]
+    },
+    {
+      "name": "number_plus_time",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [19724, 19725],
+      "formatted": ["2024-01-02 0.0%", "2024-01-03 0.0%"]
+    },
+    {
+      "name": "time_minus_number",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [19722, 19723],
+      "formatted": ["2023-12-31 0.0%", "2024-01-01 0.0%"]
+    },
+    {
+      "name": "number_minus_time",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [-19722, -19723],
+      "formatted": ["1916-01-03 0.0%", "1916-01-02 0.0%"]
+    },
+    {
       "name": "time_shift_months",
       "kind": "linear",
       "chronon": "month",
@@ -1745,6 +1805,23 @@
           "formatted": ["-1.0 months", "2.0 months"]
         }
       ]
+    }
+  ],
+  "numeric_arithmetic": [
+    {
+      "name": "duration_ratio_days",
+      "values": [1.5, 2],
+      "formatted": ["1.5", "2.0"]
+    },
+    {
+      "name": "duration_ratio_hours",
+      "values": 4,
+      "formatted": "4"
+    },
+    {
+      "name": "duration_ratio_months",
+      "values": 3,
+      "formatted": "3"
     }
   ],
   "ordering": [

@@ -255,7 +255,13 @@ Gregorian chronon values and default formatted output.
   R's double-valued helpers (`years(1)` formats as `1.0 years`). Pass
   `discrete=True` for whole-granule durations (`years(1, discrete=True)`
   formats as `1 year`). Duration conversion between calendar and fixed units
-  raises, as it does in R without a time context.
+  raises, as it does in R without a time context. Durations scale with `*` and
+  `/` by numbers, and `duration / duration` returns a numeric ratio in the
+  common chronon (raising across calendar/fixed units).
+- **Raw numeric arithmetic.** `time ± number` advances raw chronon counts,
+  matching R's implicit-chronon arithmetic, and `number - time` is supported.
+  Python `int` operands map to R integers and keep the vector discrete; Python
+  `float` operands map to R doubles and make it continuous.
 - **Sequences.** `seq()` rejects incompatible chronons instead of converting
   the endpoint. It supports `from`/`to` with `by` or `length_out`; R's
   `from` + `length_out` + `by` form is not implemented. For `date` and

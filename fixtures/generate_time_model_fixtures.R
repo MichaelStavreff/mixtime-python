@@ -29,6 +29,7 @@ out <- list(
   mixed_comparisons = list(),
   mixed = list(),
   mixed_arithmetic = list(),
+  numeric_arithmetic = list(),
   ordering = list(),
   predicates = list(),
   components = list(),
@@ -91,6 +92,14 @@ add_case <- function(section, name, x, kind, discrete = NULL) {
     formatted = as.character(format(x))
   )
   out[[section]][[length(out[[section]]) + 1L]] <<- entry
+}
+
+add_numeric_case <- function(section, name, value) {
+  out[[section]][[length(out[[section]]) + 1L]] <<- list(
+    name = name,
+    values = as.numeric(value),
+    formatted = as.character(format(value))
+  )
 }
 
 add_comparison <- function(name, value) {
@@ -418,6 +427,21 @@ add_case("operations", "duration_discrete_scalar_mul", years(1L) * 2,
          "duration")
 add_case("operations", "duration_discrete_scalar_div", years(1L) / 2,
          "duration")
+add_case("operations", "number_minus_duration", 1 - days(c(3, 4)), "duration")
+add_case("operations", "time_plus_number", date(c("2024-01-01", "2024-01-02")) + 1,
+         "linear")
+add_case("operations", "number_plus_time", 1 + date(c("2024-01-01", "2024-01-02")),
+         "linear")
+add_case("operations", "time_minus_number", date(c("2024-01-01", "2024-01-02")) - 1,
+         "linear")
+add_case("operations", "number_minus_time", 1 - date(c("2024-01-01", "2024-01-02")),
+         "linear")
+add_numeric_case("numeric_arithmetic", "duration_ratio_days",
+                 days(c(3, 4)) / days(2))
+add_numeric_case("numeric_arithmetic", "duration_ratio_hours",
+                 hours(2) / minutes(30))
+add_numeric_case("numeric_arithmetic", "duration_ratio_months",
+                 months(3) / months(1))
 add_case("operations", "time_shift_months", time_shift(x, months(1)), "linear")
 add_case("operations", "time_shift_days",
          time_shift(date(c("2024-01-15", "2024-02-29")), days(1)), "linear")
