@@ -74,7 +74,6 @@ def main() -> None:
     print(f"Python: {__import__('sys').version.split()[0]}")
     print(f"numpy: {np.__version__}")
     print(f"mixtime: {version('mixtime')}")
-    print(f"mixtime-rs: {version('mixtime-rs')}")
     print()
     print("=== Python->Rust day_to_month on np.arange(n) (microseconds per call) ===")
     print(f"{'size':>8} {'min_us':>12} {'median_us':>12} {'max_us':>12} {'sd_us':>10} {'number':>10}")

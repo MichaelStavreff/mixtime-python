@@ -1,9 +1,9 @@
 # mixtime (Python port)
 
 A Pythonic time-vector package built on the Rust port of `mixtime`'s Gregorian
-chronon arithmetic. The Rust crate lives in `../rust` and is built with maturin;
-this package provides the time model, parsing, formatting, timezones, and the
-low-level NumPy kernel.
+chronon arithmetic. The Rust crate lives in `../rust` and is built into this
+package as the `mixtime._rs` extension by maturin; the Python layer provides
+the time model, parsing, formatting, timezones, and the low-level NumPy kernel.
 
 ## Layers
 

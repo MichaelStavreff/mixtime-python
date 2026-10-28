@@ -12,7 +12,7 @@ from typing import Any, Iterable
 
 import numpy as np
 
-import mixtime_rs as _rs
+from . import _rs
 
 
 _CALENDAR_UNITS = (

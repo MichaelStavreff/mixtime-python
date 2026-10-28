@@ -32,7 +32,7 @@ jobs:
         working-directory: python
 
       - name: Build the extension and install the package
-        run: uv sync --reinstall-package mixtime-rs
+        run: uv sync --reinstall-package mixtime
         working-directory: python
 
       - name: Run Python tests
@@ -52,17 +52,15 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
-      - name: Build wheels
+      - name: Build the wheel
         run: |
-          cd rust
-          uv build --wheel
-          cd ../python
+          cd python
           uv build --wheel
 
-      - name: Install wheels into a clean venv
+      - name: Install the wheel into a clean venv
         run: |
           uv venv --clear /tmp/mixtime-wheel-smoke
-          uv pip install --python /tmp/mixtime-wheel-smoke/bin/python rust/dist/*.whl python/dist/*.whl
+          uv pip install --python /tmp/mixtime-wheel-smoke/bin/python python/dist/*.whl
 
       - name: Smoke-test the installed wheel
         run: |

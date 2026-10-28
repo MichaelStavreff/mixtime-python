@@ -74,7 +74,6 @@ name = "mixtime"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "mixtime-rs" },
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -105,7 +104,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mixtime-rs", editable = "../rust" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.0" },
     { name = "pyarrow", marker = "extra == 'arrow'", specifier = ">=14" },
@@ -118,11 +116,6 @@ dev = [
     { name = "pyarrow", specifier = ">=14" },
     { name = "pytest", specifier = ">=8.0" },
 ]
-
-[[package]]
-name = "mixtime-rs"
-version = "0.1.0"
-source = { editable = "../rust" }
 
 [[package]]
 name = "numpy"

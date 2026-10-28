@@ -39,6 +39,10 @@ R's vecvec implementation drops parts. Empty `Mixtime` reductions now raise a
 consistent `ValueError` instead of returning a missing scalar when the
 container has empty parts.
 
+The `mixtime-rs` extension is built into the `mixtime` wheel as
+`mixtime._rs`, so there is one PyPI distribution and one version stream. The
+Rust crate remains in `rust/` as the maturin build manifest.
+
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 
 Phase 1 adds R-compatible comparison and ordering for mixed chronons plus the

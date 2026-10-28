@@ -5,21 +5,21 @@ description = "Pythonic mixed-granularity time vectors with a Rust Gregorian chr
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-dependencies = ["mixtime-rs>=0.1.0,<0.2", "numpy>=2.0"]
+dependencies = ["numpy>=2.0"]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.0"]
 arrow = ["pyarrow>=14"]
 
-[tool.uv.sources]
-mixtime-rs = { path = "../rust", editable = true }
-
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.15,<2.0"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/mixtime"]
+[tool.maturin]
+manifest-path = "../rust/Cargo.toml"
+python-source = "src"
+module-name = "mixtime._rs"
+features = ["pyo3/extension-module"]
 
 [dependency-groups]
 dev = ["pytest>=8.0", "pandas>=2.0", "pyarrow>=14"]

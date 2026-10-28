@@ -2568,13 +2568,13 @@ def _cycle_offset(
 
 
 def _rs_day_to_year(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    import mixtime_rs as rs
+    from . import _rs as rs
 
     return rs.day_to_year(values, 1.0, 1.0)
 
 
 def _rs_day_to_month(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    import mixtime_rs as rs
+    from . import _rs as rs
 
     return rs.day_to_month(values, 1.0, 1.0)
 

@@ -1,8 +1,8 @@
 # mixtime (Rust port)
 
 Rust port of mixtime 0.4.0's Gregorian `chronon_divmod` methods, from
-`R/cal_gregorian.R`. Built as a PyO3 extension by maturin; the Python wrapper
-lives in `../python`.
+`R/cal_gregorian.R`. Built into the `mixtime` Python package as the
+`mixtime._rs` extension by maturin; the Python sources live in `../python`.
 
 Scope: `day -> month/quarter/year` and `month/year -> day` chronon splits.
 Not ported: parsing/formatting, timezones, astronomical calendars, and the

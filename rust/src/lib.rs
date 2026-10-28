@@ -350,7 +350,7 @@ fn py_year_to_day<'py>(
 }
 
 #[pymodule]
-fn mixtime_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_day_to_month, m)?)?;
     m.add_function(wrap_pyfunction!(py_day_to_year, m)?)?;
     m.add_function(wrap_pyfunction!(py_month_to_day, m)?)?;

@@ -66,13 +66,14 @@ Prerequisites:
 ```sh
 git clone https://github.com/MichaelStavreff/mixtime-python.git
 cd mixtime-python/python
-uv sync --reinstall-package mixtime-rs
+uv sync --reinstall-package mixtime
 ```
 
-`uv sync` builds the Rust extension with maturin and installs the local
-`mixtime` package into the project environment. Run it from `python/`; the
-Python project lives there, and the Rust crate is resolved as a path
-dependency. `pip install` is not supported for the same reason.
+`uv sync` builds the Rust extension from `../rust` with maturin and installs the
+local `mixtime` package into the project environment. Run it from `python/`;
+the Python project lives there and the Cargo manifest is resolved as a path
+dependency. `pip install .` from the checkout is not supported for the same
+reason; published wheels bundle the extension.
 
 Run Python inside the project environment with `uv run`:
 
@@ -88,7 +89,7 @@ convenience only; the underlying commands are shown in the Quick start and
 Development sections.
 
 ```sh
-just build   # cd python && uv sync --reinstall-package mixtime-rs
+just build   # cd python && uv sync --reinstall-package mixtime
 just test    # cargo test, then rebuild the extension and run pytest
 ```
 
@@ -444,7 +445,7 @@ See [`COVERAGE.md`](COVERAGE.md) for the R branch-to-test map and
 cd rust && cargo test
 
 # Python (builds the extension first)
-cd python && uv sync --reinstall-package mixtime-rs && uv run pytest
+cd python && uv sync --reinstall-package mixtime && uv run pytest
 ```
 
 Or, with `just`:

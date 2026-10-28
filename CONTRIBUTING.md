@@ -117,7 +117,7 @@ fixtures.
 cd rust && cargo test
 
 # Python tests (rebuild the extension first)
-cd python && uv sync --reinstall-package mixtime-rs && uv run pytest
+cd python && uv sync --reinstall-package mixtime && uv run pytest
 ```
 
 ## Credit and license

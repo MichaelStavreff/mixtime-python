@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
-import mixtime_rs as _rs
+from . import _rs
 
 from .components import (
     ComponentSpec,
