@@ -100,6 +100,44 @@ class TimeVector:
         """Return the complement of :meth:`isna`."""
         return np.logical_not(self.isna())
 
+    def take(
+        self,
+        indices: Any,
+        *,
+        allow_fill: bool = False,
+        fill_value: Any = None,
+    ) -> "TimeVector":
+        """Select positions, optionally filling ``-1`` with a missing value."""
+        from .scalar import (
+            TimeScalar,
+            _is_missing_value,
+            _scalar_from_item,
+        )
+
+        positions = np.asarray(indices, dtype=np.int64).ravel()
+        if not allow_fill:
+            return self._new(np.asarray(self.values)[positions])
+
+        fill = np.nan
+        if fill_value is not None and not _is_missing_value(fill_value):
+            scalar = _scalar_from_item(fill_value)
+            if not scalar.isna():
+                like = TimeScalar.from_vector(self, np.nan)
+                if scalar._meta_key() != like._meta_key():
+                    raise ValueError(
+                        "fill value has different chronon metadata"
+                    )
+                fill = scalar.value
+
+        if len(self) == 0:
+            if not np.all(positions == -1):
+                raise IndexError("cannot take from an empty TimeVector")
+            values = np.full(len(positions), fill, dtype=np.float64)
+        else:
+            values = np.asarray(self.values, dtype=np.float64)[positions]
+            values[positions == -1] = fill
+        return self._new(values)
+
     # -- ordering ----------------------------------------------------------
     def order_values(self) -> np.ndarray:
         """Return the values used to order this vector.

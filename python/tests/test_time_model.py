@@ -1093,6 +1093,32 @@ def test_indexing_returns_length_one_vectors():
     assert x[-1].format() == ["2024 Feb"]
 
 
+def test_time_vector_take_and_fill():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+
+    assert x.take([1, 0]).format() == ["2024 Feb", "2024 Jan"]
+    assert x.take([1, 0]).chronon.name == "month"
+
+    filled = x.take([1, -1], allow_fill=True)
+    assert filled.format() == ["2024 Feb", "NA"]
+    assert filled.isna().tolist() == [False, True]
+    assert filled.chronon.name == "month"
+    assert filled.discrete is True
+
+    # An explicit fill value must share the vector's chronon metadata.
+    with pytest.raises(ValueError, match="chronon metadata"):
+        x.take(
+            [0, -1],
+            allow_fill=True,
+            fill_value=mt.date("2024-01-01").scalar(0),
+        )
+
+    empty = mt.yearmonth([])
+    assert empty.take([-1, -1], allow_fill=True).format() == ["NA", "NA"]
+    with pytest.raises(IndexError, match="empty TimeVector"):
+        empty.take([0], allow_fill=True)
+
+
 def test_scalar_access_preserves_metadata():
     x = mt.yearmonth(["2024-01", "2024-02"])
     scalar = x.scalar(0)
@@ -1788,6 +1814,13 @@ def test_pandas_extension_shift_and_diff():
         "day",
     ]
     assert mixed_shifted.isna().tolist() == [True, False, False, False]
+
+    discontinuous = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    ).to_pandas_series()
+    with pytest.raises(ValueError, match="indeterminate"):
+        discontinuous.diff()
 
 
 def test_pandas_is_optional():

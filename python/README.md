@@ -176,8 +176,10 @@ and `value_counts()` follow the same interval rules as the core vectors.
 `MixtimeArray.nlargest()`/`nsmallest()` are available directly; pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
-`to_pandas()` remains available for a `PeriodIndex`/`DatetimeIndex`; it is a
-separate API and is not changed by the extension dtype.
+`diff()` follows mixed subtraction: discrete values with different chronons
+raise rather than guessing an anchor. `to_pandas()` remains available for a
+`PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
+extension dtype.
 
 Arrow and Parquet export require `pyarrow` (install `mixtime[pandas,arrow]` or
 `pyarrow` separately). `MixtimeArray.__arrow_array__()` writes a struct with
@@ -213,7 +215,11 @@ Gregorian chronon values and default formatted output.
 - **Time-vector indexing.** `x[i]` returns a length-one time vector, not a
   Python scalar, mirroring R's length-one result. Use `.scalar(i)` for a
   `TimeScalar` with chronon metadata, or `.values[0]` for the scalar chronon
-  count. pandas `series.iloc[i]` returns a `TimeScalar`.
+  count. pandas `series.iloc[i]` returns a `TimeScalar`. `.take(indices)` is
+  the positional bulk form; with `allow_fill=True`, `-1` inserts a missing
+  value. `Mixtime.take` borrows the surrounding part's metadata unless an
+  explicit `TimeScalar` fill is given, and `TimeVector.take` requires an
+  explicit fill to share the vector's chronon metadata.
 - **Mutable values.** `TimeVector.values` and `np.asarray(vector)` expose the
   underlying NumPy buffer. In-place edits mutate the vector, unlike R's
   copy-on-modify; copy first when sharing or modifying values.
