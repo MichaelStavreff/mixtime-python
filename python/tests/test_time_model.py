@@ -1791,6 +1791,35 @@ def test_pandas_extension_string_conversion():
     assert series.astype("mixtime").dtype == mt.MixtimeDtype()
 
 
+def test_pandas_extension_category_conversion():
+    pd = pytest.importorskip("pandas")
+
+    series = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.date(["2024-03-01"]),
+    ).to_pandas_series()
+
+    categorical = series.astype("category")
+    assert isinstance(categorical.dtype, pd.CategoricalDtype)
+    assert categorical.dtype.categories.dtype == mt.MixtimeDtype()
+    assert categorical.isna().tolist() == [False, True, False]
+    assert [value.format() for value in categorical.dropna()] == [
+        "2024 Jan",
+        "2024-03-01",
+    ]
+
+    ordered = series.array.astype(
+        pd.CategoricalDtype(
+            categories=pd.Index(
+                [series.iloc[0]], dtype=mt.MixtimeDtype()
+            ),
+            ordered=True,
+        )
+    )
+    assert ordered.categories.dtype == mt.MixtimeDtype()
+    assert ordered.isna().tolist() == [False, True, True]
+
+
 def test_pandas_extension_take_concat_and_numpy():
     pd = pytest.importorskip("pandas")
 

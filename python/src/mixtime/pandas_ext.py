@@ -426,6 +426,19 @@ class MixtimeArray(ExtensionArray):
     def astype(self, dtype: Any, copy: bool = True) -> Any:
         if isinstance(dtype, MixtimeDtype) or dtype == MixtimeDtype.name:
             return self.copy() if copy else self
+        if pd is not None and isinstance(dtype, pd.CategoricalDtype):
+            if dtype.categories is None:
+                return pd.Categorical(self, copy=copy)
+            lookup = {
+                category: index
+                for index, category in enumerate(dtype.categories)
+            }
+            codes = [lookup.get(value, -1) for value in self]
+            return pd.Categorical.from_codes(
+                codes,
+                categories=dtype.categories,
+                ordered=bool(dtype.ordered),
+            )
         if dtype is object:
             return np.asarray(self, dtype=object)
         try:
