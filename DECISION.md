@@ -31,7 +31,9 @@ R's `diff.mt_time` for single-chronon vectors, and `Mixtime` subtraction is
 symmetric: `TimeVector - Mixtime` and `TimeScalar - MixtimeArray` mirror their
 forward forms. Vector and `Mixtime` equality now raises `TypeError` for
 unsupported operands instead of returning scalar `False`, and treats `None`,
-`NaN`, and `pd.NA` as element-wise missing comparisons.
+`NaN`, and `pd.NA` as element-wise missing comparisons. `value_counts()`
+honours `dropna` for mixtime missing values, which the generic object-array
+fallback could not detect.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

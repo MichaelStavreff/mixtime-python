@@ -179,7 +179,9 @@ missing values. `to_csv()` and `to_json()` use the same formatted strings, with
 missing values as an empty field or `null`. Columns sort chronologically even when granularities are
 mixed, and comparisons, `between()`, `min()`/`max()`,
 `idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
-and `value_counts()` follow the same interval rules as the core vectors.
+and `value_counts()` follow the same interval rules as the core vectors;
+`value_counts()` also honours `dropna` even though `pd.isna` cannot inspect a
+bare `TimeScalar`.
 `MixtimeArray.nlargest()`/`nsmallest()` are available directly; `TimeVector`
 and `Mixtime` also expose them for chronological top/bottom selection. pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before

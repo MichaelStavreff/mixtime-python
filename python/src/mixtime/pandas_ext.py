@@ -487,6 +487,26 @@ class MixtimeArray(ExtensionArray):
     def _values_for_factorize(self) -> tuple[np.ndarray, Any]:
         return np.asarray(self, dtype=object), self.dtype.na_value
 
+    def value_counts(self, dropna: bool = True):
+        """Count unique values, honouring ``dropna`` for missing values.
+
+        ``pd.isna`` cannot detect a missing :class:`TimeScalar` in an object
+        array, so the default implementation would count missing values even
+        when ``dropna=True``. Replace them with ``pd.NA`` for counting and
+        restore the mixtime dtype on the index.
+        """
+        import pandas as pd
+
+        values = [
+            pd.NA if is_missing else value
+            for value, is_missing in zip(self, self.isna())
+        ]
+        result = pd.Series(values, dtype=object).value_counts(
+            dropna=dropna, sort=False
+        )
+        result.index = result.index.astype(self.dtype)
+        return result
+
     def _values_for_argsort(self) -> np.ndarray:
         return self._data.order_values()
 

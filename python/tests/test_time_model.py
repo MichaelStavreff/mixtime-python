@@ -1980,6 +1980,28 @@ def test_pandas_extension_take_concat_and_numpy():
     ]
 
 
+def test_pandas_extension_value_counts_honours_dropna():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(
+        ["2024-01", "2024-02", None, "2024-02"]
+    ).to_pandas_series()
+
+    default = series.value_counts()
+    assert default.tolist() == [2, 1]
+    assert [value.format() for value in default.index] == [
+        "2024 Feb",
+        "2024 Jan",
+    ]
+
+    with_missing = series.value_counts(dropna=False)
+    assert with_missing.tolist() == [2, 1, 1]
+    assert with_missing.index.isna().tolist() == [False, False, True]
+
+    normalized = series.value_counts(normalize=True)
+    assert np.allclose(normalized.to_numpy(), [2 / 3, 1 / 3])
+
+
 def test_pandas_extension_shift_and_diff():
     pd = pytest.importorskip("pandas")
 
