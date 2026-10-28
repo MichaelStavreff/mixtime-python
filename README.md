@@ -44,9 +44,9 @@ There are two layers:
   `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
   (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
   and `time_is_complete_at`, deduplication (`TimeVector.unique`, `duplicated`),
-  mixed-vector comparison/ordering
-  (`Mixtime.sort`, `argsort`, `min`, `max`), and an optional pandas extension
-  dtype.
+  mixed-vector comparison/ordering (`Mixtime.sort`, `argsort`, `min`, `max`),
+  top/bottom selection (`nlargest`, `nsmallest`), and an optional pandas
+  extension dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
   `month_to_day`, ...), still available as NumPy-in/NumPy-out functions.
 
@@ -265,7 +265,8 @@ CSV/JSON export, duration shifts, mixed time-point differences, and
 object-array conversion.
 Mixed-granularity columns sort chronologically, and comparisons, `between()`,
 `min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
-`drop_duplicates()`, and `unique()` follow the core interval rules.
+`drop_duplicates()`, `unique()`, and `value_counts()` follow the core interval
+rules.
 `MixtimeArray.nlargest()` and
 `nsmallest()` are available directly; pandas' `Series.nlargest()`/`nsmallest()`
 reject non-numeric extension dtypes, so use
@@ -401,8 +402,8 @@ Ported:
   calendar-aware date/datetime sequences, continuous shifts within a category,
   common-chronon differences, lagged `diff()` differences, elementwise mixed
   time-point differences, raw numeric chronon arithmetic, duration ratios, R's
-  half-open interval comparisons, and mixed-granularity
-  `Mixtime` sort/argsort/min/max
+  half-open interval comparisons, single-chronon deduplication, and
+  mixed-granularity `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -412,8 +413,9 @@ Ported:
   sums (`circsum`)
 - optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
   and `"mixtime"` ExtensionArray columns for Series/DataFrame, including
-  chronological sorting, filtering, `between`, `min`/`max`, grouping, merging,
-  de-duplication, concatenation, and Arrow/Parquet round-trips
+  chronological sorting, filtering, `between`, `min`/`max`, `nlargest`/
+  `nsmallest`, grouping, merging, de-duplication, `value_counts`, concatenation,
+  and Arrow/Parquet round-trips
 - the low-level Rust chronon splits
 
 Not yet ported:
