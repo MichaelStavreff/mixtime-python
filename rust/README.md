@@ -12,6 +12,9 @@ The kernels take `ndarray` views. The PyO3 layer binds `PyReadonlyArray1<f64>`
 and passes `as_array()` straight through, then fills two `PyArray1<f64>`
 outputs in place, so NumPy input and output are both zero-copy.
 
+The bindings target PyO3's stable ABI (`abi3-py39`), so one wheel per platform
+covers CPython 3.9 and newer.
+
 ## Upstream sync
 
 The numbered procedure (install → replace upstream → regenerate fixtures →

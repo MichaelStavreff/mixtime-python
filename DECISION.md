@@ -43,6 +43,12 @@ The `mixtime-rs` extension is built into the `mixtime` wheel as
 `mixtime._rs`, so there is one PyPI distribution and one version stream. The
 Rust crate remains in `rust/` as the maturin build manifest.
 
+The extension uses PyO3's stable ABI (`abi3-py39`), so one `cp39-abi3` wheel
+per platform covers Python 3.9 and newer. This replaces a wheel per CPython
+minor version, which also made macOS universal2 cross-builds fragile. The
+trade-off is that free-threaded builds (3.14t and later) are not covered by
+these wheels; they install from the sdist.
+
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 
 Phase 1 adds R-compatible comparison and ordering for mixed chronons plus the
