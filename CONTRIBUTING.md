@@ -132,8 +132,10 @@ is bundled as `mixtime._rs`. Publishing uses PyPI Trusted Publishing:
    git tag -a vX.Y.Z -m "mixtime X.Y.Z"
    git push origin vX.Y.Z
    ```
-   The `Publish` workflow builds manylinux, macOS universal2, and Windows
-   wheels plus an sdist, then publishes them.
+   The `Publish` workflow builds `cp39-abi3` wheels for manylinux x86_64,
+   macOS arm64, macOS x86_64, and Windows x64, plus an sdist, then publishes
+   them. One wheel per platform covers Python 3.9 and newer; free-threaded
+   builds install from the sdist.
 4. To publish an existing tag without moving it, run the `Publish` workflow
    manually with the tag as `ref`.
 

@@ -9,6 +9,11 @@ on:
         description: "Tag to publish (for example v0.1.0)"
         required: true
         type: string
+      publish:
+        description: "Upload to PyPI (uncheck for a build-only run)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -51,24 +56,22 @@ jobs:
       - uses: PyO3/maturin-action@v1
         with:
           working-directory: python
-          manylinux: auto
+          manylinux: "2014"
           command: build
           args: >-
-            --release --out dist
-            -i python3.9 python3.10 python3.11 python3.12 python3.13 python3.14
+            --release --out dist --compatibility pypi
+            -i python3.12
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-linux
           path: python/dist/*.whl
 
-  macos:
+  macos-arm64:
     needs: check-version
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: macos-15
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,26 +79,51 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: PyO3/maturin-action@v1
         with:
           working-directory: python
           command: build
-          args: --release --out dist --universal2
+          args: --release --out dist --compatibility pypi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.python-version }}
+          name: wheels-macos-arm64
+          path: python/dist/*.whl
+
+  macos-x86_64:
+    needs: check-version
+    runs-on: macos-15-intel
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.13"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          command: build
+          args: --release --out dist --compatibility pypi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-x86_64
           path: python/dist/*.whl
 
   windows:
     needs: check-version
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,17 +131,19 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: PyO3/maturin-action@v1
         with:
           working-directory: python
           command: build
-          args: --release --out dist
+          args: --release --out dist --compatibility pypi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-${{ matrix.python-version }}
+          name: wheels-windows
           path: python/dist/*.whl
 
   sdist:
@@ -136,7 +166,8 @@ jobs:
           path: python/dist/*.tar.gz
 
   publish:
-    needs: [linux, macos, windows, sdist]
+    needs: [linux, macos-arm64, macos-x86_64, windows, sdist]
+    if: ${{ github.event_name == 'push' || inputs.publish }}
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
