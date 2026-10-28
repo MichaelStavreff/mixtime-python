@@ -1173,6 +1173,18 @@ def test_mixed_indexing_including_negative_index():
     assert m[-1].format() == ["2024 Q2"]
     assert m[1:].format() == ["2024 Q2"]
 
+    many = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01"]),
+    )
+    assert many[[2, 0]].format() == ["2024-03-01", "2024 Jan"]
+    assert many[np.array([True, False, True])].format() == [
+        "2024 Jan",
+        "2024-03-01",
+    ]
+    with pytest.raises(IndexError, match="boolean index"):
+        many[np.array([True, False])]
+
 
 def test_format_tokens():
     x = mt.yearmonth(["2024-01", "2024-02"])

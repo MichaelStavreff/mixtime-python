@@ -736,7 +736,7 @@ class Mixtime:
     def __len__(self) -> int:
         return sum(len(part) for part in self.parts)
 
-    def __getitem__(self, index: int | slice) -> "Mixtime":
+    def __getitem__(self, index: Any) -> "Mixtime":
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
             if step != 1:
@@ -745,6 +745,15 @@ class Mixtime:
                     parts.extend(self[position].parts)
                 return Mixtime(parts)
             return self._slice(start, stop)
+        if isinstance(index, (list, tuple, np.ndarray)):
+            positions = np.asarray(index)
+            if positions.dtype == bool:
+                if positions.size != len(self):
+                    raise IndexError(
+                        "boolean index must match the Mixtime length"
+                    )
+                positions = np.flatnonzero(positions)
+            return self.take(positions)
         if index < 0:
             index += len(self)
         if not 0 <= index < len(self):
