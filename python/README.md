@@ -171,8 +171,8 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 `isna`, `take`, `fillna`, `where`, `concat`, slicing, `shift()`/`diff()`,
 `cummin()`/`cummax()`, `astype(object)`, `astype(str)`/`astype("string")`,
 `astype("category")`, duration shifts (`series + months(1)`), mixed
-time-point differences (`series - series`), and `to_numpy()` (object array of
-`TimeScalar`). String conversion uses
+time-point differences (`series - series`, `scalar - series`), and
+`to_numpy()` (object array of `TimeScalar`). String conversion uses
 `TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while
 NumPy unicode arrays use the literal `"NA"` because they cannot represent
 missing values. `to_csv()` and `to_json()` use the same formatted strings, with

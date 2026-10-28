@@ -1866,6 +1866,36 @@ def test_pandas_extension_duration_arithmetic():
     )
 
 
+def test_pandas_extension_scalar_minus_series():
+    pd = pytest.importorskip("pandas")
+
+    months = mt.yearmonth(["2024-01", "2024-02"]).to_pandas_series()
+    first = months.iloc[0]
+
+    reversed_diff = first - months
+    assert reversed_diff.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in reversed_diff],
+        ["0.0 months", "-1.0 months"],
+    )
+    _assert_formatted(
+        [value.format() for value in months - first],
+        ["0.0 months", "1.0 months"],
+    )
+
+    mixed = mt.mixtime(
+        mt.date(["2024-01-05"]), mt.date(["2024-02-05"])
+    ).to_pandas_series()
+    left = mt.date("2024-01-01").scalar(0)
+    _assert_formatted(
+        [value.format() for value in left - mixed],
+        ["-4.0 days", "-35.0 days"],
+    )
+
+    with pytest.raises(TypeError, match="duration"):
+        mt.days(1).scalar(0) - months
+
+
 def test_pandas_extension_string_conversion():
     pd = pytest.importorskip("pandas")
 

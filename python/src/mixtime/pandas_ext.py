@@ -549,6 +549,13 @@ class MixtimeArray(ExtensionArray):
             return MixtimeArray(self._data - other)
         return NotImplemented
 
+    def __rsub__(self, other: Any) -> Any:
+        if isinstance(other, MixtimeArray):
+            return MixtimeArray(other._data - self._data)
+        if isinstance(other, (Mixtime, TimeVector, TimeScalar)):
+            return MixtimeArray(other - self._data)
+        return NotImplemented
+
     def min(self, skipna: bool = True) -> Any:
         """Return the earliest value, skipping missing values by default."""
         return self._data.min(skipna=skipna)
