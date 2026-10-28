@@ -217,7 +217,8 @@ Gregorian chronon values and default formatted output.
 - **Time-vector indexing.** `x[i]` returns a length-one time vector, not a
   Python scalar, mirroring R's length-one result. Use `.scalar(i)` for a
   `TimeScalar` with chronon metadata, or `.values[0]` for the scalar chronon
-  count. pandas `series.iloc[i]` returns a `TimeScalar`. `.take(indices)` is
+  count. pandas `series.iloc[i]` returns a `TimeScalar`. Lists, tuples, and
+  boolean masks select multiple positions. `.take(indices)` is
   the positional bulk form; with `allow_fill=True`, `-1` inserts a missing
   value. `Mixtime.take` borrows the surrounding part's metadata unless an
   explicit `TimeScalar` fill is given, and `TimeVector.take` requires an

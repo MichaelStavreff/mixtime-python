@@ -70,7 +70,16 @@ class TimeVector:
     def __len__(self) -> int:
         return len(self.values)
 
-    def __getitem__(self, index: int | slice) -> "TimeVector":
+    def __getitem__(self, index: Any) -> "TimeVector":
+        if isinstance(index, (list, tuple, np.ndarray)):
+            positions = np.asarray(index)
+            if positions.dtype == bool:
+                if positions.size != len(self):
+                    raise IndexError(
+                        "boolean index must match the TimeVector length"
+                    )
+                positions = np.flatnonzero(positions)
+            return self._new(np.asarray(self.values)[positions])
         return self._new(self.values[index])
 
     def __iter__(self) -> Iterator["TimeVector"]:

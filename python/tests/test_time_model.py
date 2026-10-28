@@ -1127,6 +1127,12 @@ def test_indexing_returns_length_one_vectors():
     assert x[0].format() == ["2024 Jan"]
     assert x[-1].format() == ["2024 Feb"]
 
+    assert x[[1, 0]].format() == ["2024 Feb", "2024 Jan"]
+    assert x[(1, 0)].format() == ["2024 Feb", "2024 Jan"]
+    assert x[np.array([True, False])].format() == ["2024 Jan"]
+    with pytest.raises(IndexError, match="boolean index"):
+        x[np.array([True, False, True])]
+
 
 def test_time_vector_take_and_fill():
     x = mt.yearmonth(["2024-01", "2024-02"])
