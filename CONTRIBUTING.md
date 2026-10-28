@@ -120,6 +120,27 @@ cd rust && cargo test
 cd python && uv sync --reinstall-package mixtime && uv run pytest
 ```
 
+## Publishing a release
+
+The package is published as a single `mixtime` distribution; the Rust extension
+is bundled as `mixtime._rs`. Publishing uses PyPI Trusted Publishing:
+
+1. Bump `version` in `python/pyproject.toml` and run `uv lock` in `python/`.
+2. Commit and push to `main`.
+3. Tag the release and push the tag:
+   ```sh
+   git tag -a vX.Y.Z -m "mixtime X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   The `Publish` workflow builds manylinux, macOS universal2, and Windows
+   wheels plus an sdist, then publishes them.
+4. To publish an existing tag without moving it, run the `Publish` workflow
+   manually with the tag as `ref`.
+
+PyPI trusts `.github/workflows/publish.yml` and the `pypi` environment. Keep the
+pending publisher for `mixtime` only; `mixtime-rs` is no longer a separate
+project.
+
 ## Credit and license
 
 The original R package is **mixtime** by
