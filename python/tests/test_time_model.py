@@ -1823,6 +1823,25 @@ def test_pandas_extension_shift_and_diff():
         discontinuous.diff()
 
 
+def test_pandas_extension_json_and_csv_export():
+    pd = pytest.importorskip("pandas")
+
+    series = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.date(["2024-03-01"]),
+    ).to_pandas_series(name="t")
+
+    assert series.to_json() == (
+        '{"0":"2024 Jan","1":null,"2":"2024-03-01"}'
+    )
+    assert series.to_csv().splitlines() == [
+        ",t",
+        "0,2024 Jan",
+        "1,",
+        "2,2024-03-01",
+    ]
+
+
 def test_pandas_extension_cumulative_min_max():
     pd = pytest.importorskip("pandas")
 

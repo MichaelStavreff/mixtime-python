@@ -259,12 +259,12 @@ print(frame["when"].isna().tolist()) # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
 missing values, slicing, `take`, `fillna`, `where`, `concat`, `shift()`/`diff()`,
-`cummin()`/`cummax()`, `astype(str)`/`astype("string")`, duration shifts, mixed
-time-point differences, and object-array conversion. Mixed-granularity columns
-sort
-chronologically, and comparisons, `between()`, `min()`/`max()`,
-`idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, and
-`unique()` follow the core interval rules. `MixtimeArray.nlargest()` and
+`cummin()`/`cummax()`, `astype(str)`/`astype("string")`, CSV/JSON export,
+duration shifts, mixed time-point differences, and object-array conversion.
+Mixed-granularity columns sort chronologically, and comparisons, `between()`,
+`min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
+`drop_duplicates()`, and `unique()` follow the core interval rules.
+`MixtimeArray.nlargest()` and
 `nsmallest()` are available directly; pandas' `Series.nlargest()`/`nsmallest()`
 reject non-numeric extension dtypes, so use
 `series.sort_values(ascending=False).head(n)` instead. Constructors also accept

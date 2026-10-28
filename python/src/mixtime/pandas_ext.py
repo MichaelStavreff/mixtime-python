@@ -615,6 +615,13 @@ class MixtimeArray(ExtensionArray):
         """Return the ``n`` earliest values."""
         return MixtimeArray(self._data.nsmallest(n, keep=keep))
 
+    def _values_for_json(self) -> np.ndarray:
+        """Render values as strings so ``Series.to_json()`` can serialize."""
+        return np.asarray(
+            [None if value.isna() else value.format() for value in self],
+            dtype=object,
+        )
+
     def _formatter(self, boxed: bool = False):
         def format_value(value: Any) -> str:
             if isinstance(value, TimeScalar):

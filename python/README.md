@@ -170,7 +170,8 @@ duration shifts
 `to_numpy()` (object array of `TimeScalar`). String conversion uses
 `TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while
 NumPy unicode arrays use the literal `"NA"` because they cannot represent
-missing values. Columns sort chronologically even when granularities are
+missing values. `to_csv()` and `to_json()` use the same formatted strings, with
+missing values as an empty field or `null`. Columns sort chronologically even when granularities are
 mixed, and comparisons, `between()`, `min()`/`max()`,
 `idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
 and `value_counts()` follow the same interval rules as the core vectors.
