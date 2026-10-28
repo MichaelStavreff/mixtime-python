@@ -164,7 +164,8 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 
 `pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
 `isna`, `take`, `fillna`, `where`, `concat`, slicing, `shift()`/`diff()`,
-`astype(object)`, `astype(str)`/`astype("string")`, duration shifts
+`cummin()`/`cummax()`, `astype(object)`, `astype(str)`/`astype("string")`,
+duration shifts
 (`series + months(1)`), mixed time-point differences (`series - series`), and
 `to_numpy()` (object array of `TimeScalar`). String conversion uses
 `TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while

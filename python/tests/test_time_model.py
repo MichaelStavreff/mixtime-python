@@ -1823,6 +1823,45 @@ def test_pandas_extension_shift_and_diff():
         discontinuous.diff()
 
 
+def test_pandas_extension_cumulative_min_max():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.yearmonth(["2024-03", "2024-01", None, "2024-02"])
+    series = values.to_pandas_series()
+
+    cumulative_min = series.cummin()
+    assert cumulative_min.dtype == mt.MixtimeDtype()
+    assert [value.format() for value in cumulative_min] == [
+        "2024 Mar",
+        "2024 Jan",
+        "NA",
+        "2024 Jan",
+    ]
+    assert cumulative_min.isna().tolist() == [False, False, True, False]
+    assert [part.chronon.name for part in cumulative_min.array._data.parts] == [
+        "month"
+    ]
+
+    cumulative_max = series.cummax()
+    assert [value.format() for value in cumulative_max] == [
+        "2024 Mar",
+        "2024 Mar",
+        "NA",
+        "2024 Mar",
+    ]
+
+    # skipna=False keeps the first missing value and poisons later results.
+    assert [value.format() for value in series.cummin(skipna=False)] == [
+        "2024 Mar",
+        "2024 Jan",
+        "NA",
+        "NA",
+    ]
+
+    with pytest.raises(NotImplementedError, match="cumsum"):
+        series.cumsum()
+
+
 def test_pandas_is_optional():
     pytest.importorskip("pandas")
     x = mt.yearmonth(["2024-01", "2024-02"])

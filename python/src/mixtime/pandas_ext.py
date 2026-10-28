@@ -544,6 +544,38 @@ class MixtimeArray(ExtensionArray):
         """Return the latest value, skipping missing values by default."""
         return self._data.max(skipna=skipna)
 
+    def _accumulate(
+        self, name: str, *, skipna: bool = True, **kwargs: Any
+    ) -> "MixtimeArray":
+        """Support ``Series.cummin()`` and ``Series.cummax()``."""
+        if name not in {"cummin", "cummax", "min", "max"}:
+            raise NotImplementedError(
+                f"cannot perform {name} with type mixtime"
+            )
+        choose = (
+            (lambda current, best: current < best)
+            if name in {"cummin", "min"}
+            else (lambda current, best: current > best)
+        )
+        scalars: list[TimeScalar] = []
+        best: TimeScalar | None = None
+        poisoned: TimeScalar | None = None
+        for value in self:
+            if value.isna():
+                if skipna:
+                    scalars.append(TimeScalar.missing(value))
+                    continue
+                poisoned = poisoned or value
+                scalars.append(TimeScalar.missing(poisoned))
+                continue
+            if poisoned is not None:
+                scalars.append(TimeScalar.missing(poisoned))
+                continue
+            if best is None or choose(value, best):
+                best = value
+            scalars.append(best)
+        return MixtimeArray(_mixtime_from_scalars(scalars, inherit_missing=False))
+
     def between(
         self,
         left: Any,
