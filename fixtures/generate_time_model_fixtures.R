@@ -28,6 +28,8 @@ out <- list(
   comparisons = list(),
   mixed_comparisons = list(),
   mixed = list(),
+  mixed_arithmetic = list(),
+  numeric_arithmetic = list(),
   ordering = list(),
   predicates = list(),
   components = list(),
@@ -92,6 +94,22 @@ add_case <- function(section, name, x, kind, discrete = NULL) {
   out[[section]][[length(out[[section]]) + 1L]] <<- entry
 }
 
+add_numeric_case <- function(section, name, value) {
+  out[[section]][[length(out[[section]]) + 1L]] <<- list(
+    name = name,
+    values = as.numeric(value),
+    formatted = as.character(format(value))
+  )
+}
+
+add_logical_case <- function(section, name, value) {
+  out[[section]][[length(out[[section]]) + 1L]] <<- list(
+    name = name,
+    values = as.logical(value),
+    formatted = as.character(format(value))
+  )
+}
+
 add_comparison <- function(name, value) {
   out$comparisons[[length(out$comparisons) + 1L]] <<- list(
     name = name,
@@ -110,6 +128,26 @@ add_mixed_comparison <- function(name, e1, e2) {
     left = as.character(format(e1)),
     right = as.character(format(e2)),
     results = results
+  )
+}
+
+add_mixed_arithmetic <- function(name, e1, e2) {
+  result <- e1 - e2
+  parts <- lapply(result@x, function(part) {
+    list(
+      kind = sub("^mixtime::mt_", "", class(part)[1L]),
+      chronon = chronon_info(part),
+      discrete = is.integer(S7::S7_data(part)),
+      values = as.numeric(part),
+      formatted = as.character(format(part))
+    )
+  })
+  out$mixed_arithmetic[[length(out$mixed_arithmetic) + 1L]] <<- list(
+    name = name,
+    left = as.character(format(e1)),
+    right = as.character(format(e2)),
+    formatted = as.character(format(result)),
+    parts = parts
   )
 }
 
@@ -365,6 +403,12 @@ add_case("operations", "seq_by_two", s, "linear")
 
 add_case("operations", "add_months", x + months(1), "linear")
 add_case("operations", "subtract_months", x - months(1), "linear")
+add_case("operations", "diff_months", diff(x), "duration")
+add_case("operations", "diff_months_lag2", diff(x, lag = 2), "duration")
+add_case("operations", "diff_months_differences2", diff(x, differences = 2),
+         "duration")
+add_case("operations", "diff_dates",
+         diff(date(c("2024-01-01", "2024-01-05", "2024-01-10"))), "duration")
 add_case("operations", "difference_months", x - yearmonth("2023-12"), "duration")
 add_case("operations", "difference_cross",
          yearmonth(as.Date("2024-01-31"), discrete = FALSE) -
@@ -397,6 +441,39 @@ add_case("operations", "duration_discrete_scalar_mul", years(1L) * 2,
          "duration")
 add_case("operations", "duration_discrete_scalar_div", years(1L) / 2,
          "duration")
+add_case("operations", "number_minus_duration", 1 - days(c(3, 4)), "duration")
+add_case("operations", "time_plus_number", date(c("2024-01-01", "2024-01-02")) + 1,
+         "linear")
+add_case("operations", "number_plus_time", 1 + date(c("2024-01-01", "2024-01-02")),
+         "linear")
+add_case("operations", "time_minus_number", date(c("2024-01-01", "2024-01-02")) - 1,
+         "linear")
+add_case("operations", "number_minus_time", 1 - date(c("2024-01-01", "2024-01-02")),
+         "linear")
+
+u <- yearmonth(c("2024-01", "2024-02", "2024-01", "2024-03", "2024-02"))
+add_case("uniqueness", "unique_months", unique(u), "linear")
+add_case("uniqueness", "unique_months_na",
+         unique(yearmonth(c("2024-01", NA, "2024-01", NA))), "linear")
+add_case("uniqueness", "unique_dates",
+         unique(date(c("2024-01-01", "2024-01-01", "2024-01-02"))), "linear")
+add_case("uniqueness", "unique_continuous",
+         unique(yearmonth(c(648.5, 648.5, 649.5))), "linear")
+add_case("uniqueness", "unique_cyclical",
+         unique(month_of_year(
+           as.Date(c("2024-01-15", "2024-01-15", "2024-03-15"))
+         )), "cyclical")
+add_logical_case("duplicates", "duplicated_months", duplicated(u))
+add_logical_case("duplicates", "duplicated_na",
+                 duplicated(yearmonth(c("2024-01", NA, "2024-01", NA))))
+add_logical_case("duplicates", "duplicated_dates",
+                 duplicated(date(c("2024-01-01", "2024-01-01", "2024-01-02"))))
+add_numeric_case("numeric_arithmetic", "duration_ratio_days",
+                 days(c(3, 4)) / days(2))
+add_numeric_case("numeric_arithmetic", "duration_ratio_hours",
+                 hours(2) / minutes(30))
+add_numeric_case("numeric_arithmetic", "duration_ratio_months",
+                 months(3) / months(1))
 add_case("operations", "time_shift_months", time_shift(x, months(1)), "linear")
 add_case("operations", "time_shift_days",
          time_shift(date(c("2024-01-15", "2024-02-29")), days(1)), "linear")
@@ -573,6 +650,53 @@ add_mixed_comparison(
   c(month_of_year(as.Date(c("2024-12-15", "2025-01-15"))),
     day_of_year(as.Date("2024-06-01"))),
   day_of_year(as.Date("2024-03-01"))
+)
+
+# -- mixed arithmetic ------------------------------------------------------
+month_pair <- c(yearmonth("2024-01"), yearmonth("2024-02"))
+add_mixed_arithmetic("same_month", month_pair, month_pair)
+add_mixed_arithmetic("mixed_self", mixed_linear, mixed_linear)
+add_mixed_arithmetic(
+  "mixed_shifted",
+  mixed_linear,
+  c(yearmonth(c("2024-02", "2024-03")), year(c(2025L, 2026L)))
+)
+add_mixed_arithmetic(
+  "date_month",
+  c(date("2024-01-31"), yearmonth("2024-01")),
+  c(date("2024-02-29"), yearmonth("2024-02"))
+)
+add_mixed_arithmetic(
+  "recycle_scalar",
+  yearmonth("2024-01"),
+  month_pair
+)
+add_mixed_arithmetic(
+  "continuous_mixed",
+  c(yearmonth(as.Date("2024-01-15"), discrete = FALSE),
+    date(as.Date("2024-01-15"), discrete = FALSE)),
+  c(yearmonth(as.Date("2024-02-15"), discrete = FALSE),
+    date(as.Date("2024-02-15"), discrete = FALSE))
+)
+add_mixed_arithmetic(
+  "missing_month",
+  yearmonth(c("2024-01", NA)),
+  yearmonth(c("2024-02", "2024-03"))
+)
+add_mixed_arithmetic(
+  "missing_mixed",
+  c(yearmonth(c("2024-01", NA)), year(2024L)),
+  c(yearmonth(c("2024-02", "2024-03")), year(2025L))
+)
+add_mixed_arithmetic(
+  "missing_both",
+  yearmonth(c("2024-01", NA)),
+  yearmonth(c(NA, "2024-03"))
+)
+add_mixed_arithmetic(
+  "cyclical_shifted",
+  month_of_year(c(1L, 3L)),
+  month_of_year(c(2L, 1L))
 )
 
 # -- mixed granularity -----------------------------------------------------

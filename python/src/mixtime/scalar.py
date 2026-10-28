@@ -170,26 +170,24 @@ class TimeScalar:
             return hash(("TimeScalar", None))
         return hash(("TimeScalar", self.value, self._meta_key()))
 
-    def _compare(self, other: Any, op: Any) -> bool:
+    def _compare(self, other: Any, op: str) -> bool:
         if not isinstance(other, TimeScalar):
             return NotImplemented
-        if self.isna() or other.isna():
-            return False
-        if self._meta_key() != other._meta_key():
-            raise TypeError("cannot order TimeScalars with different metadata")
-        return bool(op(self.value, other.value))
+        from .time import _compare_scalars
+
+        return _compare_scalars(self, other, op)
 
     def __lt__(self, other: Any) -> bool:
-        return self._compare(other, np.less)
+        return self._compare(other, "<")
 
     def __le__(self, other: Any) -> bool:
-        return self._compare(other, np.less_equal)
+        return self._compare(other, "<=")
 
     def __gt__(self, other: Any) -> bool:
-        return self._compare(other, np.greater)
+        return self._compare(other, ">")
 
     def __ge__(self, other: Any) -> bool:
-        return self._compare(other, np.greater_equal)
+        return self._compare(other, ">=")
 
 
 def _scalar_from_item(item: Any) -> TimeScalar:
@@ -210,7 +208,18 @@ def _scalar_from_item(item: Any) -> TimeScalar:
     raise TypeError(f"expected TimeScalar or missing value, got {type(item)!r}")
 
 
-def _mixtime_from_scalars(scalars: Iterable[Any]) -> Any:
+def _is_generic_missing_scalar(value: Any) -> bool:
+    """Return whether ``value`` is a metadata-free missing scalar."""
+    return (
+        isinstance(value, TimeScalar)
+        and value.isna()
+        and value._meta_key() == TimeScalar.missing()._meta_key()
+    )
+
+
+def _mixtime_from_scalars(
+    scalars: Iterable[Any], *, inherit_missing: bool = True
+) -> Any:
     """Group scalars into contiguous same-granularity parts."""
     from .time import Mixtime
 
@@ -220,7 +229,7 @@ def _mixtime_from_scalars(scalars: Iterable[Any]) -> Any:
 
     for item in scalars:
         scalar = _scalar_from_item(item)
-        if scalar.isna() and template is not None:
+        if scalar.isna() and template is not None and inherit_missing:
             # A generic missing scalar should inherit the surrounding part's
             # granularity rather than creating a separate one-element part.
             scalar = TimeScalar.missing(template)

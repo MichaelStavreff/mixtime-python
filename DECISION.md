@@ -1,12 +1,43 @@
 # mixtime port — decision record
 
 **Date:** 2026-10-23  
-**Updated:** 2026-10-27 (niche MVP: Python time model + Rust kernel)
+**Updated:** 2026-10-28 (numeric arithmetic and pandas protocol gaps)
 **Pinned upstream:** CRAN `mixtime` 0.4.0 (`upstream/mixtime`)  
 **Ports:** Rust core + PyO3/Python wrapper  
 **Status:** **Niche MVP selected.** The kernel-only scope was correct as a
 performance exercise but insufficient as a product. The port now includes a
 Pythonic Gregorian/ISO-week time model on top of the Rust kernel.
+
+## 2026-10-28 update: numeric arithmetic and remaining pandas protocol gaps
+
+Time points now support R's implicit-chronon arithmetic: `time ± number` and
+`number - time` operate on raw chronon counts. Python `int` operands follow R
+integer semantics and preserve discreteness; Python `float` operands follow R
+double semantics and make the result continuous. Durations divide by numbers,
+and `duration / duration` returns a numeric ratio in the common chronon,
+raising across calendar/fixed units just as R does without a time context.
+`TimeVector.take()` joins the existing `Mixtime.take()` for positional
+selection with optional `-1` filling.
+
+The optional pandas array also implements cumulative `min`/`max`, formatted
+CSV/JSON export, and metadata-preserving `shift()`/`diff()`. `TimeVector.take`
+keeps an explicit fill value's chronon metadata, while `Mixtime.take` borrows
+the surrounding part's metadata for inserted missing values. Empty time
+constructors default to discrete, matching R's integer-typed empty vectors.
+`Series.interpolate()` stays unsupported because interpolating across chronons
+has no well-defined R equivalent; `Series.quantile()` is likewise unsupported.
+`TimeVector.diff(lag, differences)` matches
+R's `diff.mt_time` for single-chronon vectors, and `Mixtime` subtraction is
+symmetric: `TimeVector - Mixtime` and `TimeScalar - MixtimeArray` mirror their
+forward forms. Vector and `Mixtime` equality now raises `TypeError` for
+unsupported operands instead of returning scalar `False`, and treats `None`,
+`NaN`, and `pd.NA` as element-wise missing comparisons. `value_counts()`
+honours `dropna` for mixtime missing values, which the generic object-array
+fallback could not detect. `TimeVector.unique()`/`duplicated()` cover
+single-chronon deduplication; mixed `Mixtime` deduplication stays out because
+R's vecvec implementation drops parts. Empty `Mixtime` reductions now raise a
+consistent `ValueError` instead of returning a missing scalar when the
+container has empty parts.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 
@@ -20,9 +51,11 @@ silently returning `False`.
 Mixed ordering follows R's `vec_proxy_order`: convert every part to the finest
 shared chronon, add half a chronon to discrete parts so a span sorts at its
 midpoint, and order cyclical parts by position within their shared cycle.
-`Mixtime.sort`/`argsort`/`min`/`max` expose this. `min`/`max` convert to the
-common chronon and return a `TimeScalar`; R returns a length-one mixtime with
-the same chronon.
+`Mixtime.sort`/`argsort`/`min`/`max` expose this. `TimeVector.sort`/`argsort`/
+`min`/`max` provide the same operations for one granularity; cyclical vectors
+order by cycle position, while reductions use the absolute chronon value as
+`Mixtime` does. `min`/`max` convert to the common chronon and return a
+`TimeScalar`; R returns a length-one mixtime with the same chronon.
 
 pandas columns now sort, filter, use `between`, reduce with `min`/`max`, and
 participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and
@@ -30,8 +63,18 @@ participate in `groupby`, `merge`, `concat`, `drop_duplicates`, `unique`, and
 about metadata so factorization and joins keep different chronons distinct.
 Missing values compare equal in `==` masks; ordering comparisons involving a
 missing value are `False`. This is a documented divergence from R's
-three-valued `NA`. Phase 2 still defers mixed arithmetic, string coercion, and
-broader vctrs parity.
+three-valued `NA`. pandas string conversion now uses `TimeScalar.format()`,
+including `astype(str)`/`astype("string")`, and pandas columns support
+duration shifts (`series + months(1)`). Broader vctrs parity remains deferred.
+
+## 2026-10-27 update: mixed time-point subtraction
+
+Mixed time-point differences are elementwise. `Mixtime - Mixtime` returns a
+`Mixtime` whose parts are continuous `Duration` vectors: each pair uses its
+finest common chronon, a length-one operand recycles, and discrete pairs with
+different chronons raise. Missing results keep the pair's common chronon, so a
+missing month paired with a month stays a missing month duration. The optional
+pandas extension exposes the same operation as `series - series`.
 
 ## 2026-10-27 update: pandas columns and scalars
 
@@ -42,6 +85,12 @@ length-one `x[i]` behavior. An optional pandas `ExtensionArray`/`ExtensionDtype`
 values usable as Series/DataFrame columns. pandas stays an optional extra; the
 core package does not import it. Direct `pd.Series(vector)` is not the
 extension-dtype path because the core vector is not a pandas array.
+Arrow/Parquet serialization is optional as well (`mixtime[arrow]`); it writes a
+pyarrow struct carrying the value and chronon metadata, and pandas restores the
+`"mixtime"` extension dtype on read instead of formatting values as strings.
+pandas `shift()`/`diff()` preserve the neighbouring part's chronon metadata for
+newly introduced missing values, so a shifted month column stays a month
+column.
 
 ## 2026-10-27 update: DST-aware calendar shifts
 
@@ -105,9 +154,9 @@ Deferred:
 - the complete vctrs/S7 coercion surface (a Gregorian `time_components()` /
   `time_compose()` subset is implemented),
 - ggplot2 and tsibble integration,
-- complete mixed-vector arithmetic; pandas Series/DataFrame columns are now
-  covered by an optional ExtensionArray, but full non-pandas columnar coercion
-  and all mixed-vector operators remain partial,
+- complete mixed-vector arithmetic beyond duration shifts and time-point
+  differences; full non-pandas columnar coercion and other mixed-vector
+  operators remain partial,
 - shifts from calendar chronons to finer fixed units (for example,
   `yearmonth + days(1)`),
 - shifts requiring a fractional month and R's alternative `on_invalid` DST

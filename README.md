@@ -12,9 +12,9 @@ timezone handling are Python.
 > timezone name/offset helpers and transitions, type and completeness
 > predicates, component extraction/composition, chronon bounds, circular sums,
 > scalar values, and an optional pandas `"mixtime"` extension dtype for
-> Series/DataFrame columns. Non-Gregorian calendars, astronomical calendars,
-> and the full R format-token language remain out of scope. See [Scope](#scope)
-> and [`DECISION.md`](DECISION.md).
+> Series/DataFrame columns, including Arrow/Parquet round-trips. Non-Gregorian
+> calendars, astronomical calendars, and the full R format-token language
+> remain out of scope. See [Scope](#scope) and [`DECISION.md`](DECISION.md).
 
 ## Credits
 
@@ -43,7 +43,8 @@ There are two layers:
   `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
   `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
   (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
-  and `time_is_complete_at`, mixed-vector comparison/ordering
+  and `time_is_complete_at`, deduplication (`TimeVector.unique`, `duplicated`),
+  mixed-vector comparison/ordering
   (`Mixtime.sort`, `argsort`, `min`, `max`), and an optional pandas extension
   dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,
@@ -190,6 +191,17 @@ print(mixed.format())
 
 Each part keeps its own chronon, cycle, calendar, and timezone.
 
+Subtracting two mixed vectors is elementwise and returns a mixed vector of
+durations. Each pair uses its finest common chronon; a length-one operand is
+recycled, and discrete operands with different chronons raise rather than
+silently choosing an anchor.
+
+```python
+later = mt.mixtime(mt.yearmonth(["2024-02"]), mt.year(["2025"]))
+earlier = mt.mixtime(mt.yearmonth(["2024-01"]), mt.year(["2024"]))
+print((later - earlier).format())  # ['1.0 months', '1.0 years']
+```
+
 ### Mixed comparison and ordering
 
 Time points compare as half-open intervals: a discrete value spans its whole
@@ -212,14 +224,16 @@ months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
 print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
 ```
 
-Mixed ordering uses R's order proxy: parts convert to their finest shared
-chronon, discrete values shift by half a chronon so a span sorts at its
-midpoint, and cyclical values order by position within the cycle. `Mixtime`
-comparisons broadcast a length-one operand and raise on other length
-mismatches. Missing values compare equal in `==` masks; ordering comparisons
-involving a missing value are `False`, where R would return `NA`.
-`min()`/`max()` skip missing values by default; pass `skipna=False` for R's
-`na.rm = FALSE` behaviour.
+`TimeVector.sort()`/`argsort()` order one granularity directly; cyclical
+vectors order by position within the cycle. `Mixtime.sort()`/`argsort()` use
+R's mixed order proxy: parts convert to their finest shared chronon, discrete
+values shift by half a chronon so a span sorts at its midpoint, and cyclical
+parts order by position within the cycle. `Mixtime` comparisons broadcast a
+length-one operand and raise on other length mismatches. Missing values
+compare equal in `==` masks; ordering comparisons involving a missing value
+are `False`, where R would return `NA`. `TimeVector.min()`/`max()` and
+`Mixtime.min()`/`max()` return a `TimeScalar`, skip missing values by default,
+and accept `skipna=False` for R's `na.rm = FALSE` behaviour.
 
 ### pandas columns
 
@@ -245,13 +259,25 @@ print(frame["when"].isna().tolist()) # [False, False, False, True]
 ```
 
 `pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
-missing values, slicing, `take`, `fillna`, `where`, `concat`, and object-array
-conversion. Mixed-granularity columns sort chronologically, and comparisons,
-`between()`, `min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
+missing values, slicing, `take`, `fillna`, `where`, `concat`, `shift()`/`diff()`,
+`cummin()`/`cummax()`, `astype(str)`/`astype("string")`, `astype("category")`,
+CSV/JSON export, duration shifts, mixed time-point differences, and
+object-array conversion.
+Mixed-granularity columns sort chronologically, and comparisons, `between()`,
+`min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
 `drop_duplicates()`, and `unique()` follow the core interval rules.
-Constructors also accept one-dimensional pandas `Series`/`Index` inputs, and
-`to_pandas()` is unchanged: it still returns a `PeriodIndex`/`DatetimeIndex`
-for linear time.
+`MixtimeArray.nlargest()` and
+`nsmallest()` are available directly; pandas' `Series.nlargest()`/`nsmallest()`
+reject non-numeric extension dtypes, so use
+`series.sort_values(ascending=False).head(n)` instead. Constructors also accept
+one-dimensional pandas `Series`/`Index` inputs, and `to_pandas()` is unchanged:
+it still returns a `PeriodIndex`/`DatetimeIndex` for linear time.
+
+Arrow and Parquet export require `pyarrow`; install `mixtime[pandas,arrow]` or
+add `pyarrow` separately. A mixtime column is written as a struct that keeps
+the chronon, cycle, calendar, timezone, discreteness, and missing values, so
+`DataFrame.to_parquet()` and `pd.read_parquet()` round-trip back to the
+`"mixtime"` extension dtype instead of formatted strings.
 
 ### Timezones
 
@@ -373,8 +399,10 @@ Ported:
 - time arithmetic, comparison, rounding, and sequences, including DST-aware
   day/week shifts, clamped month/quarter/year shifts on `date`/`datetime`,
   calendar-aware date/datetime sequences, continuous shifts within a category,
-  common-chronon differences, R's half-open interval comparisons, and
-  mixed-granularity `Mixtime` sort/argsort/min/max
+  common-chronon differences, lagged `diff()` differences, elementwise mixed
+  time-point differences, raw numeric chronon arithmetic, duration ratios, R's
+  half-open interval comparisons, and mixed-granularity
+  `Mixtime` sort/argsort/min/max
 - UTC and IANA timezone-aware `datetime`, plus `tz_name`, `tz_abbreviation`,
   `tz_offset`, and `tz_transitions`
 - type predicates and granule determinacy/completeness predicates
@@ -385,7 +413,7 @@ Ported:
 - optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
   and `"mixtime"` ExtensionArray columns for Series/DataFrame, including
   chronological sorting, filtering, `between`, `min`/`max`, grouping, merging,
-  de-duplication, and concatenation
+  de-duplication, concatenation, and Arrow/Parquet round-trips
 - the low-level Rust chronon splits
 
 Not yet ported:
@@ -394,8 +422,8 @@ Not yet ported:
 - the full R format-token language and all labelled parsing variants
 - the complete vctrs/S7 coercion surface
 - ggplot2 and tsibble integration
-- complete `Mixtime` arithmetic; pandas Series/DataFrame columns are covered,
-  but full non-pandas columnar coercion remains incomplete
+- complete `Mixtime` arithmetic beyond duration shifts and time-point
+  differences; full non-pandas columnar coercion remains incomplete
 - shifts requiring a fractional month and R's alternative `on_invalid` DST
   resolutions
 - shifts from calendar chronons to finer fixed units (for example,

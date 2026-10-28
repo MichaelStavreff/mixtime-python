@@ -70,7 +70,16 @@ class TimeVector:
     def __len__(self) -> int:
         return len(self.values)
 
-    def __getitem__(self, index: int | slice) -> "TimeVector":
+    def __getitem__(self, index: Any) -> "TimeVector":
+        if isinstance(index, (list, tuple, np.ndarray)):
+            positions = np.asarray(index)
+            if positions.dtype == bool:
+                if positions.size != len(self):
+                    raise IndexError(
+                        "boolean index must match the TimeVector length"
+                    )
+                positions = np.flatnonzero(positions)
+            return self._new(np.asarray(self.values)[positions])
         return self._new(self.values[index])
 
     def __iter__(self) -> Iterator["TimeVector"]:
@@ -100,16 +109,240 @@ class TimeVector:
         """Return the complement of :meth:`isna`."""
         return np.logical_not(self.isna())
 
+    def take(
+        self,
+        indices: Any,
+        *,
+        allow_fill: bool = False,
+        fill_value: Any = None,
+    ) -> "TimeVector":
+        """Select positions, optionally filling ``-1`` with a missing value."""
+        from .scalar import (
+            TimeScalar,
+            _is_missing_value,
+            _scalar_from_item,
+        )
+
+        positions = np.asarray(indices, dtype=np.int64).ravel()
+        if not allow_fill:
+            return self._new(np.asarray(self.values)[positions])
+
+        fill = np.nan
+        if fill_value is not None and not _is_missing_value(fill_value):
+            scalar = _scalar_from_item(fill_value)
+            if not scalar.isna():
+                like = TimeScalar.from_vector(self, np.nan)
+                if scalar._meta_key() != like._meta_key():
+                    raise ValueError(
+                        "fill value has different chronon metadata"
+                    )
+                fill = scalar.value
+
+        if len(self) == 0:
+            if not np.all(positions == -1):
+                raise IndexError("cannot take from an empty TimeVector")
+            values = np.full(len(positions), fill, dtype=np.float64)
+        else:
+            values = np.asarray(self.values, dtype=np.float64)[positions]
+            values[positions == -1] = fill
+        return self._new(values)
+
+    def copy(self) -> "TimeVector":
+        """Return a copy whose values can be mutated independently."""
+        return self._new(np.array(self.values, copy=True))
+
+    def diff(self, lag: int = 1, differences: int = 1) -> "TimeVector":
+        """Return lagged differences, matching R's ``diff.mt_time``.
+
+        Each difference is computed with the vector's own subtraction, so time
+        points produce durations and durations stay durations.
+        """
+        if (
+            not isinstance(lag, (int, np.integer))
+            or not isinstance(differences, (int, np.integer))
+            or lag < 1
+            or differences < 1
+        ):
+            raise ValueError("lag and differences must be integers >= 1")
+        result: TimeVector = self
+        for _ in range(int(differences)):
+            count = max(len(result) - int(lag), 0)
+            if count == 0:
+                result = result.take([])
+            else:
+                result = result[int(lag):] - result[:count]
+        return result
+
+    def unique(self) -> "TimeVector":
+        """Return unique values in first-occurrence order.
+
+        Matches R's ``unique()`` for a single-chronon vector: missing values
+        count as one value and the vector's metadata is preserved. R's mixed
+        ``Mixtime`` deduplication is not ported because the vecvec
+        implementation loses parts; use the pandas extension for that.
+        """
+        seen: set[float | None] = set()
+        positions: list[int] = []
+        for position, value in enumerate(self.values):
+            key = _unique_key(value)
+            if key not in seen:
+                seen.add(key)
+                positions.append(position)
+        return self.take(positions)
+
+    def duplicated(self, keep: str | bool = "first") -> np.ndarray:
+        """Return a boolean mask of duplicate values.
+
+        ``keep="first"`` mirrors R's default ``duplicated()``. ``keep="last"``
+        follows base R's ``fromLast = TRUE`` semantics (mixtime's own method
+        ignores that argument), and ``keep=False`` marks every occurrence of a
+        duplicated value, as in pandas.
+        """
+        if keep not in ("first", "last", False):
+            raise ValueError("keep must be 'first', 'last', or False")
+        positions: dict[float | None, list[int]] = {}
+        for position, value in enumerate(self.values):
+            positions.setdefault(_unique_key(value), []).append(position)
+        result = np.zeros(len(self), dtype=bool)
+        for indices in positions.values():
+            if len(indices) < 2:
+                continue
+            if keep == "first":
+                result[indices[1:]] = True
+            elif keep == "last":
+                result[indices[:-1]] = True
+            else:
+                result[indices] = True
+        return result
+
+    def _n_extreme(
+        self, n: int, *, largest: bool, keep: str
+    ) -> "TimeVector":
+        if keep not in {"first", "last", "all"}:
+            raise ValueError("keep must be 'first', 'last', or 'all'")
+        if n <= 0:
+            return self.take([])
+        proxy = self.order_values()
+        present = np.flatnonzero(~np.isnan(proxy))
+        if present.size == 0:
+            return self.take([])
+        values = -proxy[present] if largest else proxy[present]
+        if keep == "last":
+            order = present[::-1][np.argsort(values[::-1], kind="stable")]
+        else:
+            order = present[np.argsort(values, kind="stable")]
+        if keep == "all" and order.size > n:
+            boundary = proxy[order[n - 1]]
+            order = order[proxy[order] == boundary]
+        else:
+            order = order[:n]
+        return self.take(order)
+
+    def nlargest(self, n: int = 5, keep: str = "first") -> "TimeVector":
+        """Return the ``n`` latest values, chronologically."""
+        return self._n_extreme(n, largest=True, keep=keep)
+
+    def nsmallest(self, n: int = 5, keep: str = "first") -> "TimeVector":
+        """Return the ``n`` earliest values, chronologically."""
+        return self._n_extreme(n, largest=False, keep=keep)
+
+    # -- ordering ----------------------------------------------------------
+    def order_values(self) -> np.ndarray:
+        """Return the values used to order this vector.
+
+        Linear and duration vectors order by their chronon value. Cyclical
+        vectors order by their position within the cycle, matching R's
+        ``vec_proxy_order``. Missing values remain ``NaN``.
+        """
+        values = np.asarray(self.values, dtype=np.float64)
+        if self.kind != "cyclical":
+            return values
+        if self.cycle is None:
+            raise ValueError("cyclical time is missing its cycle")
+        return _cyclical_positions(
+            values,
+            self.chronon,
+            self.cycle,
+            self.calendar,
+            self.timezone,
+        )
+
+    def argsort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "last",
+    ) -> np.ndarray:
+        """Return positions that sort this vector chronologically.
+
+        ``na_position`` is ``"first"``, ``"last"``, or ``"drop"``. The default
+        keeps missing values last, matching R's ``order()``.
+        """
+        return _argsort_proxy(
+            self.order_values(),
+            decreasing=decreasing,
+            na_position=na_position,
+        )
+
+    def sort(
+        self,
+        *,
+        decreasing: bool = False,
+        na_position: str = "drop",
+    ) -> "TimeVector":
+        """Sort chronologically; missing values are dropped by default.
+
+        R's ``sort()`` drops missing values unless ``na.last`` is supplied, so
+        ``na_position="drop"`` is the default here.
+        """
+        order = self.argsort(
+            decreasing=decreasing,
+            na_position=na_position,
+        )
+        return self._new(np.asarray(self.values)[order])
+
+    def _extreme(self, which: str, *, skipna: bool = True) -> Any:
+        from .scalar import TimeScalar
+
+        values = np.asarray(self.values, dtype=np.float64)
+        if values.size == 0:
+            raise ValueError(f"{which}() arg is an empty sequence")
+        missing = np.isnan(values)
+        if missing.all() or (not skipna and missing.any()):
+            return TimeScalar.from_vector(self, np.nan)
+        extreme = np.nanmin(values) if which == "min" else np.nanmax(values)
+        return TimeScalar.from_vector(self, float(extreme))
+
+    def min(self, *, skipna: bool = True) -> Any:
+        """Return the earliest value as a :class:`~mixtime.scalar.TimeScalar`.
+
+        Missing values are skipped unless ``skipna=False``. For cyclical time
+        this uses the absolute chronon value, matching ``Mixtime.min()``;
+        use :meth:`sort` for cycle-position ordering.
+        """
+        return self._extreme("min", skipna=skipna)
+
+    def max(self, *, skipna: bool = True) -> Any:
+        """Return the latest value as a :class:`~mixtime.scalar.TimeScalar`.
+
+        Missing values are skipped unless ``skipna=False``. For cyclical time
+        this uses the absolute chronon value, matching ``Mixtime.max()``;
+        use :meth:`sort` for cycle-position ordering.
+        """
+        return self._extreme("max", skipna=skipna)
+
     def __array__(self, dtype: Any = None) -> np.ndarray:
         if dtype is None:
             return np.asarray(self.values)
         return np.asarray(self.values, dtype=dtype)
 
-    def _new(self, values: Any) -> "TimeVector":
+    def _new(
+        self, values: Any, *, discrete: bool | None = None
+    ) -> "TimeVector":
         return type(self)(
             values,
             self.chronon,
-            discrete=self.discrete,
+            discrete=self.discrete if discrete is None else discrete,
             calendar=self.calendar,
             cycle=self.cycle,
             timezone=self.timezone,
@@ -195,6 +428,15 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
+        if not isinstance(self, Duration) and np.isscalar(other):
+            # A bare number advances raw chronon counts, mirroring R's
+            # implicit-chronon arithmetic. Python integers map to R integers
+            # (discrete) and Python floats to R doubles (continuous).
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(self.values + float(other), discrete),
+                discrete=discrete,
+            )
         return NotImplemented
 
     def __radd__(self, other: Any) -> "TimeVector":
@@ -266,6 +508,21 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
+        if not isinstance(self, Duration) and np.isscalar(other):
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(self.values - float(other), discrete),
+                discrete=discrete,
+            )
+        return NotImplemented
+
+    def __rsub__(self, other: Any) -> "TimeVector":
+        if np.isscalar(other):
+            discrete = self.discrete and isinstance(other, (int, np.integer))
+            return self._new(
+                _coerce_values(float(other) - self.values, discrete),
+                discrete=discrete,
+            )
         return NotImplemented
 
     def _duration_values_in_chronon(self, other: "Duration") -> np.ndarray:
@@ -319,7 +576,27 @@ class TimeVector:
     def __rmul__(self, other: Any) -> "Duration":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Any) -> "Duration":
+    def __truediv__(self, other: Any) -> Any:
+        if isinstance(self, Duration) and isinstance(other, Duration):
+            unit = _common_unit(self.chronon, other.chronon, duration=True)
+            left = self.calendar.convert(
+                self.values,
+                self.chronon,
+                unit,
+                discrete=False,
+                duration=True,
+                anchored=False,
+            )
+            right = other.calendar.convert(
+                other.values,
+                other.chronon,
+                unit,
+                discrete=False,
+                duration=True,
+                anchored=False,
+            )
+            values = left / right
+            return float(values[0]) if values.size == 1 else values
         if isinstance(self, Duration) and np.isscalar(other):
             return Duration(
                 _coerce_values(self.values / float(other), False),
@@ -337,20 +614,23 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
-        return NotImplemented
+        raise TypeError("unary - is only supported for durations")
 
     def __eq__(self, other: Any) -> np.ndarray:
         if isinstance(other, TimeVector):
             return self._compare(other, "==")
         if _is_time_scalar(other):
             return self._compare(other.to_vector(), "==")
-        return NotImplemented
+        if _is_missing(other):
+            return self._compare(self._missing_like(), "==")
+        raise TypeError(f"Cannot compare TimeVector with {type(other)}")
 
     def __ne__(self, other: Any) -> np.ndarray:
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return np.logical_not(equal)
+        return np.logical_not(self.__eq__(other))
+
+    def _missing_like(self) -> "TimeVector":
+        """Return an all-missing vector with this vector's metadata."""
+        return self.take(np.full(len(self), -1), allow_fill=True)
 
     def __lt__(self, other: Any) -> np.ndarray:
         return self._compare(other, "<")
@@ -651,7 +931,7 @@ class Mixtime:
     def __len__(self) -> int:
         return sum(len(part) for part in self.parts)
 
-    def __getitem__(self, index: int | slice) -> "Mixtime":
+    def __getitem__(self, index: Any) -> "Mixtime":
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
             if step != 1:
@@ -660,6 +940,15 @@ class Mixtime:
                     parts.extend(self[position].parts)
                 return Mixtime(parts)
             return self._slice(start, stop)
+        if isinstance(index, (list, tuple, np.ndarray)):
+            positions = np.asarray(index)
+            if positions.dtype == bool:
+                if positions.size != len(self):
+                    raise IndexError(
+                        "boolean index must match the Mixtime length"
+                    )
+                positions = np.flatnonzero(positions)
+            return self.take(positions)
         if index < 0:
             index += len(self)
         if not 0 <= index < len(self):
@@ -697,21 +986,43 @@ class Mixtime:
         fill_value: Any = None,
     ) -> "Mixtime":
         """Select positions, optionally filling ``-1`` with a missing value."""
-        from .scalar import TimeScalar, _mixtime_from_scalars
+        from .scalar import (
+            TimeScalar,
+            _is_generic_missing_scalar,
+            _mixtime_from_scalars,
+        )
 
         positions = np.asarray(indices, dtype=np.int64).ravel()
         if not allow_fill:
-            return _mixtime_from_scalars(self.scalar(int(i)) for i in positions)
+            return _mixtime_from_scalars(
+                (self.scalar(int(i)) for i in positions),
+                inherit_missing=False,
+            )
 
-        fill = (
+        explicit_fill = None
+        if isinstance(fill_value, TimeScalar) and not _is_generic_missing_scalar(
             fill_value
-            if isinstance(fill_value, TimeScalar)
-            else TimeScalar.missing()
-        )
-        scalars = [
-            fill if int(i) == -1 else self.scalar(int(i)) for i in positions
-        ]
-        return _mixtime_from_scalars(scalars)
+        ):
+            explicit_fill = fill_value
+        scalars = []
+        for output_position, position in enumerate(positions):
+            position = int(position)
+            if position != -1:
+                scalars.append(self.scalar(position))
+            elif explicit_fill is not None:
+                scalars.append(explicit_fill)
+            elif len(self):
+                # Borrow the surrounding part's metadata so a shifted or
+                # diffed column does not gain a stray day-granularity part.
+                like = self.scalar(min(output_position, len(self) - 1))
+                scalars.append(TimeScalar.missing(like))
+            else:
+                scalars.append(TimeScalar.missing())
+        return _mixtime_from_scalars(scalars, inherit_missing=False)
+
+    def copy(self) -> "Mixtime":
+        """Return a copy whose parts can be mutated independently."""
+        return Mixtime([part.copy() for part in self.parts])
 
     def to_pandas_series(self, name: str | None = None):
         """Return this mixed container as a pandas Series with ``MixtimeDtype``."""
@@ -738,7 +1049,26 @@ class Mixtime:
     def __sub__(self, other: Any) -> "Mixtime":
         if isinstance(other, Duration):
             return Mixtime([part - other for part in self.parts])
-        return NotImplemented
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        from .scalar import _mixtime_from_scalars
+
+        return _mixtime_from_scalars(
+            _subtract_scalars(left, right)
+            for left, right in self._scalar_pairs(operands)
+        )
+
+    def __rsub__(self, other: Any) -> "Mixtime":
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        from .scalar import _mixtime_from_scalars
+
+        return _mixtime_from_scalars(
+            _subtract_scalars(right, left)
+            for left, right in self._scalar_pairs(operands)
+        )
 
     def _operand_scalars(self, other: Any) -> list[Any] | None:
         if isinstance(other, Mixtime):
@@ -750,10 +1080,10 @@ class Mixtime:
             return [other]
         return None
 
-    def _compare_scalars_against(
-        self, operands: list[Any], op: str
-    ) -> np.ndarray:
-        _mixtime_mode(self.parts)
+    def _scalar_pairs(
+        self, operands: list[Any]
+    ) -> Iterator[tuple[Any, Any]]:
+        """Pair this vector's scalars with ``operands``, recycling length 1."""
         n_self = len(self)
         n_other = len(operands)
         if n_self == 0 or n_other == 0:
@@ -762,38 +1092,44 @@ class Mixtime:
                     f"Can't recycle a Mixtime of length {n_self} to match "
                     f"length {n_other}."
                 )
-            return np.asarray([], dtype=bool)
+            return iter(())
         if n_self == n_other:
-            pairs = zip(
-                (self.scalar(i) for i in range(n_self)), operands
-            )
-        elif n_other == 1:
+            return zip((self.scalar(i) for i in range(n_self)), operands)
+        if n_other == 1:
             right = operands[0]
-            pairs = ((self.scalar(i), right) for i in range(n_self))
-        elif n_self == 1:
+            return ((self.scalar(i), right) for i in range(n_self))
+        if n_self == 1:
             left = self.scalar(0)
-            pairs = ((left, right) for right in operands)
-        else:
-            raise ValueError(
-                f"Can't recycle a Mixtime of length {n_self} to match "
-                f"length {n_other}."
-            )
+            return ((left, right) for right in operands)
+        raise ValueError(
+            f"Can't recycle a Mixtime of length {n_self} to match "
+            f"length {n_other}."
+        )
+
+    def _compare_scalars_against(
+        self, operands: list[Any], op: str
+    ) -> np.ndarray:
+        _mixtime_mode(self.parts)
         return np.asarray(
-            [_compare_scalars(left, right, op) for left, right in pairs],
+            [
+                _compare_scalars(left, right, op)
+                for left, right in self._scalar_pairs(operands)
+            ],
             dtype=bool,
         )
 
     def __eq__(self, other: Any) -> np.ndarray:
+        if _is_missing(other):
+            missing = self.take([-1] * len(self), allow_fill=True)
+            operands = [missing.scalar(i) for i in range(len(missing))]
+            return self._compare_scalars_against(operands, "==")
         operands = self._operand_scalars(other)
         if operands is None:
-            return NotImplemented
+            raise TypeError(f"Cannot compare Mixtime with {type(other)}")
         return self._compare_scalars_against(operands, "==")
 
     def __ne__(self, other: Any) -> np.ndarray:
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return np.logical_not(equal)
+        return np.logical_not(self.__eq__(other))
 
     def __lt__(self, other: Any) -> np.ndarray:
         operands = self._operand_scalars(other)
@@ -874,23 +1210,11 @@ class Mixtime:
         ``na_position`` is ``"first"``, ``"last"``, or ``"drop"``. The default
         keeps missing values last, matching R's ``order()``.
         """
-        if na_position not in {"first", "last", "drop"}:
-            raise ValueError(
-                "na_position must be 'first', 'last', or 'drop'"
-            )
-        proxy = self.order_values()
-        missing = np.isnan(proxy)
-        present = np.flatnonzero(~missing)
-        if decreasing:
-            order = present[np.argsort(-proxy[present], kind="stable")]
-        else:
-            order = present[np.argsort(proxy[present], kind="stable")]
-        na = np.flatnonzero(missing)
-        if na_position == "first":
-            return np.concatenate([na, order])
-        if na_position == "last":
-            return np.concatenate([order, na])
-        return order
+        return _argsort_proxy(
+            self.order_values(),
+            decreasing=decreasing,
+            na_position=na_position,
+        )
 
     def sort(
         self,
@@ -910,6 +1234,8 @@ class Mixtime:
     def _extreme(self, which: str, *, skipna: bool = True) -> Any:
         from .scalar import TimeScalar
 
+        if len(self) == 0:
+            raise ValueError(f"{which}() arg is an empty sequence")
         mode = _mixtime_mode(self.parts)
         if mode is None:
             raise ValueError(f"{which}() arg is an empty sequence")
@@ -1404,6 +1730,30 @@ def _comparison_unit(left: Unit, right: Unit) -> Unit:
     return chronon_glb(left, right)
 
 
+def _argsort_proxy(
+    proxy: Any,
+    *,
+    decreasing: bool,
+    na_position: str,
+) -> np.ndarray:
+    """Return stable sort positions for an order proxy."""
+    if na_position not in {"first", "last", "drop"}:
+        raise ValueError("na_position must be 'first', 'last', or 'drop'")
+    proxy = np.asarray(proxy, dtype=np.float64)
+    missing = np.isnan(proxy)
+    present = np.flatnonzero(~missing)
+    if decreasing:
+        order = present[np.argsort(-proxy[present], kind="stable")]
+    else:
+        order = present[np.argsort(proxy[present], kind="stable")]
+    na = np.flatnonzero(missing)
+    if na_position == "first":
+        return np.concatenate([na, order])
+    if na_position == "last":
+        return np.concatenate([order, na])
+    return order
+
+
 def _relation(
     op: str,
     x_start: Any,
@@ -1516,6 +1866,13 @@ def _compare_scalars(left: Any, right: Any, op: str) -> bool:
     x_start, x_end = _scalar_interval(left, common, cycle)
     y_start, y_end = _scalar_interval(right, common, cycle)
     return bool(_relation(op, x_start, x_end, y_start, y_end))
+
+
+def _subtract_scalars(left: Any, right: Any) -> Any:
+    """Subtract two scalars, returning a duration scalar."""
+    if (left.kind == "duration") != (right.kind == "duration"):
+        raise TypeError("Cannot subtract a duration from a time point")
+    return (left.to_vector() - right.to_vector()).scalar(0)
 
 
 def _mixtime_mode(parts: Iterable[Any]) -> str | None:
@@ -1679,9 +2036,14 @@ def _infer_discrete(data: Any, discrete: bool | None) -> bool:
     if _is_temporal(data):
         return True
     try:
-        kind = np.asarray(data).dtype.kind
+        array = np.asarray(data)
     except (TypeError, ValueError):
         return True
+    # R stores empty mixtime vectors as integer, so they are discrete even
+    # when the input has a floating dtype (e.g. ``numeric(0)``).
+    if array.size == 0:
+        return True
+    kind = array.dtype.kind
     if kind in "iu":
         return True
     if kind == "f":
@@ -1916,6 +2278,12 @@ def _is_missing(value: Any) -> bool:
         return True
     # pandas NA / NaT without importing pandas.
     return type(value).__name__ in {"NAType", "NaTType"}
+
+
+def _unique_key(value: Any) -> float | None:
+    """Normalise a chronon value for equality, treating all NaNs as one."""
+    number = float(value)
+    return None if np.isnan(number) else number
 
 
 def _is_time_scalar(value: Any) -> bool:

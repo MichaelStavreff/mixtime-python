@@ -230,6 +230,18 @@ OPERATION_INPUTS = {
         ["2024-01", "2024-02", "2024-07", "2024-12"]
     )
     - mt.months(1),
+    "diff_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(),
+    "diff_months_lag2": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(lag=2),
+    "diff_months_differences2": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(differences=2),
+    "diff_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-05", "2024-01-10"]
+    ).diff(),
     "difference_months": lambda: mt.yearmonth(
         ["2024-01", "2024-02", "2024-07", "2024-12"]
     )
@@ -260,6 +272,11 @@ OPERATION_INPUTS = {
     "duration_discrete_scalar_sub": lambda: mt.years(1, discrete=True) - 0.5,
     "duration_discrete_scalar_mul": lambda: mt.years(1, discrete=True) * 2,
     "duration_discrete_scalar_div": lambda: mt.years(1, discrete=True) / 2,
+    "number_minus_duration": lambda: 1.0 - mt.days([3, 4]),
+    "time_plus_number": lambda: mt.date(["2024-01-01", "2024-01-02"]) + 1.0,
+    "number_plus_time": lambda: 1.0 + mt.date(["2024-01-01", "2024-01-02"]),
+    "time_minus_number": lambda: mt.date(["2024-01-01", "2024-01-02"]) - 1.0,
+    "number_minus_time": lambda: 1.0 - mt.date(["2024-01-01", "2024-01-02"]),
     "time_shift_months": lambda: mt.time_shift(
         mt.yearmonth(["2024-01", "2024-02", "2024-07", "2024-12"]),
         mt.months(1),
@@ -407,6 +424,118 @@ def test_operations(case):
     _assert_metadata(actual, case)
 
 
+def test_time_vector_diff_edges_and_validation():
+    x = mt.yearmonth(["2024-01", "2024-03", "2024-06"])
+
+    assert x.diff().format() == ["2.0 months", "3.0 months"]
+    assert x.diff(lag=2).format() == ["5.0 months"]
+    assert x.diff(differences=2).format() == ["1.0 months"]
+    assert x.diff(lag=10).format() == []
+    assert mt.yearmonth("2024-01").diff().format() == []
+    assert mt.days([1, 3, 6]).diff().format() == ["2.0 days", "3.0 days"]
+
+    for kwargs in (
+        {"lag": 0},
+        {"lag": 1.5},
+        {"differences": 0},
+        {"differences": 2.5},
+    ):
+        with pytest.raises(ValueError, match="lag and differences"):
+            x.diff(**kwargs)
+
+
+UNIQUENESS_INPUTS = {
+    "unique_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-01", "2024-03", "2024-02"]
+    ).unique(),
+    "unique_months_na": lambda: mt.yearmonth(
+        ["2024-01", None, "2024-01", None]
+    ).unique(),
+    "unique_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-01", "2024-01-02"]
+    ).unique(),
+    "unique_continuous": lambda: mt.yearmonth(
+        [648.5, 648.5, 649.5]
+    ).unique(),
+    "unique_cyclical": lambda: mt.month_of_year(
+        [dt.date(2024, 1, 15), dt.date(2024, 1, 15), dt.date(2024, 3, 15)]
+    ).unique(),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["uniqueness"], ids=lambda c: c["name"])
+def test_unique(case):
+    actual = UNIQUENESS_INPUTS[case["name"]]()
+    _assert_values(actual.values, _expected_values(case))
+    _assert_formatted(actual.format(), case["formatted"])
+    _assert_metadata(actual, case)
+
+
+DUPLICATED_INPUTS = {
+    "duplicated_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-01", "2024-03", "2024-02"]
+    ).duplicated(),
+    "duplicated_na": lambda: mt.yearmonth(
+        ["2024-01", None, "2024-01", None]
+    ).duplicated(),
+    "duplicated_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-01", "2024-01-02"]
+    ).duplicated(),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["duplicates"], ids=lambda c: c["name"])
+def test_duplicated(case):
+    actual = DUPLICATED_INPUTS[case["name"]]()
+    assert actual.tolist() == case["values"]
+
+
+def test_unique_and_duplicated_keep_variants():
+    x = mt.yearmonth(["2024-01", "2024-02", "2024-01", "2024-03"])
+
+    assert x.duplicated().tolist() == [False, False, True, False]
+    assert x.duplicated(keep="last").tolist() == [True, False, False, False]
+    assert x.duplicated(keep=False).tolist() == [True, False, True, False]
+
+    # R's mixtime method ignores fromLast; keep="last" is a Python extension.
+    with pytest.raises(ValueError, match="keep must be"):
+        x.duplicated(keep="middle")
+
+    assert mt.days([1, 2, 1]).unique().format() == ["1.0 days", "2.0 days"]
+    assert mt.yearmonth([]).unique().format() == []
+    assert mt.yearmonth([]).duplicated().tolist() == []
+
+
+NUMERIC_ARITHMETIC_INPUTS = {
+    "duration_ratio_days": lambda: mt.days([3, 4]) / mt.days(2),
+    "duration_ratio_hours": lambda: mt.hours(2) / mt.minutes(30),
+    "duration_ratio_months": lambda: mt.months(3) / mt.months(1),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["numeric_arithmetic"], ids=lambda c: c["name"]
+)
+def test_numeric_arithmetic(case):
+    actual = NUMERIC_ARITHMETIC_INPUTS[case["name"]]()
+    assert np.allclose(np.asarray(actual, dtype=float), case["values"])
+
+
+def test_time_vector_numeric_arithmetic_preserves_chronon():
+    x = mt.date(["2024-01-01", "2024-01-02"])
+
+    # Python integers map to R integers, so the result stays discrete;
+    # Python floats map to R doubles and make the result continuous.
+    assert (x + 1).format() == ["2024-01-02", "2024-01-03"]
+    assert (x + 1).discrete is True
+    assert (x + 1.0).discrete is False
+    assert (1 - x).format() == ["1916-01-03", "1916-01-02"]
+    assert (1 - x).discrete is True
+
+    with pytest.raises(ValueError, match="calendar and fixed units"):
+        mt.months(1) / mt.days(1)
+
+
 COMPARISON_INPUTS = {
     "month_vs_day_start": lambda: mt.yearmonth("2024-01")
     == mt.date("2024-01-01"),
@@ -510,6 +639,137 @@ def test_mixed_comparisons(case):
         assert actual == expected, op
 
 
+MIXED_ARITHMETIC_INPUTS = {
+    "same_month": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+    ),
+    "mixed_self": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+    ),
+    "mixed_shifted": lambda: (
+        mt.mixtime(
+            mt.yearmonth(["2024-01", "2024-02"]),
+            mt.year(["2024", "2025"]),
+        ),
+        mt.mixtime(
+            mt.yearmonth(["2024-02", "2024-03"]),
+            mt.year(["2025", "2026"]),
+        ),
+    ),
+    "date_month": lambda: (
+        mt.mixtime(mt.date("2024-01-31"), mt.yearmonth("2024-01")),
+        mt.mixtime(mt.date("2024-02-29"), mt.yearmonth("2024-02")),
+    ),
+    "recycle_scalar": lambda: (
+        mt.mixtime(mt.yearmonth("2024-01")),
+        mt.mixtime(mt.yearmonth(["2024-01", "2024-02"])),
+    ),
+    "continuous_mixed": lambda: (
+        mt.mixtime(
+            mt.yearmonth(dt.date(2024, 1, 15), discrete=False),
+            mt.date(dt.date(2024, 1, 15), discrete=False),
+        ),
+        mt.mixtime(
+            mt.yearmonth(dt.date(2024, 2, 15), discrete=False),
+            mt.date(dt.date(2024, 2, 15), discrete=False),
+        ),
+    ),
+    "missing_month": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None])),
+        mt.mixtime(mt.yearmonth(["2024-02", "2024-03"])),
+    ),
+    "missing_mixed": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None]), mt.year(["2024"])),
+        mt.mixtime(
+            mt.yearmonth(["2024-02", "2024-03"]), mt.year(["2025"])
+        ),
+    ),
+    "missing_both": lambda: (
+        mt.mixtime(mt.yearmonth(["2024-01", None])),
+        mt.mixtime(mt.yearmonth([None, "2024-03"])),
+    ),
+    "cyclical_shifted": lambda: (
+        mt.mixtime(mt.month_of_year([1, 3])),
+        mt.mixtime(mt.month_of_year([2, 1])),
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["mixed_arithmetic"], ids=lambda c: c["name"]
+)
+def test_mixed_arithmetic(case):
+    left, right = MIXED_ARITHMETIC_INPUTS[case["name"]]()
+    _assert_formatted(left.format(), case["left"])
+    _assert_formatted(right.format(), case["right"])
+
+    actual = left - right
+    _assert_formatted(actual.format(), case["formatted"])
+    assert len(actual.parts) == len(case["parts"])
+    for part, expected in zip(actual.parts, case["parts"]):
+        assert part.kind == expected["kind"]
+        assert part.chronon.name == expected["chronon"]["name"]
+        assert float(part.chronon.n) == float(expected["chronon"]["n"])
+        assert part.discrete is expected["discrete"]
+        _assert_values(part.values, _listify(expected["values"]))
+        _assert_formatted(part.format(), expected["formatted"])
+
+
+def test_mixed_arithmetic_recycling_errors():
+    left = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    right = mt.mixtime(mt.yearmonth(["2024-01", "2024-02", "2024-03"]))
+    with pytest.raises(ValueError, match="recycle"):
+        left - right
+
+
+def test_mixtime_reverse_subtraction():
+    mixed = mt.mixtime(
+        mt.date(["2024-01-05"]), mt.date(["2024-02-05"])
+    )
+    left = mt.date(["2024-01-01"])
+
+    reversed_result = left - mixed
+    assert reversed_result.format() == ["-4.0 days", "-35.0 days"]
+    assert [part.chronon.name for part in reversed_result.parts] == ["day"]
+
+    forward = mixed - left
+    assert forward.format() == ["4.0 days", "35.0 days"]
+
+    months = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    with pytest.raises(ValueError, match="indeterminate"):
+        mt.date(["2024-01-01", "2024-01-02"]) - months
+
+
+def test_mixed_arithmetic_rejects_discrete_different_chronons():
+    left = mt.mixtime(mt.yearmonth("2024-01"))
+    right = mt.mixtime(mt.year("2024"))
+    with pytest.raises(ValueError, match="indeterminate"):
+        left - right
+
+
+def test_mixed_arithmetic_rejects_duration_minus_time():
+    left = mt.mixtime(mt.months(1))
+    right = mt.mixtime(mt.yearmonth("2024-01"))
+    with pytest.raises(TypeError, match="duration"):
+        left - right
+
+
+def test_mixed_arithmetic_time_point_kinds_match_time_vector():
+    left = mt.month_of_year(["2024-01-15", "2024-03-15"])
+    right = mt.yearmonth(["2024-02", "2024-01"])
+    expected = left - right
+    actual = mt.mixtime(left) - mt.mixtime(right)
+    _assert_formatted(actual.format(), expected.format())
+
+
 ORDERING_INPUTS = {
     "linear_mixed": lambda: mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -595,6 +855,104 @@ def test_time_vector_comparison_uses_intervals():
     assert bool(mt.yearmonth("2024-01") <= mt.date("2024-01-31"))
     assert bool(mt.year(["1980"]) <= mt.yearmonth("1980-12"))
     assert not bool(mt.year(["1980"]) >= mt.yearmonth("1980-12"))
+
+
+def test_time_vector_ordering_and_reductions():
+    months = mt.yearmonth(["2024-03", "2024-01", "2024-02"])
+
+    assert months.argsort().tolist() == [1, 2, 0]
+    _assert_formatted(
+        months.sort().format(),
+        ["2024 Jan", "2024 Feb", "2024 Mar"],
+    )
+    _assert_formatted(
+        months.sort(decreasing=True).format(),
+        ["2024 Mar", "2024 Feb", "2024 Jan"],
+    )
+    assert months.min().format() == "2024 Jan"
+    assert months.max().format() == "2024 Mar"
+    assert months.min().chronon.name == "month"
+    assert months.max().discrete is True
+
+
+def test_time_vector_nlargest_nsmallest_and_copy():
+    values = mt.yearmonth(["2024-03", None, "2024-01", "2024-02"])
+
+    assert values.nsmallest(2).format() == ["2024 Jan", "2024 Feb"]
+    assert values.nlargest(2).format() == ["2024 Mar", "2024 Feb"]
+    assert values.nlargest(1, keep="all").format() == ["2024 Mar"]
+    assert values.nlargest(0).format() == []
+    assert mt.yearmonth([None, None]).nlargest(2).format() == []
+
+    cyclical = mt.month_of_year(
+        ["2024-12-15", "2024-01-15", "2024-06-15"]
+    )
+    assert cyclical.nlargest(2).format() == ["Dec", "Jun"]
+
+    copied = values.copy()
+    copied.values[0] = 0
+    assert values.format() == ["2024 Mar", "NA", "2024 Jan", "2024 Feb"]
+    assert copied.format() == ["1970 Jan", "NA", "2024 Jan", "2024 Feb"]
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01"]), mt.date(["2024-03-01"])
+    )
+    mixed_copy = mixed.copy()
+    mixed_copy.parts[0].values[0] = 0
+    assert mixed.format() == ["2024 Jan", "2024-03-01"]
+    assert mixed_copy.format() == ["1970 Jan", "2024-03-01"]
+
+
+def test_time_vector_cyclical_ordering_matches_r_fixture():
+    case = next(
+        case for case in FIXTURES["ordering"]
+        if case["name"] == "cyclical_months"
+    )
+    months = mt.month_of_year(
+        ["2024-12-15", "2025-01-15", "2024-06-15", "2024-03-15"]
+    )
+
+    assert months.argsort().tolist() == [
+        int(value) - 1 for value in _listify(case["order"])
+    ]
+    _assert_formatted(months.sort().format(), case["sorted"])
+    assert months.min().format() == case["min"]
+    assert months.max().format() == case["max"]
+
+
+def test_time_vector_ordering_missing_values():
+    values = mt.yearmonth(["2024-02", None, "2024-01"])
+
+    assert values.argsort().tolist() == [2, 0, 1]
+    assert values.argsort(na_position="drop").tolist() == [2, 0]
+    assert values.argsort(na_position="first").tolist() == [1, 2, 0]
+    _assert_formatted(
+        values.sort().format(),
+        ["2024 Jan", "2024 Feb"],
+    )
+    _assert_formatted(
+        values.sort(na_position="last").format(),
+        ["2024 Jan", "2024 Feb", "NA"],
+    )
+    assert values.min().format() == "2024 Jan"
+    assert values.max().format() == "2024 Feb"
+    assert values.min(skipna=False).format() == "NA"
+    assert values.max(skipna=False).format() == "NA"
+
+
+def test_time_vector_reductions_on_empty_vector():
+    with pytest.raises(ValueError, match="empty sequence"):
+        mt.yearmonth([]).min()
+    with pytest.raises(ValueError, match="empty sequence"):
+        mt.yearmonth([]).max()
+
+
+def test_mixtime_reductions_on_empty_container():
+    for values in (mt.mixtime(), mt.mixtime(mt.yearmonth([]))):
+        with pytest.raises(ValueError, match="empty sequence"):
+            values.min()
+        with pytest.raises(ValueError, match="empty sequence"):
+            values.max()
 
 
 PREDICATE_INPUTS = {
@@ -917,6 +1275,47 @@ def test_indexing_returns_length_one_vectors():
     assert x[0].format() == ["2024 Jan"]
     assert x[-1].format() == ["2024 Feb"]
 
+    assert x[[1, 0]].format() == ["2024 Feb", "2024 Jan"]
+    assert x[(1, 0)].format() == ["2024 Feb", "2024 Jan"]
+    assert x[np.array([True, False])].format() == ["2024 Jan"]
+    with pytest.raises(IndexError, match="boolean index"):
+        x[np.array([True, False, True])]
+
+
+def test_time_vector_take_and_fill():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+
+    assert x.take([1, 0]).format() == ["2024 Feb", "2024 Jan"]
+    assert x.take([1, 0]).chronon.name == "month"
+
+    filled = x.take([1, -1], allow_fill=True)
+    assert filled.format() == ["2024 Feb", "NA"]
+    assert filled.isna().tolist() == [False, True]
+    assert filled.chronon.name == "month"
+    assert filled.discrete is True
+
+    # An explicit fill value must share the vector's chronon metadata.
+    with pytest.raises(ValueError, match="chronon metadata"):
+        x.take(
+            [0, -1],
+            allow_fill=True,
+            fill_value=mt.date("2024-01-01").scalar(0),
+        )
+
+    empty = mt.yearmonth([])
+    # R stores empty time vectors as integer, so they default to discrete.
+    assert empty.discrete is True
+    assert empty.take([-1, -1], allow_fill=True).format() == ["NA", "NA"]
+    filled_empty = empty.take(
+        [-1, -1],
+        allow_fill=True,
+        fill_value=mt.yearmonth("2024-01").scalar(0),
+    )
+    assert filled_empty.format() == ["2024 Jan", "2024 Jan"]
+    assert filled_empty.discrete is True
+    with pytest.raises(IndexError, match="empty TimeVector"):
+        empty.take([0], allow_fill=True)
+
 
 def test_scalar_access_preserves_metadata():
     x = mt.yearmonth(["2024-01", "2024-02"])
@@ -951,6 +1350,23 @@ def test_missing_scalars_and_masks():
     assert x.scalar(0) != x.scalar(1)
 
 
+def test_time_scalar_ordering_uses_interval_semantics():
+    month = mt.yearmonth("2024-01").scalar(0)
+    day = mt.date("2023-12-31").scalar(0)
+
+    assert day < month
+    assert month > day
+    assert not month < day
+    assert not day > month
+
+    # Equality stays metadata-strict for pandas factorization and joins.
+    assert month != mt.date("2024-01-01").scalar(0)
+
+    missing = mt.TimeScalar.missing(month)
+    assert not missing < month
+    assert not missing >= month
+
+
 def test_mixed_scalar_take_and_shift():
     m = mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -965,6 +1381,8 @@ def test_mixed_scalar_take_and_shift():
     taken = m.take([2, -1, 0], allow_fill=True)
     assert taken.format() == ["2024-03-01", "NA", "2024 Jan"]
     assert [part.chronon.name for part in taken.parts] == ["day", "month"]
+    assert taken.scalar(1).isna()
+    assert taken.scalar(1).chronon.name == "month"
 
     shifted = mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -978,6 +1396,18 @@ def test_mixed_indexing_including_negative_index():
     assert m[0].format() == ["2024 Jan"]
     assert m[-1].format() == ["2024 Q2"]
     assert m[1:].format() == ["2024 Q2"]
+
+    many = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01"]),
+    )
+    assert many[[2, 0]].format() == ["2024-03-01", "2024 Jan"]
+    assert many[np.array([True, False, True])].format() == [
+        "2024 Jan",
+        "2024-03-01",
+    ]
+    with pytest.raises(IndexError, match="boolean index"):
+        many[np.array([True, False])]
 
 
 def test_format_tokens():
@@ -994,6 +1424,17 @@ def test_arithmetic_and_comparison():
     assert y.format() == ["2024 Feb", "2024 Mar"]
     assert np.array_equal(y > x, [True, True])
     assert np.array_equal(y - mt.months(1) == x, [True, True])
+
+
+def test_unary_minus_only_applies_to_durations():
+    negated = -mt.days(3)
+    assert negated.format() == ["-3.0 days"]
+    assert negated.discrete is False
+
+    with pytest.raises(TypeError, match="unary -"):
+        -mt.date("2024-01-01")
+    with pytest.raises(TypeError, match="unary -"):
+        -mt.yearmonth("2024-01")
 
 
 def test_timezone_aware_datetime():
@@ -1237,6 +1678,78 @@ def test_pandas_extension_series_roundtrip():
     assert explicit.iloc[1] == x.scalar(1)
 
 
+def test_pandas_extension_arrow_and_parquet_roundtrip(tmp_path):
+    pd = pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    series = values.to_pandas_series(name="when")
+
+    arrow = pa.array(series.array)
+    assert pa.types.is_struct(arrow.type)
+    rows = arrow.to_pylist()
+    assert rows[0]["chronon_name"] == "month"
+    assert rows[2]["chronon_name"] == "day"
+    assert rows[3]["value"] is None
+
+    restored_array = mt.MixtimeDtype().__from_arrow__(arrow)
+    assert isinstance(restored_array, mt.MixtimeArray)
+    _assert_formatted(
+        [value.format() for value in restored_array], values.format()
+    )
+
+    path = tmp_path / "mixtime.parquet"
+    pd.DataFrame({"when": series, "value": [1, 2, 3, 4]}).to_parquet(path)
+    restored = pd.read_parquet(path)
+    assert restored["when"].dtype == mt.MixtimeDtype()
+    assert isinstance(restored["when"].array, mt.MixtimeArray)
+    _assert_formatted(
+        [value.format() for value in restored["when"]], values.format()
+    )
+    assert [
+        part.chronon.name for part in restored["when"].array._data.parts
+    ] == ["month", "day"]
+    assert restored["when"].isna().tolist() == [False, False, False, True]
+
+
+def test_pandas_extension_arrow_preserves_metadata():
+    pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+
+    values = mt.mixtime(
+        mt.datetime(["2024-07-15 12:00:00", None], tz="America/New_York"),
+        mt.month_of_year(["2024-01-15", "2024-06-15"]),
+        mt.months([1, 2]),
+    )
+    restored = mt.MixtimeDtype().__from_arrow__(pa.array(mt.MixtimeArray(values)))
+    _assert_formatted(
+        [value.format() for value in restored], values.format()
+    )
+    parts = restored._data.parts
+    assert parts[0].chronon.name == "second"
+    assert parts[0].timezone == "America/New_York"
+    assert parts[1].kind == "cyclical"
+    assert parts[1].cycle is not None and parts[1].cycle.name == "year"
+    assert parts[2].kind == "duration"
+
+    split = mt.mixtime(
+        mt.date(["2024-01-01"]),
+        mt.yearmonth([None]),
+        mt.date(["2024-01-02"]),
+    )
+    restored_split = mt.MixtimeDtype().__from_arrow__(
+        pa.array(mt.MixtimeArray(split))
+    )
+    assert [part.chronon.name for part in restored_split._data.parts] == [
+        "day",
+        "month",
+        "day",
+    ]
+
+
 def test_pandas_mixed_extension_dataframe():
     pd = pytest.importorskip("pandas")
 
@@ -1390,6 +1903,121 @@ def test_pandas_cyclical_sort_and_between():
     ).tolist() == [False, True, False, True]
 
 
+def test_pandas_extension_duration_arithmetic():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-01-31"]),
+    )
+    series = values.to_pandas_series()
+
+    shifted = series + mt.months(1)
+    assert shifted.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in shifted],
+        ["2024 Feb", "2024 Mar", "2024-02-29"],
+    )
+
+    restored = shifted - mt.months(1)
+    assert restored.dtype == mt.MixtimeDtype()
+    # Month-end clamping is not reversible: 2024-02-29 - months(1) is
+    # 2024-01-29, not the original 2024-01-31.
+    _assert_formatted(
+        [value.format() for value in restored],
+        ["2024 Jan", "2024 Feb", "2024-01-29"],
+    )
+
+    differences = series - series
+    assert differences.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in differences],
+        ["0.0 months", "0.0 months", "0.0 days"],
+    )
+
+
+def test_pandas_extension_scalar_minus_series():
+    pd = pytest.importorskip("pandas")
+
+    months = mt.yearmonth(["2024-01", "2024-02"]).to_pandas_series()
+    first = months.iloc[0]
+
+    reversed_diff = first - months
+    assert reversed_diff.dtype == mt.MixtimeDtype()
+    _assert_formatted(
+        [value.format() for value in reversed_diff],
+        ["0.0 months", "-1.0 months"],
+    )
+    _assert_formatted(
+        [value.format() for value in months - first],
+        ["0.0 months", "1.0 months"],
+    )
+
+    mixed = mt.mixtime(
+        mt.date(["2024-01-05"]), mt.date(["2024-02-05"])
+    ).to_pandas_series()
+    left = mt.date("2024-01-01").scalar(0)
+    _assert_formatted(
+        [value.format() for value in left - mixed],
+        ["-4.0 days", "-35.0 days"],
+    )
+
+    with pytest.raises(TypeError, match="duration"):
+        mt.days(1).scalar(0) - months
+
+
+def test_pandas_extension_string_conversion():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.year(["2024"]),
+    )
+    series = values.to_pandas_series()
+
+    text = series.astype(str)
+    assert text.tolist()[0] == "2024 Jan"
+    assert text.tolist()[2] == "2024"
+    assert text.isna().tolist() == [False, True, False]
+
+    string = series.astype("string")
+    assert string.tolist()[0] == "2024 Jan"
+    assert string.isna().tolist() == [False, True, False]
+
+    unicode_array = series.array.astype("U")
+    assert unicode_array.tolist() == ["2024 Jan", "NA", "2024"]
+    assert series.astype("mixtime").dtype == mt.MixtimeDtype()
+
+
+def test_pandas_extension_category_conversion():
+    pd = pytest.importorskip("pandas")
+
+    series = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.date(["2024-03-01"]),
+    ).to_pandas_series()
+
+    categorical = series.astype("category")
+    assert isinstance(categorical.dtype, pd.CategoricalDtype)
+    assert categorical.dtype.categories.dtype == mt.MixtimeDtype()
+    assert categorical.isna().tolist() == [False, True, False]
+    assert [value.format() for value in categorical.dropna()] == [
+        "2024 Jan",
+        "2024-03-01",
+    ]
+
+    ordered = series.array.astype(
+        pd.CategoricalDtype(
+            categories=pd.Index(
+                [series.iloc[0]], dtype=mt.MixtimeDtype()
+            ),
+            ordered=True,
+        )
+    )
+    assert ordered.categories.dtype == mt.MixtimeDtype()
+    assert ordered.isna().tolist() == [False, True, True]
+
+
 def test_pandas_extension_take_concat_and_numpy():
     pd = pytest.importorskip("pandas")
 
@@ -1420,6 +2048,143 @@ def test_pandas_extension_take_concat_and_numpy():
         False,
         False,
     ]
+
+
+def test_pandas_extension_value_counts_honours_dropna():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(
+        ["2024-01", "2024-02", None, "2024-02"]
+    ).to_pandas_series()
+
+    default = series.value_counts()
+    assert default.tolist() == [2, 1]
+    assert [value.format() for value in default.index] == [
+        "2024 Feb",
+        "2024 Jan",
+    ]
+
+    with_missing = series.value_counts(dropna=False)
+    assert with_missing.tolist() == [2, 1, 1]
+    assert with_missing.index.isna().tolist() == [False, False, True]
+
+    normalized = series.value_counts(normalize=True)
+    assert np.allclose(normalized.to_numpy(), [2 / 3, 1 / 3])
+
+
+def test_pandas_extension_shift_and_diff():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.yearmonth(["2024-01", "2024-02", "2024-04"])
+    series = values.to_pandas_series()
+
+    shifted = series.shift(1)
+    assert shifted.dtype == mt.MixtimeDtype()
+    assert shifted.isna().tolist() == [True, False, False]
+    assert [part.chronon.name for part in shifted.array._data.parts] == [
+        "month"
+    ]
+    assert shifted.iloc[1] == values.scalar(0)
+
+    differences = series.diff()
+    assert differences.dtype == mt.MixtimeDtype()
+    assert differences.isna().tolist() == [True, False, False]
+    _assert_formatted(
+        [value.format() for value in differences],
+        ["NA", "1.0 months", "2.0 months"],
+    )
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", "2024-04-01"]),
+    ).to_pandas_series()
+    mixed_shifted = mixed.shift(1)
+    assert [part.chronon.name for part in mixed_shifted.array._data.parts] == [
+        "month",
+        "day",
+    ]
+    assert mixed_shifted.isna().tolist() == [True, False, False, False]
+
+    discontinuous = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.year(["2024", "2025"]),
+    ).to_pandas_series()
+    with pytest.raises(ValueError, match="indeterminate"):
+        discontinuous.diff()
+
+
+def test_pandas_extension_json_and_csv_export():
+    pd = pytest.importorskip("pandas")
+
+    series = mt.mixtime(
+        mt.yearmonth(["2024-01", None]),
+        mt.date(["2024-03-01"]),
+    ).to_pandas_series(name="t")
+
+    assert series.to_json() == (
+        '{"0":"2024 Jan","1":null,"2":"2024-03-01"}'
+    )
+    assert series.to_csv().splitlines() == [
+        ",t",
+        "0,2024 Jan",
+        "1,",
+        "2,2024-03-01",
+    ]
+
+
+def test_pandas_extension_interpolate_is_unsupported():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(["2024-01", None, "2024-03"]).to_pandas_series()
+    with pytest.raises(NotImplementedError, match="interpolate"):
+        series.interpolate()
+
+
+def test_pandas_extension_quantile_is_unsupported():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(["2024-01", None, "2024-03"]).to_pandas_series()
+    with pytest.raises(NotImplementedError, match="quantile"):
+        series.quantile(0.5)
+
+
+def test_pandas_extension_cumulative_min_max():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.yearmonth(["2024-03", "2024-01", None, "2024-02"])
+    series = values.to_pandas_series()
+
+    cumulative_min = series.cummin()
+    assert cumulative_min.dtype == mt.MixtimeDtype()
+    assert [value.format() for value in cumulative_min] == [
+        "2024 Mar",
+        "2024 Jan",
+        "NA",
+        "2024 Jan",
+    ]
+    assert cumulative_min.isna().tolist() == [False, False, True, False]
+    assert [part.chronon.name for part in cumulative_min.array._data.parts] == [
+        "month"
+    ]
+
+    cumulative_max = series.cummax()
+    assert [value.format() for value in cumulative_max] == [
+        "2024 Mar",
+        "2024 Mar",
+        "NA",
+        "2024 Mar",
+    ]
+
+    # skipna=False keeps the first missing value and poisons later results.
+    assert [value.format() for value in series.cummin(skipna=False)] == [
+        "2024 Mar",
+        "2024 Jan",
+        "NA",
+        "NA",
+    ]
+
+    with pytest.raises(NotImplementedError, match="cumsum"):
+        series.cumsum()
 
 
 def test_pandas_is_optional():
@@ -1734,6 +2499,37 @@ def test_inequality_is_elementwise():
     assert np.array_equal(x != y, [False, True])
 
 
+def test_equality_missing_operand_is_elementwise():
+    x = mt.yearmonth(["2024-01", None])
+    assert np.array_equal(x == None, [False, True])  # noqa: E711
+    assert np.array_equal(x != None, [True, False])  # noqa: E711
+    assert np.array_equal(x == np.nan, [False, True])
+
+    pd = pytest.importorskip("pandas")
+    assert np.array_equal(x == pd.NA, [False, True])
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01", None]), mt.date(["2024-03-01"])
+    )
+    assert np.array_equal(mixed == None, [False, True, False])  # noqa: E711
+    assert np.array_equal(mixed != None, [True, False, True])  # noqa: E711
+
+
+def test_equality_rejects_unsupported_operands():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    mixed = mt.mixtime(mt.yearmonth(["2024-01"]))
+
+    for operand in ("2024 Jan", 1, dt.date(2024, 1, 1)):
+        with pytest.raises(TypeError, match="Cannot compare"):
+            x == operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            x != operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            mixed == operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            mixed != operand
+
+
 def test_sequence_rejects_combining_by_and_length_out():
     with pytest.raises(ValueError, match="combining by and length_out"):
         mt.seq(
@@ -1755,6 +2551,11 @@ def test_discrete_inference_from_input_type():
     assert mt.yearmonth([648.0, 649.0]).discrete is False
     assert mt.date(dt.date(2024, 1, 15)).discrete is True
     assert mt.month_of_year("2024-01-15").discrete is True
+    # R stores empty vectors as integer, so they default to discrete.
+    assert mt.yearmonth([]).discrete is True
+    assert mt.date([]).discrete is True
+    assert mt.month_of_year([]).discrete is True
+    assert mt.yearmonth([], discrete=False).discrete is False
 
 
 def test_sequence_validates_length_one_and_finite_steps():

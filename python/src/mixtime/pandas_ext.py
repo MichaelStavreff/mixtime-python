@@ -13,11 +13,12 @@ import numpy as np
 
 from .scalar import (
     TimeScalar,
+    _is_generic_missing_scalar,
     _is_missing_value,
     _mixtime_from_scalars,
     _scalar_from_item,
 )
-from .time import Mixtime, TimeVector
+from .time import Duration, Mixtime, TimeVector
 
 try:  # pragma: no cover - the import path is environment-dependent
     import pandas as pd
@@ -53,6 +54,89 @@ def _require_pandas() -> None:
         ) from _PANDAS_IMPORT_ERROR
 
 
+def _require_pyarrow() -> Any:
+    try:
+        import pyarrow as pa
+    except ImportError as exc:  # pragma: no cover - depends on environment
+        raise ImportError(
+            "pyarrow is required for Arrow and Parquet conversion; "
+            "install mixtime[arrow]"
+        ) from exc
+    return pa
+
+
+def _mixtime_arrow_type() -> Any:
+    """Return the Arrow struct type used to serialize a MixtimeArray."""
+    pa = _require_pyarrow()
+    return pa.struct(
+        [
+            ("value", pa.float64()),
+            ("kind", pa.string()),
+            ("chronon_name", pa.string()),
+            ("chronon_n", pa.float64()),
+            ("chronon_timezone", pa.string()),
+            ("discrete", pa.bool_()),
+            ("cycle_name", pa.string()),
+            ("cycle_n", pa.float64()),
+            ("calendar", pa.string()),
+            ("timezone", pa.string()),
+        ]
+    )
+
+
+def _scalar_to_arrow_row(value: TimeScalar) -> dict[str, Any]:
+    return {
+        "value": None if value.isna() else value.value,
+        "kind": value.kind,
+        "chronon_name": value.chronon.name,
+        "chronon_n": float(value.chronon.n),
+        "chronon_timezone": value.chronon.timezone,
+        "discrete": value.discrete,
+        "cycle_name": None if value.cycle is None else value.cycle.name,
+        "cycle_n": None if value.cycle is None else float(value.cycle.n),
+        "calendar": value.calendar.name,
+        "timezone": value.timezone,
+    }
+
+
+def _scalar_from_arrow_row(row: Any) -> TimeScalar:
+    if row is None:
+        return TimeScalar.missing()
+    from .units import Unit, cal_gregorian
+
+    calendar_name = row.get("calendar") or cal_gregorian.name
+    if calendar_name != cal_gregorian.name:
+        raise ValueError(
+            f"Arrow data uses unsupported calendar {calendar_name!r}"
+        )
+    chronon = Unit(
+        row["chronon_name"],
+        row["chronon_n"],
+        cal_gregorian,
+        row.get("chronon_timezone"),
+    )
+    cycle_name = row.get("cycle_name")
+    cycle = (
+        None
+        if cycle_name is None
+        else Unit(
+            cycle_name,
+            row["cycle_n"],
+            cal_gregorian,
+            row.get("chronon_timezone"),
+        )
+    )
+    return TimeScalar(
+        row.get("value"),
+        chronon,
+        kind=row["kind"],
+        discrete=bool(row["discrete"]),
+        calendar=cal_gregorian,
+        cycle=cycle,
+        timezone=row.get("timezone"),
+    )
+
+
 def _coerce_fill_scalar(value: Any) -> TimeScalar:
     if isinstance(value, TimeScalar):
         return value
@@ -80,6 +164,22 @@ def _fill_values(value: Any, length: int) -> list[TimeScalar] | None:
     return values
 
 
+def _string_dtype_kind(dtype: Any, np_dtype: Any) -> str | None:
+    """Classify a requested string dtype for :meth:`MixtimeArray.astype`."""
+    if dtype is str:
+        return "pandas"
+    if isinstance(dtype, str):
+        if dtype in {"str", "string"}:
+            return "pandas"
+        if dtype in {"U", "unicode"}:
+            return "numpy"
+    if pd is not None and isinstance(dtype, pd.StringDtype):
+        return "pandas"
+    if np_dtype is not None and np_dtype.kind in {"U", "S"}:
+        return "numpy"
+    return None
+
+
 @register_extension_dtype
 class MixtimeDtype(ExtensionDtype):
     """pandas dtype for a column of :class:`~mixtime.scalar.TimeScalar`."""
@@ -98,6 +198,9 @@ class MixtimeDtype(ExtensionDtype):
     @classmethod
     def construct_array_type(cls) -> type["MixtimeArray"]:
         return MixtimeArray
+
+    def __from_arrow__(self, array: Any) -> "MixtimeArray":
+        return MixtimeArray._from_arrow(array)
 
     def __repr__(self) -> str:
         return "MixtimeDtype()"
@@ -217,11 +320,11 @@ class MixtimeArray(ExtensionArray):
             return MixtimeArray(self._data.take(positions))
 
         if fill_value is None or fill_value is _no_default:
-            fill = TimeScalar.missing()
+            fill = None
         elif isinstance(fill_value, TimeScalar):
             fill = fill_value
         elif _is_missing_value(fill_value):
-            fill = TimeScalar.missing()
+            fill = None
         else:
             raise TypeError(
                 "fill_value must be a TimeScalar or a missing value"
@@ -247,6 +350,27 @@ class MixtimeArray(ExtensionArray):
         return cls(scalars, copy=copy)
 
     @classmethod
+    def _from_arrow(cls, array: Any) -> "MixtimeArray":
+        """Rebuild a MixtimeArray from an Arrow struct array."""
+        _require_pyarrow()
+        scalars: list[TimeScalar] = []
+        for row in array.to_pylist():
+            if row is None:
+                like = scalars[-1] if scalars else None
+                scalars.append(TimeScalar.missing(like))
+            else:
+                scalars.append(_scalar_from_arrow_row(row))
+        return cls(_mixtime_from_scalars(scalars, inherit_missing=False))
+
+    def __arrow_array__(self, type: Any = None) -> Any:
+        """Serialize to a pyarrow struct array for Arrow/Parquet export."""
+        pa = _require_pyarrow()
+        return pa.array(
+            [_scalar_to_arrow_row(value) for value in self],
+            type=type if type is not None else _mixtime_arrow_type(),
+        )
+
+    @classmethod
     def _from_factorized(
         cls, values: Any, original: "MixtimeArray"
     ) -> "MixtimeArray":
@@ -256,10 +380,36 @@ class MixtimeArray(ExtensionArray):
     def _concat_same_type(
         cls, to_concat: Sequence["MixtimeArray"]
     ) -> "MixtimeArray":
-        parts: list[TimeVector] = []
+        scalars: list[TimeScalar | None] = []
         for array in to_concat:
-            parts.extend(array._data.parts)
-        return cls(Mixtime(parts))
+            data = array._data
+            array_scalars = [data.scalar(i) for i in range(len(data))]
+            if array_scalars and all(
+                _is_generic_missing_scalar(scalar)
+                for scalar in array_scalars
+            ):
+                # pandas shift() creates an all-missing block before/after the
+                # real data. Leave it untyped until we can borrow a neighbour's
+                # chronon metadata below.
+                scalars.extend([None] * len(array_scalars))
+            else:
+                scalars.extend(array_scalars)
+
+        known_positions = [
+            index for index, scalar in enumerate(scalars) if scalar is not None
+        ]
+        if known_positions:
+            for index, scalar in enumerate(scalars):
+                if scalar is None:
+                    nearest = min(
+                        known_positions, key=lambda j: (abs(j - index), j)
+                    )
+                    scalars[index] = TimeScalar.missing(scalars[nearest])
+        values = [
+            scalar if scalar is not None else TimeScalar.missing()
+            for scalar in scalars
+        ]
+        return cls(_mixtime_from_scalars(values, inherit_missing=False))
 
     def __array__(
         self, dtype: Any = None, copy: bool | None = None
@@ -276,9 +426,42 @@ class MixtimeArray(ExtensionArray):
     def astype(self, dtype: Any, copy: bool = True) -> Any:
         if isinstance(dtype, MixtimeDtype) or dtype == MixtimeDtype.name:
             return self.copy() if copy else self
-        if dtype is object or np.dtype(dtype) == np.dtype(object):
+        if pd is not None and isinstance(dtype, pd.CategoricalDtype):
+            if dtype.categories is None:
+                return pd.Categorical(self, copy=copy)
+            lookup = {
+                category: index
+                for index, category in enumerate(dtype.categories)
+            }
+            codes = [lookup.get(value, -1) for value in self]
+            return pd.Categorical.from_codes(
+                codes,
+                categories=dtype.categories,
+                ordered=bool(dtype.ordered),
+            )
+        if dtype is object:
             return np.asarray(self, dtype=object)
-        return np.asarray(self, dtype=dtype)
+        try:
+            np_dtype = np.dtype(dtype)
+        except (TypeError, ValueError):
+            np_dtype = None
+        if np_dtype is not None and np_dtype == np.dtype(object):
+            return np.asarray(self, dtype=object)
+
+        string_kind = _string_dtype_kind(dtype, np_dtype)
+        if string_kind == "pandas":
+            target = "string" if dtype is str or dtype == "str" else dtype
+            values = [
+                pd.NA if value.isna() else value.format() for value in self
+            ]
+            return pd.array(values, dtype=target)
+        if string_kind == "numpy":
+            values = [value.format() for value in self]
+            return np.asarray(values, dtype=np_dtype)
+
+        if np_dtype is None:
+            raise TypeError(f"cannot interpret {dtype!r} as a data type")
+        return np.asarray(self, dtype=np_dtype)
 
     def to_numpy(
         self,
@@ -303,6 +486,26 @@ class MixtimeArray(ExtensionArray):
 
     def _values_for_factorize(self) -> tuple[np.ndarray, Any]:
         return np.asarray(self, dtype=object), self.dtype.na_value
+
+    def value_counts(self, dropna: bool = True):
+        """Count unique values, honouring ``dropna`` for missing values.
+
+        ``pd.isna`` cannot detect a missing :class:`TimeScalar` in an object
+        array, so the default implementation would count missing values even
+        when ``dropna=True``. Replace them with ``pd.NA`` for counting and
+        restore the mixtime dtype on the index.
+        """
+        import pandas as pd
+
+        values = [
+            pd.NA if is_missing else value
+            for value, is_missing in zip(self, self.isna())
+        ]
+        result = pd.Series(values, dtype=object).value_counts(
+            dropna=dropna, sort=False
+        )
+        result.index = result.index.astype(self.dtype)
+        return result
 
     def _values_for_argsort(self) -> np.ndarray:
         return self._data.order_values()
@@ -351,6 +554,28 @@ class MixtimeArray(ExtensionArray):
     def __ge__(self, other: Any) -> Any:
         return self._compare(other, ">=")
 
+    def __add__(self, other: Any) -> Any:
+        if isinstance(other, Duration):
+            return MixtimeArray(self._data + other)
+        return NotImplemented
+
+    def __radd__(self, other: Any) -> Any:
+        return self.__add__(other)
+
+    def __sub__(self, other: Any) -> Any:
+        if isinstance(other, MixtimeArray):
+            return MixtimeArray(self._data - other._data)
+        if isinstance(other, (Duration, Mixtime, TimeVector, TimeScalar)):
+            return MixtimeArray(self._data - other)
+        return NotImplemented
+
+    def __rsub__(self, other: Any) -> Any:
+        if isinstance(other, MixtimeArray):
+            return MixtimeArray(other._data - self._data)
+        if isinstance(other, (Mixtime, TimeVector, TimeScalar)):
+            return MixtimeArray(other - self._data)
+        return NotImplemented
+
     def min(self, skipna: bool = True) -> Any:
         """Return the earliest value, skipping missing values by default."""
         return self._data.min(skipna=skipna)
@@ -358,6 +583,38 @@ class MixtimeArray(ExtensionArray):
     def max(self, skipna: bool = True) -> Any:
         """Return the latest value, skipping missing values by default."""
         return self._data.max(skipna=skipna)
+
+    def _accumulate(
+        self, name: str, *, skipna: bool = True, **kwargs: Any
+    ) -> "MixtimeArray":
+        """Support ``Series.cummin()`` and ``Series.cummax()``."""
+        if name not in {"cummin", "cummax", "min", "max"}:
+            raise NotImplementedError(
+                f"cannot perform {name} with type mixtime"
+            )
+        choose = (
+            (lambda current, best: current < best)
+            if name in {"cummin", "min"}
+            else (lambda current, best: current > best)
+        )
+        scalars: list[TimeScalar] = []
+        best: TimeScalar | None = None
+        poisoned: TimeScalar | None = None
+        for value in self:
+            if value.isna():
+                if skipna:
+                    scalars.append(TimeScalar.missing(value))
+                    continue
+                poisoned = poisoned or value
+                scalars.append(TimeScalar.missing(poisoned))
+                continue
+            if poisoned is not None:
+                scalars.append(TimeScalar.missing(poisoned))
+                continue
+            if best is None or choose(value, best):
+                best = value
+            scalars.append(best)
+        return MixtimeArray(_mixtime_from_scalars(scalars, inherit_missing=False))
 
     def between(
         self,
@@ -397,6 +654,20 @@ class MixtimeArray(ExtensionArray):
     def nsmallest(self, n: int = 5, keep: str = "first") -> "MixtimeArray":
         """Return the ``n`` earliest values."""
         return MixtimeArray(self._data.nsmallest(n, keep=keep))
+
+    def _quantile(
+        self, qs: np.ndarray, interpolation: str
+    ) -> "MixtimeArray":
+        raise NotImplementedError(
+            "MixtimeArray does not implement quantile"
+        )
+
+    def _values_for_json(self) -> np.ndarray:
+        """Render values as strings so ``Series.to_json()`` can serialize."""
+        return np.asarray(
+            [None if value.isna() else value.format() for value in self],
+            dtype=object,
+        )
 
     def _formatter(self, boxed: bool = False):
         def format_value(value: Any) -> str:

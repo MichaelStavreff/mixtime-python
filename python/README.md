@@ -16,9 +16,11 @@ low-level NumPy kernel.
 - `mixtime.mixtime(...)` combines vectors of different granularities.
 - `TimeVector.scalar(i)` and `Mixtime.scalar(i)` return a `TimeScalar` with its
   chronon metadata. `x[i]` still returns a length-one vector.
+- `TimeVector.unique()` and `duplicated()` deduplicate a single-chronon vector
+  while preserving order and metadata.
 - Optional pandas interop: `to_pandas_series()` and `MixtimeArray` expose time
-  columns through the `"mixtime"` extension dtype; pandas is not required by
-  the core package.
+  columns through the `"mixtime"` extension dtype, including Arrow/Parquet
+  round-trips; pandas and pyarrow are not required by the core package.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
   provide calendar-aware operations, including DST-aware day/week shifts,
   clamped month/quarter/year shifts, and calendar-aware sequences on `date`
@@ -51,7 +53,18 @@ import mixtime as mt
 x = mt.yearmonth(["2024-01", "2024-02"])
 print(x.values)          # [648 649]
 print(x.format())        # ['2024 Jan', '2024 Feb']
+print(x.diff().format()) # ['1.0 months']
 print((x + mt.months(1)).format())
+
+mixed = mt.mixtime(
+    mt.yearmonth(["2024-02"]),
+    mt.year(["2025"]),
+)
+earlier = mt.mixtime(
+    mt.yearmonth(["2024-01"]),
+    mt.year(["2024"]),
+)
+print((mixed - earlier).format())  # ['1.0 months', '1.0 years']
 
 when = mt.date(["2024-01-15", "2024-02-29"])
 print(mt.month_of_year(when).format())  # ['Jan', 'Feb']
@@ -84,6 +97,10 @@ changes = mt.tz_transitions(
 print(changes["time"].format())
 # ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
 ```
+
+`TimeVector.diff(lag=1, differences=1)` matches R's `diff.mt_time`: it applies
+the vector's own subtraction, so time points produce durations and repeated
+differences keep subtracting durations.
 
 ## Comparison and ordering
 
@@ -120,18 +137,20 @@ months = mt.month_of_year(["2024-12-15", "2025-01-15", "2024-06-15"])
 print(months.sort().format())  # ['Jan', 'Jun', 'Dec']
 ```
 
-`Mixtime.sort()` and `argsort()` use R's order proxy: every part is converted
-to the finest shared chronon, discrete values are nudged by half a chronon so a
-span sorts at its midpoint, and cyclical parts order by position within their
-shared cycle. `sort()` drops missing values by default (as R does); pass
-`na_position="first"` or `"last"` to keep them. `min()`/`max()` convert to the
-common chronon and return a `TimeScalar` with that chronon. They skip missing
+`TimeVector.sort()`/`argsort()` order one granularity directly; cyclical
+vectors order by position within the cycle. `Mixtime.sort()`/`argsort()` use
+R's mixed order proxy: every part is converted to the finest shared chronon,
+discrete values are nudged by half a chronon so a span sorts at its midpoint,
+and cyclical parts order by position within their shared cycle. `sort()` drops
+missing values by default (as R does); pass `na_position="first"` or `"last"`
+to keep them. `TimeVector.min()`/`max()` and `Mixtime.min()`/`max()` return a
+`TimeScalar`; `Mixtime` converts to the common chronon first. They skip missing
 values by default; pass `skipna=False` for R's `na.rm = FALSE` behaviour.
 
 ## pandas interop
 
-pandas is optional. Install the extra and use `to_pandas_series()` when a
-column should carry mixtime's `"mixtime"` extension dtype:
+pandas is optional. Install `mixtime[pandas]` and use `to_pandas_series()` when
+a column should carry mixtime's `"mixtime"` extension dtype:
 
 ```python
 import pandas as pd
@@ -151,16 +170,38 @@ print(frame["when"].isna().tolist())  # [False, False, False, True]
 ```
 
 `pd.Series(mt.MixtimeArray(x))` is equivalent. The extension array supports
-`isna`, `take`, `fillna`, `where`, `concat`, slicing, `astype(object)`, and
-`to_numpy()` (object array of `TimeScalar`). Columns sort chronologically even
-when granularities are mixed, and comparisons, `between()`, `min()`/`max()`,
+`isna`, `take`, `fillna`, `where`, `concat`, slicing, `shift()`/`diff()`,
+`cummin()`/`cummax()`, `astype(object)`, `astype(str)`/`astype("string")`,
+`astype("category")`, duration shifts (`series + months(1)`), mixed
+time-point differences (`series - series`, `scalar - series`), and
+`to_numpy()` (object array of `TimeScalar`). String conversion uses
+`TimeScalar.format()`; pandas string dtypes keep missing values as `NA`, while
+NumPy unicode arrays use the literal `"NA"` because they cannot represent
+missing values. `to_csv()` and `to_json()` use the same formatted strings, with
+missing values as an empty field or `null`. Columns sort chronologically even when granularities are
+mixed, and comparisons, `between()`, `min()`/`max()`,
 `idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
-and `value_counts()` follow the same interval rules as the core vectors.
-`MixtimeArray.nlargest()`/`nsmallest()` are available directly; pandas'
+and `value_counts()` follow the same interval rules as the core vectors;
+`value_counts()` also honours `dropna` even though `pd.isna` cannot inspect a
+bare `TimeScalar`.
+`MixtimeArray.nlargest()`/`nsmallest()` are available directly; `TimeVector`
+and `Mixtime` also expose them for chronological top/bottom selection. pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
-`to_pandas()` remains available for a `PeriodIndex`/`DatetimeIndex`; it is a
-separate API and is not changed by the extension dtype.
+`diff()` follows mixed subtraction: discrete values with different chronons
+raise rather than guessing an anchor. `Series.interpolate()` and
+`Series.quantile()` are intentionally unsupported: neither has a well-defined R
+equivalent for mixed chronons, so pandas raises `NotImplementedError`.
+`to_pandas()` remains available for a
+`PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
+extension dtype.
+
+Arrow and Parquet export require `pyarrow` (install `mixtime[pandas,arrow]` or
+`pyarrow` separately). `MixtimeArray.__arrow_array__()` writes a struct with
+the value plus chronon, kind, discreteness, cycle, calendar, and timezone
+metadata, and `MixtimeDtype.__from_arrow__()` rebuilds the extension array.
+`DataFrame.to_parquet()` and `pd.read_parquet()` therefore round-trip mixtime
+columns without reducing them to formatted strings.
 
 ## Divergences from R
 
@@ -170,9 +211,12 @@ Gregorian chronon values and default formatted output.
 
 - **Discrete inference.** Time constructors infer discrete chronons from the
   input type: integer counts, strings, and temporal objects are discrete;
-  floating-point counts are continuous. R makes the same integer/double
+  floating-point counts are continuous. Empty inputs are discrete, matching R's
+  integer-typed empty vectors. R makes the same integer/double
   distinction, but Python integer literals are not R's default doubles. Pass
-  `discrete=True` or `discrete=False` to override the inference.
+  `discrete=True` or `discrete=False` to override the inference. Unlike R,
+  empty Python vectors keep the constructor's chronon instead of an `NA`
+  chronon.
 - **Superset parsing.** R's constructors apply one candidate format to a whole
   character vector. The Python constructors parse each element independently,
   so a vector can mix `"2024 Jan"` and `"Jan 2024"`. Python also accepts full
@@ -189,14 +233,29 @@ Gregorian chronon values and default formatted output.
 - **Time-vector indexing.** `x[i]` returns a length-one time vector, not a
   Python scalar, mirroring R's length-one result. Use `.scalar(i)` for a
   `TimeScalar` with chronon metadata, or `.values[0]` for the scalar chronon
-  count. pandas `series.iloc[i]` returns a `TimeScalar`.
+  count. pandas `series.iloc[i]` returns a `TimeScalar`. Lists, tuples, and
+  boolean masks select multiple positions. `.take(indices)` is
+  the positional bulk form; with `allow_fill=True`, `-1` inserts a missing
+  value. `Mixtime.take` borrows the surrounding part's metadata unless an
+  explicit `TimeScalar` fill is given, and `TimeVector.take` requires an
+  explicit fill to share the vector's chronon metadata.
 - **Mutable values.** `TimeVector.values` and `np.asarray(vector)` expose the
   underlying NumPy buffer. In-place edits mutate the vector, unlike R's
-  copy-on-modify; copy first when sharing or modifying values.
+  copy-on-modify; use `.copy()` on a `TimeVector` or `Mixtime` before sharing
+  or modifying values.
 - **Different-chronon subtraction.** Subtracting two discrete time vectors of
   different chronons raises, matching R's indeterminacy rule. Continuous
   differences use the finest common chronon (for example, month − day is a
   duration in days) and always return a continuous duration.
+- **Deduplication.** `TimeVector.unique()`/`duplicated()` match R's
+  single-chronon behavior, including missing values as one duplicate.
+  `duplicated(keep="last")` and `keep=False` are Python extensions because R's
+  mixtime method silently ignores `fromLast`. Mixed `Mixtime` deduplication is
+  not ported: R's vecvec implementation drops parts, so use the pandas
+  extension instead.
+- **Mixed subtraction symmetry.** `Mixtime - Mixtime`, `Mixtime - TimeVector`,
+  and `TimeVector - Mixtime` are element-wise and recycle a length-one operand.
+  The reverse form swaps operands but applies the same subtraction rules.
 - **Discrete shifts.** Adding a duration that does not nest within the time
   chronon raises. For example, `yearquarter(...) + months(1)` is indeterminate,
   while `+ months(3)` is allowed. `date` and `datetime` are exceptions for
@@ -223,7 +282,13 @@ Gregorian chronon values and default formatted output.
   R's double-valued helpers (`years(1)` formats as `1.0 years`). Pass
   `discrete=True` for whole-granule durations (`years(1, discrete=True)`
   formats as `1 year`). Duration conversion between calendar and fixed units
-  raises, as it does in R without a time context.
+  raises, as it does in R without a time context. Durations scale with `*` and
+  `/` by numbers, and `duration / duration` returns a numeric ratio in the
+  common chronon (raising across calendar/fixed units).
+- **Raw numeric arithmetic.** `time ± number` advances raw chronon counts,
+  matching R's implicit-chronon arithmetic, and `number - time` is supported.
+  Python `int` operands map to R integers and keep the vector discrete; Python
+  `float` operands map to R doubles and make it continuous.
 - **Sequences.** `seq()` rejects incompatible chronons instead of converting
   the endpoint. It supports `from`/`to` with `by` or `length_out`; R's
   `from` + `length_out` + `by` form is not implemented. For `date` and
@@ -273,10 +338,16 @@ Gregorian chronon values and default formatted output.
   `dtype=` directly, use `dtype=mt.MixtimeDtype()` so the optional module is
   loaded. `to_pandas()` continues to return a
   `PeriodIndex`/`DatetimeIndex` and is not replaced.
+- **pandas `isna` on scalars.** pandas has no protocol for custom scalar
+  missingness, so `pd.isna(series.iloc[i])` is `False` even when the
+  `TimeScalar` is missing. Use `series.iloc[i].isna()` for one scalar or
+  `series.isna()` for the column mask; the extension array reports missing
+  values correctly.
 - **pandas scalar equality.** `TimeScalar` equality is strict about chronon,
   cycle, calendar, timezone, and discreteness so pandas factorization and joins
-  keep different chronons distinct, matching R's `unique()`. Vector and pandas
-  mask comparisons use R's half-open interval semantics instead. Missing
+  keep different chronons distinct, matching R's `unique()`. Scalar ordering
+  and vector/pandas mask comparisons use R's half-open interval semantics
+  instead, so different chronons can be ordered without being equal. Missing
   values compare equal to other missing values in equality masks, while
   ordering comparisons involving a missing value are `False`; R's three-valued
   `NA` propagation is not reproduced in boolean masks.
@@ -308,13 +379,19 @@ Gregorian chronon values and default formatted output.
   length-one operand, and raise on other length mismatches. Mixed `Mixtime`
   ordering follows R's order proxy, including the half-chronon offset for
   discrete parts and position-within-cycle ordering for cyclical parts. Bare
-  chronon counts and character operands are not accepted.
+  chronon counts and character operands are not accepted: vector and `Mixtime`
+  equality raises `TypeError` for them, matching the ordering operators, rather
+  than silently returning scalar `False`. `TimeScalar` keeps normal Python
+  scalar equality and returns `False` for non-time operands.
 - **Missing comparisons.** Missing values compare equal to other missing values
   in `==` masks and unequal in `!=`; ordering operators involving a missing
-  value are `False`. R returns a logical `NA` instead.
+  value are `False`. Comparing a vector or `Mixtime` with `None`, `NaN`, or
+  `pd.NA` is an element-wise missing comparison: `x == None` is `True` exactly
+  where `x` is missing. R returns a logical `NA` instead.
 - **min/max missing values.** `Mixtime.min()`/`max()` default to
   `skipna=True`; R's `min()`/`max()` default to `na.rm = FALSE` and return
-  `NA` when any value is missing. Pass `skipna=False` for R's default.
+  `NA` when any value is missing. Pass `skipna=False` for R's default. Empty
+  containers raise `ValueError` rather than returning R's `Inf`/`-Inf`.
 - **Missing values.** Missing time values are represented by `NaN` in a float
   array and formatted as `"NA"`; `TimeScalar` stores missing as `None`.
   pandas `pd.NA` and `NaT` normalize to missing. R distinguishes typed `NA`
