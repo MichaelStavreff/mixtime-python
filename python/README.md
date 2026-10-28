@@ -51,6 +51,7 @@ import mixtime as mt
 x = mt.yearmonth(["2024-01", "2024-02"])
 print(x.values)          # [648 649]
 print(x.format())        # ['2024 Jan', '2024 Feb']
+print(x.diff().format()) # ['1.0 months']
 print((x + mt.months(1)).format())
 
 mixed = mt.mixtime(
@@ -94,6 +95,10 @@ changes = mt.tz_transitions(
 print(changes["time"].format())
 # ['2024-03-10 07:00:00 0.0%', '2024-11-03 06:00:00 0.0%']
 ```
+
+`TimeVector.diff(lag=1, differences=1)` matches R's `diff.mt_time`: it applies
+the vector's own subtraction, so time points produce durations and repeated
+differences keep subtracting durations.
 
 ## Comparison and ordering
 

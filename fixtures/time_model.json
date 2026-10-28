@@ -778,6 +778,54 @@
       "formatted": ["2023 Dec", "2024 Jan", "2024 Jun", "2024 Nov"]
     },
     {
+      "name": "diff_months",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [1, 5, 5],
+      "formatted": ["1.0 months", "5.0 months", "5.0 months"]
+    },
+    {
+      "name": "diff_months_lag2",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [6, 10],
+      "formatted": ["6.0 months", "10.0 months"]
+    },
+    {
+      "name": "diff_months_differences2",
+      "kind": "duration",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [4, 0],
+      "formatted": ["4.0 months", "0.0 months"]
+    },
+    {
+      "name": "diff_dates",
+      "kind": "duration",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [4, 5],
+      "formatted": ["4.0 days", "5.0 days"]
+    },
+    {
       "name": "difference_months",
       "kind": "duration",
       "chronon": "month",

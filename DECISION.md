@@ -25,7 +25,8 @@ keeps an explicit fill value's chronon metadata, while `Mixtime.take` borrows
 the surrounding part's metadata for inserted missing values. Empty time
 constructors default to discrete, matching R's integer-typed empty vectors.
 `Series.interpolate()` stays unsupported because interpolating across chronons
-has no well-defined R equivalent.
+has no well-defined R equivalent. `TimeVector.diff(lag, differences)` matches
+R's `diff.mt_time` for single-chronon vectors.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

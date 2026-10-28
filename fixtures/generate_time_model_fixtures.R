@@ -395,6 +395,12 @@ add_case("operations", "seq_by_two", s, "linear")
 
 add_case("operations", "add_months", x + months(1), "linear")
 add_case("operations", "subtract_months", x - months(1), "linear")
+add_case("operations", "diff_months", diff(x), "duration")
+add_case("operations", "diff_months_lag2", diff(x, lag = 2), "duration")
+add_case("operations", "diff_months_differences2", diff(x, differences = 2),
+         "duration")
+add_case("operations", "diff_dates",
+         diff(date(c("2024-01-01", "2024-01-05", "2024-01-10"))), "duration")
 add_case("operations", "difference_months", x - yearmonth("2023-12"), "duration")
 add_case("operations", "difference_cross",
          yearmonth(as.Date("2024-01-31"), discrete = FALSE) -

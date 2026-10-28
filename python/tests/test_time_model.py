@@ -230,6 +230,18 @@ OPERATION_INPUTS = {
         ["2024-01", "2024-02", "2024-07", "2024-12"]
     )
     - mt.months(1),
+    "diff_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(),
+    "diff_months_lag2": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(lag=2),
+    "diff_months_differences2": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-07", "2024-12"]
+    ).diff(differences=2),
+    "diff_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-05", "2024-01-10"]
+    ).diff(),
     "difference_months": lambda: mt.yearmonth(
         ["2024-01", "2024-02", "2024-07", "2024-12"]
     )
@@ -410,6 +422,26 @@ def test_operations(case):
     _assert_values(actual.values, _expected_values(case))
     _assert_formatted(actual.format(), case["formatted"])
     _assert_metadata(actual, case)
+
+
+def test_time_vector_diff_edges_and_validation():
+    x = mt.yearmonth(["2024-01", "2024-03", "2024-06"])
+
+    assert x.diff().format() == ["2.0 months", "3.0 months"]
+    assert x.diff(lag=2).format() == ["5.0 months"]
+    assert x.diff(differences=2).format() == ["1.0 months"]
+    assert x.diff(lag=10).format() == []
+    assert mt.yearmonth("2024-01").diff().format() == []
+    assert mt.days([1, 3, 6]).diff().format() == ["2.0 days", "3.0 days"]
+
+    for kwargs in (
+        {"lag": 0},
+        {"lag": 1.5},
+        {"differences": 0},
+        {"differences": 2.5},
+    ):
+        with pytest.raises(ValueError, match="lag and differences"):
+            x.diff(**kwargs)
 
 
 NUMERIC_ARITHMETIC_INPUTS = {

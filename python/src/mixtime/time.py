@@ -151,6 +151,28 @@ class TimeVector:
         """Return a copy whose values can be mutated independently."""
         return self._new(np.array(self.values, copy=True))
 
+    def diff(self, lag: int = 1, differences: int = 1) -> "TimeVector":
+        """Return lagged differences, matching R's ``diff.mt_time``.
+
+        Each difference is computed with the vector's own subtraction, so time
+        points produce durations and durations stay durations.
+        """
+        if (
+            not isinstance(lag, (int, np.integer))
+            or not isinstance(differences, (int, np.integer))
+            or lag < 1
+            or differences < 1
+        ):
+            raise ValueError("lag and differences must be integers >= 1")
+        result: TimeVector = self
+        for _ in range(int(differences)):
+            count = max(len(result) - int(lag), 0)
+            if count == 0:
+                result = result.take([])
+            else:
+                result = result[int(lag):] - result[:count]
+        return result
+
     def _n_extreme(
         self, n: int, *, largest: bool, keep: str
     ) -> "TimeVector":
