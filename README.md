@@ -12,9 +12,9 @@ timezone handling are Python.
 > timezone name/offset helpers and transitions, type and completeness
 > predicates, component extraction/composition, chronon bounds, circular sums,
 > scalar values, and an optional pandas `"mixtime"` extension dtype for
-> Series/DataFrame columns. Non-Gregorian calendars, astronomical calendars,
-> and the full R format-token language remain out of scope. See [Scope](#scope)
-> and [`DECISION.md`](DECISION.md).
+> Series/DataFrame columns, including Arrow/Parquet round-trips. Non-Gregorian
+> calendars, astronomical calendars, and the full R format-token language
+> remain out of scope. See [Scope](#scope) and [`DECISION.md`](DECISION.md).
 
 ## Credits
 
@@ -258,13 +258,23 @@ print(frame["when"].isna().tolist()) # [False, False, False, True]
 ```
 
 `pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
-missing values, slicing, `take`, `fillna`, `where`, `concat`, and object-array
-conversion. Mixed-granularity columns sort chronologically, and comparisons,
-`between()`, `min()`/`max()`, `idxmin()`/`idxmax()`, `groupby()`, `merge()`,
-`drop_duplicates()`, and `unique()` follow the core interval rules.
-Constructors also accept one-dimensional pandas `Series`/`Index` inputs, and
-`to_pandas()` is unchanged: it still returns a `PeriodIndex`/`DatetimeIndex`
-for linear time.
+missing values, slicing, `take`, `fillna`, `where`, `concat`,
+`astype(str)`/`astype("string")`, duration shifts, mixed time-point
+differences, and object-array conversion. Mixed-granularity columns sort
+chronologically, and comparisons, `between()`, `min()`/`max()`,
+`idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, and
+`unique()` follow the core interval rules. `MixtimeArray.nlargest()` and
+`nsmallest()` are available directly; pandas' `Series.nlargest()`/`nsmallest()`
+reject non-numeric extension dtypes, so use
+`series.sort_values(ascending=False).head(n)` instead. Constructors also accept
+one-dimensional pandas `Series`/`Index` inputs, and `to_pandas()` is unchanged:
+it still returns a `PeriodIndex`/`DatetimeIndex` for linear time.
+
+Arrow and Parquet export require `pyarrow`; install `mixtime[pandas,arrow]` or
+add `pyarrow` separately. A mixtime column is written as a struct that keeps
+the chronon, cycle, calendar, timezone, discreteness, and missing values, so
+`DataFrame.to_parquet()` and `pd.read_parquet()` round-trip back to the
+`"mixtime"` extension dtype instead of formatted strings.
 
 ### Timezones
 
@@ -399,7 +409,7 @@ Ported:
 - optional pandas `Series`/`Index` input, `PeriodIndex`/`DatetimeIndex` output,
   and `"mixtime"` ExtensionArray columns for Series/DataFrame, including
   chronological sorting, filtering, `between`, `min`/`max`, grouping, merging,
-  de-duplication, and concatenation
+  de-duplication, concatenation, and Arrow/Parquet round-trips
 - the low-level Rust chronon splits
 
 Not yet ported:

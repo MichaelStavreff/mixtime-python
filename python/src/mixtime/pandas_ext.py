@@ -53,6 +53,89 @@ def _require_pandas() -> None:
         ) from _PANDAS_IMPORT_ERROR
 
 
+def _require_pyarrow() -> Any:
+    try:
+        import pyarrow as pa
+    except ImportError as exc:  # pragma: no cover - depends on environment
+        raise ImportError(
+            "pyarrow is required for Arrow and Parquet conversion; "
+            "install mixtime[arrow]"
+        ) from exc
+    return pa
+
+
+def _mixtime_arrow_type() -> Any:
+    """Return the Arrow struct type used to serialize a MixtimeArray."""
+    pa = _require_pyarrow()
+    return pa.struct(
+        [
+            ("value", pa.float64()),
+            ("kind", pa.string()),
+            ("chronon_name", pa.string()),
+            ("chronon_n", pa.float64()),
+            ("chronon_timezone", pa.string()),
+            ("discrete", pa.bool_()),
+            ("cycle_name", pa.string()),
+            ("cycle_n", pa.float64()),
+            ("calendar", pa.string()),
+            ("timezone", pa.string()),
+        ]
+    )
+
+
+def _scalar_to_arrow_row(value: TimeScalar) -> dict[str, Any]:
+    return {
+        "value": None if value.isna() else value.value,
+        "kind": value.kind,
+        "chronon_name": value.chronon.name,
+        "chronon_n": float(value.chronon.n),
+        "chronon_timezone": value.chronon.timezone,
+        "discrete": value.discrete,
+        "cycle_name": None if value.cycle is None else value.cycle.name,
+        "cycle_n": None if value.cycle is None else float(value.cycle.n),
+        "calendar": value.calendar.name,
+        "timezone": value.timezone,
+    }
+
+
+def _scalar_from_arrow_row(row: Any) -> TimeScalar:
+    if row is None:
+        return TimeScalar.missing()
+    from .units import Unit, cal_gregorian
+
+    calendar_name = row.get("calendar") or cal_gregorian.name
+    if calendar_name != cal_gregorian.name:
+        raise ValueError(
+            f"Arrow data uses unsupported calendar {calendar_name!r}"
+        )
+    chronon = Unit(
+        row["chronon_name"],
+        row["chronon_n"],
+        cal_gregorian,
+        row.get("chronon_timezone"),
+    )
+    cycle_name = row.get("cycle_name")
+    cycle = (
+        None
+        if cycle_name is None
+        else Unit(
+            cycle_name,
+            row["cycle_n"],
+            cal_gregorian,
+            row.get("chronon_timezone"),
+        )
+    )
+    return TimeScalar(
+        row.get("value"),
+        chronon,
+        kind=row["kind"],
+        discrete=bool(row["discrete"]),
+        calendar=cal_gregorian,
+        cycle=cycle,
+        timezone=row.get("timezone"),
+    )
+
+
 def _coerce_fill_scalar(value: Any) -> TimeScalar:
     if isinstance(value, TimeScalar):
         return value
@@ -114,6 +197,9 @@ class MixtimeDtype(ExtensionDtype):
     @classmethod
     def construct_array_type(cls) -> type["MixtimeArray"]:
         return MixtimeArray
+
+    def __from_arrow__(self, array: Any) -> "MixtimeArray":
+        return MixtimeArray._from_arrow(array)
 
     def __repr__(self) -> str:
         return "MixtimeDtype()"
@@ -261,6 +347,27 @@ class MixtimeArray(ExtensionArray):
             if dtype != MixtimeDtype.name:
                 raise TypeError(f"cannot create a MixtimeArray with dtype {dtype!r}")
         return cls(scalars, copy=copy)
+
+    @classmethod
+    def _from_arrow(cls, array: Any) -> "MixtimeArray":
+        """Rebuild a MixtimeArray from an Arrow struct array."""
+        _require_pyarrow()
+        scalars: list[TimeScalar] = []
+        for row in array.to_pylist():
+            if row is None:
+                like = scalars[-1] if scalars else None
+                scalars.append(TimeScalar.missing(like))
+            else:
+                scalars.append(_scalar_from_arrow_row(row))
+        return cls(_mixtime_from_scalars(scalars, inherit_missing=False))
+
+    def __arrow_array__(self, type: Any = None) -> Any:
+        """Serialize to a pyarrow struct array for Arrow/Parquet export."""
+        pa = _require_pyarrow()
+        return pa.array(
+            [_scalar_to_arrow_row(value) for value in self],
+            type=type if type is not None else _mixtime_arrow_type(),
+        )
 
     @classmethod
     def _from_factorized(

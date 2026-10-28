@@ -54,6 +54,9 @@ length-one `x[i]` behavior. An optional pandas `ExtensionArray`/`ExtensionDtype`
 values usable as Series/DataFrame columns. pandas stays an optional extra; the
 core package does not import it. Direct `pd.Series(vector)` is not the
 extension-dtype path because the core vector is not a pandas array.
+Arrow/Parquet serialization is optional as well (`mixtime[arrow]`); it writes a
+pyarrow struct carrying the value and chronon metadata, and pandas restores the
+`"mixtime"` extension dtype on read instead of formatting values as strings.
 
 ## 2026-10-27 update: DST-aware calendar shifts
 

@@ -1126,6 +1126,23 @@ def test_missing_scalars_and_masks():
     assert x.scalar(0) != x.scalar(1)
 
 
+def test_time_scalar_ordering_uses_interval_semantics():
+    month = mt.yearmonth("2024-01").scalar(0)
+    day = mt.date("2023-12-31").scalar(0)
+
+    assert day < month
+    assert month > day
+    assert not month < day
+    assert not day > month
+
+    # Equality stays metadata-strict for pandas factorization and joins.
+    assert month != mt.date("2024-01-01").scalar(0)
+
+    missing = mt.TimeScalar.missing(month)
+    assert not missing < month
+    assert not missing >= month
+
+
 def test_mixed_scalar_take_and_shift():
     m = mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -1410,6 +1427,78 @@ def test_pandas_extension_series_roundtrip():
     explicit = pd.Series([x.scalar(0), x.scalar(1)], dtype=mt.MixtimeDtype())
     assert explicit.dtype == mt.MixtimeDtype()
     assert explicit.iloc[1] == x.scalar(1)
+
+
+def test_pandas_extension_arrow_and_parquet_roundtrip(tmp_path):
+    pd = pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+
+    values = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", None]),
+    )
+    series = values.to_pandas_series(name="when")
+
+    arrow = pa.array(series.array)
+    assert pa.types.is_struct(arrow.type)
+    rows = arrow.to_pylist()
+    assert rows[0]["chronon_name"] == "month"
+    assert rows[2]["chronon_name"] == "day"
+    assert rows[3]["value"] is None
+
+    restored_array = mt.MixtimeDtype().__from_arrow__(arrow)
+    assert isinstance(restored_array, mt.MixtimeArray)
+    _assert_formatted(
+        [value.format() for value in restored_array], values.format()
+    )
+
+    path = tmp_path / "mixtime.parquet"
+    pd.DataFrame({"when": series, "value": [1, 2, 3, 4]}).to_parquet(path)
+    restored = pd.read_parquet(path)
+    assert restored["when"].dtype == mt.MixtimeDtype()
+    assert isinstance(restored["when"].array, mt.MixtimeArray)
+    _assert_formatted(
+        [value.format() for value in restored["when"]], values.format()
+    )
+    assert [
+        part.chronon.name for part in restored["when"].array._data.parts
+    ] == ["month", "day"]
+    assert restored["when"].isna().tolist() == [False, False, False, True]
+
+
+def test_pandas_extension_arrow_preserves_metadata():
+    pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+
+    values = mt.mixtime(
+        mt.datetime(["2024-07-15 12:00:00", None], tz="America/New_York"),
+        mt.month_of_year(["2024-01-15", "2024-06-15"]),
+        mt.months([1, 2]),
+    )
+    restored = mt.MixtimeDtype().__from_arrow__(pa.array(mt.MixtimeArray(values)))
+    _assert_formatted(
+        [value.format() for value in restored], values.format()
+    )
+    parts = restored._data.parts
+    assert parts[0].chronon.name == "second"
+    assert parts[0].timezone == "America/New_York"
+    assert parts[1].kind == "cyclical"
+    assert parts[1].cycle is not None and parts[1].cycle.name == "year"
+    assert parts[2].kind == "duration"
+
+    split = mt.mixtime(
+        mt.date(["2024-01-01"]),
+        mt.yearmonth([None]),
+        mt.date(["2024-01-02"]),
+    )
+    restored_split = mt.MixtimeDtype().__from_arrow__(
+        pa.array(mt.MixtimeArray(split))
+    )
+    assert [part.chronon.name for part in restored_split._data.parts] == [
+        "day",
+        "month",
+        "day",
+    ]
 
 
 def test_pandas_mixed_extension_dataframe():

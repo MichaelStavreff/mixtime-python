@@ -17,8 +17,8 @@ low-level NumPy kernel.
 - `TimeVector.scalar(i)` and `Mixtime.scalar(i)` return a `TimeScalar` with its
   chronon metadata. `x[i]` still returns a length-one vector.
 - Optional pandas interop: `to_pandas_series()` and `MixtimeArray` expose time
-  columns through the `"mixtime"` extension dtype; pandas is not required by
-  the core package.
+  columns through the `"mixtime"` extension dtype, including Arrow/Parquet
+  round-trips; pandas and pyarrow are not required by the core package.
 - `mixtime.time_floor`, `time_ceiling`, `time_round`, `seq`, and `time_shift`
   provide calendar-aware operations, including DST-aware day/week shifts,
   clamped month/quarter/year shifts, and calendar-aware sequences on `date`
@@ -142,8 +142,8 @@ values by default; pass `skipna=False` for R's `na.rm = FALSE` behaviour.
 
 ## pandas interop
 
-pandas is optional. Install the extra and use `to_pandas_series()` when a
-column should carry mixtime's `"mixtime"` extension dtype:
+pandas is optional. Install `mixtime[pandas]` and use `to_pandas_series()` when
+a column should carry mixtime's `"mixtime"` extension dtype:
 
 ```python
 import pandas as pd
@@ -178,6 +178,13 @@ and `value_counts()` follow the same interval rules as the core vectors.
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
 `to_pandas()` remains available for a `PeriodIndex`/`DatetimeIndex`; it is a
 separate API and is not changed by the extension dtype.
+
+Arrow and Parquet export require `pyarrow` (install `mixtime[pandas,arrow]` or
+`pyarrow` separately). `MixtimeArray.__arrow_array__()` writes a struct with
+the value plus chronon, kind, discreteness, cycle, calendar, and timezone
+metadata, and `MixtimeDtype.__from_arrow__()` rebuilds the extension array.
+`DataFrame.to_parquet()` and `pd.read_parquet()` therefore round-trip mixtime
+columns without reducing them to formatted strings.
 
 ## Divergences from R
 
@@ -290,10 +297,16 @@ Gregorian chronon values and default formatted output.
   `dtype=` directly, use `dtype=mt.MixtimeDtype()` so the optional module is
   loaded. `to_pandas()` continues to return a
   `PeriodIndex`/`DatetimeIndex` and is not replaced.
+- **pandas `isna` on scalars.** pandas has no protocol for custom scalar
+  missingness, so `pd.isna(series.iloc[i])` is `False` even when the
+  `TimeScalar` is missing. Use `series.iloc[i].isna()` for one scalar or
+  `series.isna()` for the column mask; the extension array reports missing
+  values correctly.
 - **pandas scalar equality.** `TimeScalar` equality is strict about chronon,
   cycle, calendar, timezone, and discreteness so pandas factorization and joins
-  keep different chronons distinct, matching R's `unique()`. Vector and pandas
-  mask comparisons use R's half-open interval semantics instead. Missing
+  keep different chronons distinct, matching R's `unique()`. Scalar ordering
+  and vector/pandas mask comparisons use R's half-open interval semantics
+  instead, so different chronons can be ordered without being equal. Missing
   values compare equal to other missing values in equality masks, while
   ordering comparisons involving a missing value are `False`; R's three-valued
   `NA` propagation is not reproduced in boolean masks.
