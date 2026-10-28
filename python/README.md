@@ -369,10 +369,15 @@ Gregorian chronon values and default formatted output.
   length-one operand, and raise on other length mismatches. Mixed `Mixtime`
   ordering follows R's order proxy, including the half-chronon offset for
   discrete parts and position-within-cycle ordering for cyclical parts. Bare
-  chronon counts and character operands are not accepted.
+  chronon counts and character operands are not accepted: vector and `Mixtime`
+  equality raises `TypeError` for them, matching the ordering operators, rather
+  than silently returning scalar `False`. `TimeScalar` keeps normal Python
+  scalar equality and returns `False` for non-time operands.
 - **Missing comparisons.** Missing values compare equal to other missing values
   in `==` masks and unequal in `!=`; ordering operators involving a missing
-  value are `False`. R returns a logical `NA` instead.
+  value are `False`. Comparing a vector or `Mixtime` with `None`, `NaN`, or
+  `pd.NA` is an element-wise missing comparison: `x == None` is `True` exactly
+  where `x` is missing. R returns a logical `NA` instead.
 - **min/max missing values.** `Mixtime.min()`/`max()` default to
   `skipna=True`; R's `min()`/`max()` default to `na.rm = FALSE` and return
   `NA` when any value is missing. Pass `skipna=False` for R's default.

@@ -29,7 +29,9 @@ has no well-defined R equivalent; `Series.quantile()` is likewise unsupported.
 `TimeVector.diff(lag, differences)` matches
 R's `diff.mt_time` for single-chronon vectors, and `Mixtime` subtraction is
 symmetric: `TimeVector - Mixtime` and `TimeScalar - MixtimeArray` mirror their
-forward forms.
+forward forms. Vector and `Mixtime` equality now raises `TypeError` for
+unsupported operands instead of returning scalar `False`, and treats `None`,
+`NaN`, and `pd.NA` as element-wise missing comparisons.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

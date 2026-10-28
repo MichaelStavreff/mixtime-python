@@ -2407,6 +2407,37 @@ def test_inequality_is_elementwise():
     assert np.array_equal(x != y, [False, True])
 
 
+def test_equality_missing_operand_is_elementwise():
+    x = mt.yearmonth(["2024-01", None])
+    assert np.array_equal(x == None, [False, True])  # noqa: E711
+    assert np.array_equal(x != None, [True, False])  # noqa: E711
+    assert np.array_equal(x == np.nan, [False, True])
+
+    pd = pytest.importorskip("pandas")
+    assert np.array_equal(x == pd.NA, [False, True])
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01", None]), mt.date(["2024-03-01"])
+    )
+    assert np.array_equal(mixed == None, [False, True, False])  # noqa: E711
+    assert np.array_equal(mixed != None, [True, False, True])  # noqa: E711
+
+
+def test_equality_rejects_unsupported_operands():
+    x = mt.yearmonth(["2024-01", "2024-02"])
+    mixed = mt.mixtime(mt.yearmonth(["2024-01"]))
+
+    for operand in ("2024 Jan", 1, dt.date(2024, 1, 1)):
+        with pytest.raises(TypeError, match="Cannot compare"):
+            x == operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            x != operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            mixed == operand
+        with pytest.raises(TypeError, match="Cannot compare"):
+            mixed != operand
+
+
 def test_sequence_rejects_combining_by_and_length_out():
     with pytest.raises(ValueError, match="combining by and length_out"):
         mt.seq(

@@ -579,13 +579,16 @@ class TimeVector:
             return self._compare(other, "==")
         if _is_time_scalar(other):
             return self._compare(other.to_vector(), "==")
-        return NotImplemented
+        if _is_missing(other):
+            return self._compare(self._missing_like(), "==")
+        raise TypeError(f"Cannot compare TimeVector with {type(other)}")
 
     def __ne__(self, other: Any) -> np.ndarray:
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return np.logical_not(equal)
+        return np.logical_not(self.__eq__(other))
+
+    def _missing_like(self) -> "TimeVector":
+        """Return an all-missing vector with this vector's metadata."""
+        return self.take(np.full(len(self), -1), allow_fill=True)
 
     def __lt__(self, other: Any) -> np.ndarray:
         return self._compare(other, "<")
@@ -1074,16 +1077,17 @@ class Mixtime:
         )
 
     def __eq__(self, other: Any) -> np.ndarray:
+        if _is_missing(other):
+            missing = self.take([-1] * len(self), allow_fill=True)
+            operands = [missing.scalar(i) for i in range(len(missing))]
+            return self._compare_scalars_against(operands, "==")
         operands = self._operand_scalars(other)
         if operands is None:
-            return NotImplemented
+            raise TypeError(f"Cannot compare Mixtime with {type(other)}")
         return self._compare_scalars_against(operands, "==")
 
     def __ne__(self, other: Any) -> np.ndarray:
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return np.logical_not(equal)
+        return np.logical_not(self.__eq__(other))
 
     def __lt__(self, other: Any) -> np.ndarray:
         operands = self._operand_scalars(other)
