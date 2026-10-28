@@ -763,6 +763,34 @@ def test_time_vector_ordering_and_reductions():
     assert months.max().discrete is True
 
 
+def test_time_vector_nlargest_nsmallest_and_copy():
+    values = mt.yearmonth(["2024-03", None, "2024-01", "2024-02"])
+
+    assert values.nsmallest(2).format() == ["2024 Jan", "2024 Feb"]
+    assert values.nlargest(2).format() == ["2024 Mar", "2024 Feb"]
+    assert values.nlargest(1, keep="all").format() == ["2024 Mar"]
+    assert values.nlargest(0).format() == []
+    assert mt.yearmonth([None, None]).nlargest(2).format() == []
+
+    cyclical = mt.month_of_year(
+        ["2024-12-15", "2024-01-15", "2024-06-15"]
+    )
+    assert cyclical.nlargest(2).format() == ["Dec", "Jun"]
+
+    copied = values.copy()
+    copied.values[0] = 0
+    assert values.format() == ["2024 Mar", "NA", "2024 Jan", "2024 Feb"]
+    assert copied.format() == ["1970 Jan", "NA", "2024 Jan", "2024 Feb"]
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01"]), mt.date(["2024-03-01"])
+    )
+    mixed_copy = mixed.copy()
+    mixed_copy.parts[0].values[0] = 0
+    assert mixed.format() == ["2024 Jan", "2024-03-01"]
+    assert mixed_copy.format() == ["1970 Jan", "2024-03-01"]
+
+
 def test_time_vector_cyclical_ordering_matches_r_fixture():
     case = next(
         case for case in FIXTURES["ordering"]

@@ -147,6 +147,41 @@ class TimeVector:
             values[positions == -1] = fill
         return self._new(values)
 
+    def copy(self) -> "TimeVector":
+        """Return a copy whose values can be mutated independently."""
+        return self._new(np.array(self.values, copy=True))
+
+    def _n_extreme(
+        self, n: int, *, largest: bool, keep: str
+    ) -> "TimeVector":
+        if keep not in {"first", "last", "all"}:
+            raise ValueError("keep must be 'first', 'last', or 'all'")
+        if n <= 0:
+            return self.take([])
+        proxy = self.order_values()
+        present = np.flatnonzero(~np.isnan(proxy))
+        if present.size == 0:
+            return self.take([])
+        values = -proxy[present] if largest else proxy[present]
+        if keep == "last":
+            order = present[::-1][np.argsort(values[::-1], kind="stable")]
+        else:
+            order = present[np.argsort(values, kind="stable")]
+        if keep == "all" and order.size > n:
+            boundary = proxy[order[n - 1]]
+            order = order[proxy[order] == boundary]
+        else:
+            order = order[:n]
+        return self.take(order)
+
+    def nlargest(self, n: int = 5, keep: str = "first") -> "TimeVector":
+        """Return the ``n`` latest values, chronologically."""
+        return self._n_extreme(n, largest=True, keep=keep)
+
+    def nsmallest(self, n: int = 5, keep: str = "first") -> "TimeVector":
+        """Return the ``n`` earliest values, chronologically."""
+        return self._n_extreme(n, largest=False, keep=keep)
+
     # -- ordering ----------------------------------------------------------
     def order_values(self) -> np.ndarray:
         """Return the values used to order this vector.
@@ -917,6 +952,10 @@ class Mixtime:
             else:
                 scalars.append(TimeScalar.missing())
         return _mixtime_from_scalars(scalars, inherit_missing=False)
+
+    def copy(self) -> "Mixtime":
+        """Return a copy whose parts can be mutated independently."""
+        return Mixtime([part.copy() for part in self.parts])
 
     def to_pandas_series(self, name: str | None = None):
         """Return this mixed container as a pandas Series with ``MixtimeDtype``."""

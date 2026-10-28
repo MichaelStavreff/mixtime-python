@@ -175,7 +175,8 @@ missing values as an empty field or `null`. Columns sort chronologically even wh
 mixed, and comparisons, `between()`, `min()`/`max()`,
 `idxmin()`/`idxmax()`, `groupby()`, `merge()`, `drop_duplicates()`, `unique()`,
 and `value_counts()` follow the same interval rules as the core vectors.
-`MixtimeArray.nlargest()`/`nsmallest()` are available directly; pandas'
+`MixtimeArray.nlargest()`/`nsmallest()` are available directly; `TimeVector`
+and `Mixtime` also expose them for chronological top/bottom selection. pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
 `diff()` follows mixed subtraction: discrete values with different chronons
@@ -225,7 +226,8 @@ Gregorian chronon values and default formatted output.
   explicit fill to share the vector's chronon metadata.
 - **Mutable values.** `TimeVector.values` and `np.asarray(vector)` expose the
   underlying NumPy buffer. In-place edits mutate the vector, unlike R's
-  copy-on-modify; copy first when sharing or modifying values.
+  copy-on-modify; use `.copy()` on a `TimeVector` or `Mixtime` before sharing
+  or modifying values.
 - **Different-chronon subtraction.** Subtracting two discrete time vectors of
   different chronons raises, matching R's indeterminacy rule. Continuous
   differences use the finest common chronon (for example, month − day is a
