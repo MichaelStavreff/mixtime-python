@@ -572,7 +572,7 @@ class TimeVector:
                 discrete=False,
                 calendar=self.calendar,
             )
-        return NotImplemented
+        raise TypeError("unary - is only supported for durations")
 
     def __eq__(self, other: Any) -> np.ndarray:
         if isinstance(other, TimeVector):

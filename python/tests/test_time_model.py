@@ -1338,6 +1338,17 @@ def test_arithmetic_and_comparison():
     assert np.array_equal(y - mt.months(1) == x, [True, True])
 
 
+def test_unary_minus_only_applies_to_durations():
+    negated = -mt.days(3)
+    assert negated.format() == ["-3.0 days"]
+    assert negated.discrete is False
+
+    with pytest.raises(TypeError, match="unary -"):
+        -mt.date("2024-01-01")
+    with pytest.raises(TypeError, match="unary -"):
+        -mt.yearmonth("2024-01")
+
+
 def test_timezone_aware_datetime():
     x = mt.datetime("2024-01-15 12:34:56+00:00", tz="UTC")
     assert x.format() == ["2024-01-15 12:34:56"]
