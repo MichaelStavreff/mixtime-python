@@ -35,7 +35,9 @@ unsupported operands instead of returning scalar `False`, and treats `None`,
 honours `dropna` for mixtime missing values, which the generic object-array
 fallback could not detect. `TimeVector.unique()`/`duplicated()` cover
 single-chronon deduplication; mixed `Mixtime` deduplication stays out because
-R's vecvec implementation drops parts.
+R's vecvec implementation drops parts. Empty `Mixtime` reductions now raise a
+consistent `ValueError` instead of returning a missing scalar when the
+container has empty parts.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

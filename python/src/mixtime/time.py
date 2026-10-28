@@ -1234,6 +1234,8 @@ class Mixtime:
     def _extreme(self, which: str, *, skipna: bool = True) -> Any:
         from .scalar import TimeScalar
 
+        if len(self) == 0:
+            raise ValueError(f"{which}() arg is an empty sequence")
         mode = _mixtime_mode(self.parts)
         if mode is None:
             raise ValueError(f"{which}() arg is an empty sequence")

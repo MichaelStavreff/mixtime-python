@@ -947,6 +947,14 @@ def test_time_vector_reductions_on_empty_vector():
         mt.yearmonth([]).max()
 
 
+def test_mixtime_reductions_on_empty_container():
+    for values in (mt.mixtime(), mt.mixtime(mt.yearmonth([]))):
+        with pytest.raises(ValueError, match="empty sequence"):
+            values.min()
+        with pytest.raises(ValueError, match="empty sequence"):
+            values.max()
+
+
 PREDICATE_INPUTS = {
     "linear_yearmonth": lambda: mt.time_is_linear(
         mt.yearmonth(["2024-01-15", "2024-02-29"])

@@ -390,7 +390,8 @@ Gregorian chronon values and default formatted output.
   where `x` is missing. R returns a logical `NA` instead.
 - **min/max missing values.** `Mixtime.min()`/`max()` default to
   `skipna=True`; R's `min()`/`max()` default to `na.rm = FALSE` and return
-  `NA` when any value is missing. Pass `skipna=False` for R's default.
+  `NA` when any value is missing. Pass `skipna=False` for R's default. Empty
+  containers raise `ValueError` rather than returning R's `Inf`/`-Inf`.
 - **Missing values.** Missing time values are represented by `NaN` in a float
   array and formatted as `"NA"`; `TimeScalar` stores missing as `None`.
   pandas `pd.NA` and `NaT` normalize to missing. R distinguishes typed `NA`
