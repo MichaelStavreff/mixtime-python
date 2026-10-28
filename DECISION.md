@@ -1,7 +1,7 @@
 # mixtime port — decision record
 
 **Date:** 2026-10-23  
-**Updated:** 2026-10-28 (numeric arithmetic and pandas protocol gaps)
+**Updated:** 2026-10-28 (numeric arithmetic, pandas protocol gaps, and deduplication)
 **Pinned upstream:** CRAN `mixtime` 0.4.0 (`upstream/mixtime`)  
 **Ports:** Rust core + PyO3/Python wrapper  
 **Status:** **Niche MVP selected.** The kernel-only scope was correct as a
