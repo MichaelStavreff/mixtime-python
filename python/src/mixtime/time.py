@@ -782,21 +782,39 @@ class Mixtime:
         fill_value: Any = None,
     ) -> "Mixtime":
         """Select positions, optionally filling ``-1`` with a missing value."""
-        from .scalar import TimeScalar, _mixtime_from_scalars
+        from .scalar import (
+            TimeScalar,
+            _is_generic_missing_scalar,
+            _mixtime_from_scalars,
+        )
 
         positions = np.asarray(indices, dtype=np.int64).ravel()
         if not allow_fill:
-            return _mixtime_from_scalars(self.scalar(int(i)) for i in positions)
+            return _mixtime_from_scalars(
+                (self.scalar(int(i)) for i in positions),
+                inherit_missing=False,
+            )
 
-        fill = (
+        explicit_fill = None
+        if isinstance(fill_value, TimeScalar) and not _is_generic_missing_scalar(
             fill_value
-            if isinstance(fill_value, TimeScalar)
-            else TimeScalar.missing()
-        )
-        scalars = [
-            fill if int(i) == -1 else self.scalar(int(i)) for i in positions
-        ]
-        return _mixtime_from_scalars(scalars)
+        ):
+            explicit_fill = fill_value
+        scalars = []
+        for output_position, position in enumerate(positions):
+            position = int(position)
+            if position != -1:
+                scalars.append(self.scalar(position))
+            elif explicit_fill is not None:
+                scalars.append(explicit_fill)
+            elif len(self):
+                # Borrow the surrounding part's metadata so a shifted or
+                # diffed column does not gain a stray day-granularity part.
+                like = self.scalar(min(output_position, len(self) - 1))
+                scalars.append(TimeScalar.missing(like))
+            else:
+                scalars.append(TimeScalar.missing())
+        return _mixtime_from_scalars(scalars, inherit_missing=False)
 
     def to_pandas_series(self, name: str | None = None):
         """Return this mixed container as a pandas Series with ``MixtimeDtype``."""

@@ -1157,6 +1157,8 @@ def test_mixed_scalar_take_and_shift():
     taken = m.take([2, -1, 0], allow_fill=True)
     assert taken.format() == ["2024-03-01", "NA", "2024 Jan"]
     assert [part.chronon.name for part in taken.parts] == ["day", "month"]
+    assert taken.scalar(1).isna()
+    assert taken.scalar(1).chronon.name == "month"
 
     shifted = mt.mixtime(
         mt.yearmonth(["2024-01", "2024-02"]),
@@ -1740,6 +1742,40 @@ def test_pandas_extension_take_concat_and_numpy():
         False,
         False,
     ]
+
+
+def test_pandas_extension_shift_and_diff():
+    pd = pytest.importorskip("pandas")
+
+    values = mt.yearmonth(["2024-01", "2024-02", "2024-04"])
+    series = values.to_pandas_series()
+
+    shifted = series.shift(1)
+    assert shifted.dtype == mt.MixtimeDtype()
+    assert shifted.isna().tolist() == [True, False, False]
+    assert [part.chronon.name for part in shifted.array._data.parts] == [
+        "month"
+    ]
+    assert shifted.iloc[1] == values.scalar(0)
+
+    differences = series.diff()
+    assert differences.dtype == mt.MixtimeDtype()
+    assert differences.isna().tolist() == [True, False, False]
+    _assert_formatted(
+        [value.format() for value in differences],
+        ["NA", "1.0 months", "2.0 months"],
+    )
+
+    mixed = mt.mixtime(
+        mt.yearmonth(["2024-01", "2024-02"]),
+        mt.date(["2024-03-01", "2024-04-01"]),
+    ).to_pandas_series()
+    mixed_shifted = mixed.shift(1)
+    assert [part.chronon.name for part in mixed_shifted.array._data.parts] == [
+        "month",
+        "day",
+    ]
+    assert mixed_shifted.isna().tolist() == [True, False, False, False]
 
 
 def test_pandas_is_optional():

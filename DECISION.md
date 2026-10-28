@@ -57,6 +57,9 @@ extension-dtype path because the core vector is not a pandas array.
 Arrow/Parquet serialization is optional as well (`mixtime[arrow]`); it writes a
 pyarrow struct carrying the value and chronon metadata, and pandas restores the
 `"mixtime"` extension dtype on read instead of formatting values as strings.
+pandas `shift()`/`diff()` preserve the neighbouring part's chronon metadata for
+newly introduced missing values, so a shifted month column stays a month
+column.
 
 ## 2026-10-27 update: DST-aware calendar shifts
 

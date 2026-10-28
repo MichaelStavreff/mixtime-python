@@ -13,6 +13,7 @@ import numpy as np
 
 from .scalar import (
     TimeScalar,
+    _is_generic_missing_scalar,
     _is_missing_value,
     _mixtime_from_scalars,
     _scalar_from_item,
@@ -319,11 +320,11 @@ class MixtimeArray(ExtensionArray):
             return MixtimeArray(self._data.take(positions))
 
         if fill_value is None or fill_value is _no_default:
-            fill = TimeScalar.missing()
+            fill = None
         elif isinstance(fill_value, TimeScalar):
             fill = fill_value
         elif _is_missing_value(fill_value):
-            fill = TimeScalar.missing()
+            fill = None
         else:
             raise TypeError(
                 "fill_value must be a TimeScalar or a missing value"
@@ -379,10 +380,36 @@ class MixtimeArray(ExtensionArray):
     def _concat_same_type(
         cls, to_concat: Sequence["MixtimeArray"]
     ) -> "MixtimeArray":
-        parts: list[TimeVector] = []
+        scalars: list[TimeScalar | None] = []
         for array in to_concat:
-            parts.extend(array._data.parts)
-        return cls(Mixtime(parts))
+            data = array._data
+            array_scalars = [data.scalar(i) for i in range(len(data))]
+            if array_scalars and all(
+                _is_generic_missing_scalar(scalar)
+                for scalar in array_scalars
+            ):
+                # pandas shift() creates an all-missing block before/after the
+                # real data. Leave it untyped until we can borrow a neighbour's
+                # chronon metadata below.
+                scalars.extend([None] * len(array_scalars))
+            else:
+                scalars.extend(array_scalars)
+
+        known_positions = [
+            index for index, scalar in enumerate(scalars) if scalar is not None
+        ]
+        if known_positions:
+            for index, scalar in enumerate(scalars):
+                if scalar is None:
+                    nearest = min(
+                        known_positions, key=lambda j: (abs(j - index), j)
+                    )
+                    scalars[index] = TimeScalar.missing(scalars[nearest])
+        values = [
+            scalar if scalar is not None else TimeScalar.missing()
+            for scalar in scalars
+        ]
+        return cls(_mixtime_from_scalars(values, inherit_missing=False))
 
     def __array__(
         self, dtype: Any = None, copy: bool | None = None

@@ -258,7 +258,7 @@ print(frame["when"].isna().tolist()) # [False, False, False, True]
 ```
 
 `pd.Series(mt.MixtimeArray(when))` is equivalent. The extension array supports
-missing values, slicing, `take`, `fillna`, `where`, `concat`,
+missing values, slicing, `take`, `fillna`, `where`, `concat`, `shift()`/`diff()`,
 `astype(str)`/`astype("string")`, duration shifts, mixed time-point
 differences, and object-array conversion. Mixed-granularity columns sort
 chronologically, and comparisons, `between()`, `min()`/`max()`,

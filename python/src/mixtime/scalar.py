@@ -208,6 +208,15 @@ def _scalar_from_item(item: Any) -> TimeScalar:
     raise TypeError(f"expected TimeScalar or missing value, got {type(item)!r}")
 
 
+def _is_generic_missing_scalar(value: Any) -> bool:
+    """Return whether ``value`` is a metadata-free missing scalar."""
+    return (
+        isinstance(value, TimeScalar)
+        and value.isna()
+        and value._meta_key() == TimeScalar.missing()._meta_key()
+    )
+
+
 def _mixtime_from_scalars(
     scalars: Iterable[Any], *, inherit_missing: bool = True
 ) -> Any:
