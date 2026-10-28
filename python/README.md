@@ -185,9 +185,10 @@ and `Mixtime` also expose them for chronological top/bottom selection. pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
 `diff()` follows mixed subtraction: discrete values with different chronons
-raise rather than guessing an anchor. `Series.interpolate()` is intentionally
-unsupported: interpolating across chronons has no well-defined R equivalent, so
-pandas raises `NotImplementedError`. `to_pandas()` remains available for a
+raise rather than guessing an anchor. `Series.interpolate()` and
+`Series.quantile()` are intentionally unsupported: neither has a well-defined R
+equivalent for mixed chronons, so pandas raises `NotImplementedError`.
+`to_pandas()` remains available for a
 `PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
 extension dtype.
 

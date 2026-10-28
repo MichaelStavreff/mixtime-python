@@ -2048,6 +2048,14 @@ def test_pandas_extension_interpolate_is_unsupported():
         series.interpolate()
 
 
+def test_pandas_extension_quantile_is_unsupported():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(["2024-01", None, "2024-03"]).to_pandas_series()
+    with pytest.raises(NotImplementedError, match="quantile"):
+        series.quantile(0.5)
+
+
 def test_pandas_extension_cumulative_min_max():
     pd = pytest.importorskip("pandas")
 

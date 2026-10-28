@@ -635,6 +635,13 @@ class MixtimeArray(ExtensionArray):
         """Return the ``n`` earliest values."""
         return MixtimeArray(self._data.nsmallest(n, keep=keep))
 
+    def _quantile(
+        self, qs: np.ndarray, interpolation: str
+    ) -> "MixtimeArray":
+        raise NotImplementedError(
+            "MixtimeArray does not implement quantile"
+        )
+
     def _values_for_json(self) -> np.ndarray:
         """Render values as strings so ``Series.to_json()`` can serialize."""
         return np.asarray(
