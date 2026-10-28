@@ -1183,7 +1183,16 @@ def test_time_vector_take_and_fill():
         )
 
     empty = mt.yearmonth([])
+    # R stores empty time vectors as integer, so they default to discrete.
+    assert empty.discrete is True
     assert empty.take([-1, -1], allow_fill=True).format() == ["NA", "NA"]
+    filled_empty = empty.take(
+        [-1, -1],
+        allow_fill=True,
+        fill_value=mt.yearmonth("2024-01").scalar(0),
+    )
+    assert filled_empty.format() == ["2024 Jan", "2024 Jan"]
+    assert filled_empty.discrete is True
     with pytest.raises(IndexError, match="empty TimeVector"):
         empty.take([0], allow_fill=True)
 
@@ -1940,6 +1949,14 @@ def test_pandas_extension_json_and_csv_export():
     ]
 
 
+def test_pandas_extension_interpolate_is_unsupported():
+    pytest.importorskip("pandas")
+
+    series = mt.yearmonth(["2024-01", None, "2024-03"]).to_pandas_series()
+    with pytest.raises(NotImplementedError, match="interpolate"):
+        series.interpolate()
+
+
 def test_pandas_extension_cumulative_min_max():
     pd = pytest.importorskip("pandas")
 
@@ -2312,6 +2329,11 @@ def test_discrete_inference_from_input_type():
     assert mt.yearmonth([648.0, 649.0]).discrete is False
     assert mt.date(dt.date(2024, 1, 15)).discrete is True
     assert mt.month_of_year("2024-01-15").discrete is True
+    # R stores empty vectors as integer, so they default to discrete.
+    assert mt.yearmonth([]).discrete is True
+    assert mt.date([]).discrete is True
+    assert mt.month_of_year([]).discrete is True
+    assert mt.yearmonth([], discrete=False).discrete is False
 
 
 def test_sequence_validates_length_one_and_finite_steps():

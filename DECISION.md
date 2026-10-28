@@ -22,7 +22,10 @@ selection with optional `-1` filling.
 The optional pandas array also implements cumulative `min`/`max`, formatted
 CSV/JSON export, and metadata-preserving `shift()`/`diff()`. `TimeVector.take`
 keeps an explicit fill value's chronon metadata, while `Mixtime.take` borrows
-the surrounding part's metadata for inserted missing values.
+the surrounding part's metadata for inserted missing values. Empty time
+constructors default to discrete, matching R's integer-typed empty vectors.
+`Series.interpolate()` stays unsupported because interpolating across chronons
+has no well-defined R equivalent.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

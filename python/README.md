@@ -180,7 +180,9 @@ and `Mixtime` also expose them for chronological top/bottom selection. pandas'
 `Series.nlargest()`/`nsmallest()` reject non-numeric extension dtypes before
 dispatching, so use `series.sort_values(ascending=False).head(n)` instead.
 `diff()` follows mixed subtraction: discrete values with different chronons
-raise rather than guessing an anchor. `to_pandas()` remains available for a
+raise rather than guessing an anchor. `Series.interpolate()` is intentionally
+unsupported: interpolating across chronons has no well-defined R equivalent, so
+pandas raises `NotImplementedError`. `to_pandas()` remains available for a
 `PeriodIndex`/`DatetimeIndex`; it is a separate API and is not changed by the
 extension dtype.
 
@@ -199,9 +201,12 @@ Gregorian chronon values and default formatted output.
 
 - **Discrete inference.** Time constructors infer discrete chronons from the
   input type: integer counts, strings, and temporal objects are discrete;
-  floating-point counts are continuous. R makes the same integer/double
+  floating-point counts are continuous. Empty inputs are discrete, matching R's
+  integer-typed empty vectors. R makes the same integer/double
   distinction, but Python integer literals are not R's default doubles. Pass
-  `discrete=True` or `discrete=False` to override the inference.
+  `discrete=True` or `discrete=False` to override the inference. Unlike R,
+  empty Python vectors keep the constructor's chronon instead of an `NA`
+  chronon.
 - **Superset parsing.** R's constructors apply one candidate format to a whole
   character vector. The Python constructors parse each element independently,
   so a vector can mix `"2024 Jan"` and `"Jan 2024"`. Python also accepts full

@@ -1955,9 +1955,14 @@ def _infer_discrete(data: Any, discrete: bool | None) -> bool:
     if _is_temporal(data):
         return True
     try:
-        kind = np.asarray(data).dtype.kind
+        array = np.asarray(data)
     except (TypeError, ValueError):
         return True
+    # R stores empty mixtime vectors as integer, so they are discrete even
+    # when the input has a floating dtype (e.g. ``numeric(0)``).
+    if array.size == 0:
+        return True
+    kind = array.dtype.kind
     if kind in "iu":
         return True
     if kind == "f":
