@@ -668,6 +668,24 @@ def test_mixed_arithmetic_recycling_errors():
         left - right
 
 
+def test_mixtime_reverse_subtraction():
+    mixed = mt.mixtime(
+        mt.date(["2024-01-05"]), mt.date(["2024-02-05"])
+    )
+    left = mt.date(["2024-01-01"])
+
+    reversed_result = left - mixed
+    assert reversed_result.format() == ["-4.0 days", "-35.0 days"]
+    assert [part.chronon.name for part in reversed_result.parts] == ["day"]
+
+    forward = mixed - left
+    assert forward.format() == ["4.0 days", "35.0 days"]
+
+    months = mt.mixtime(mt.yearmonth(["2024-01", "2024-02"]))
+    with pytest.raises(ValueError, match="indeterminate"):
+        mt.date(["2024-01-01", "2024-01-02"]) - months
+
+
 def test_mixed_arithmetic_rejects_discrete_different_chronons():
     left = mt.mixtime(mt.yearmonth("2024-01"))
     right = mt.mixtime(mt.year("2024"))

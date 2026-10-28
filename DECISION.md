@@ -26,7 +26,8 @@ the surrounding part's metadata for inserted missing values. Empty time
 constructors default to discrete, matching R's integer-typed empty vectors.
 `Series.interpolate()` stays unsupported because interpolating across chronons
 has no well-defined R equivalent. `TimeVector.diff(lag, differences)` matches
-R's `diff.mt_time` for single-chronon vectors.
+R's `diff.mt_time` for single-chronon vectors, and `Mixtime` subtraction is
+symmetric: `TimeVector - Mixtime` mirrors `Mixtime - TimeVector`.
 
 ## 2026-10-27 update: mixed comparison, ordering, and pandas operations
 

@@ -242,6 +242,9 @@ Gregorian chronon values and default formatted output.
   different chronons raises, matching R's indeterminacy rule. Continuous
   differences use the finest common chronon (for example, month − day is a
   duration in days) and always return a continuous duration.
+- **Mixed subtraction symmetry.** `Mixtime - Mixtime`, `Mixtime - TimeVector`,
+  and `TimeVector - Mixtime` are element-wise and recycle a length-one operand.
+  The reverse form swaps operands but applies the same subtraction rules.
 - **Discrete shifts.** Adding a duration that does not nest within the time
   chronon raises. For example, `yearquarter(...) + months(1)` is indeterminate,
   while `+ months(3)` is allowed. `date` and `datetime` are exceptions for

@@ -1014,6 +1014,17 @@ class Mixtime:
             for left, right in self._scalar_pairs(operands)
         )
 
+    def __rsub__(self, other: Any) -> "Mixtime":
+        operands = self._operand_scalars(other)
+        if operands is None:
+            return NotImplemented
+        from .scalar import _mixtime_from_scalars
+
+        return _mixtime_from_scalars(
+            _subtract_scalars(right, left)
+            for left, right in self._scalar_pairs(operands)
+        )
+
     def _operand_scalars(self, other: Any) -> list[Any] | None:
         if isinstance(other, Mixtime):
             _mixtime_mode(other.parts)
