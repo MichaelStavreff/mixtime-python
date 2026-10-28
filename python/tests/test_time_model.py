@@ -444,6 +444,68 @@ def test_time_vector_diff_edges_and_validation():
             x.diff(**kwargs)
 
 
+UNIQUENESS_INPUTS = {
+    "unique_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-01", "2024-03", "2024-02"]
+    ).unique(),
+    "unique_months_na": lambda: mt.yearmonth(
+        ["2024-01", None, "2024-01", None]
+    ).unique(),
+    "unique_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-01", "2024-01-02"]
+    ).unique(),
+    "unique_continuous": lambda: mt.yearmonth(
+        [648.5, 648.5, 649.5]
+    ).unique(),
+    "unique_cyclical": lambda: mt.month_of_year(
+        [dt.date(2024, 1, 15), dt.date(2024, 1, 15), dt.date(2024, 3, 15)]
+    ).unique(),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["uniqueness"], ids=lambda c: c["name"])
+def test_unique(case):
+    actual = UNIQUENESS_INPUTS[case["name"]]()
+    _assert_values(actual.values, _expected_values(case))
+    _assert_formatted(actual.format(), case["formatted"])
+    _assert_metadata(actual, case)
+
+
+DUPLICATED_INPUTS = {
+    "duplicated_months": lambda: mt.yearmonth(
+        ["2024-01", "2024-02", "2024-01", "2024-03", "2024-02"]
+    ).duplicated(),
+    "duplicated_na": lambda: mt.yearmonth(
+        ["2024-01", None, "2024-01", None]
+    ).duplicated(),
+    "duplicated_dates": lambda: mt.date(
+        ["2024-01-01", "2024-01-01", "2024-01-02"]
+    ).duplicated(),
+}
+
+
+@pytest.mark.parametrize("case", FIXTURES["duplicates"], ids=lambda c: c["name"])
+def test_duplicated(case):
+    actual = DUPLICATED_INPUTS[case["name"]]()
+    assert actual.tolist() == case["values"]
+
+
+def test_unique_and_duplicated_keep_variants():
+    x = mt.yearmonth(["2024-01", "2024-02", "2024-01", "2024-03"])
+
+    assert x.duplicated().tolist() == [False, False, True, False]
+    assert x.duplicated(keep="last").tolist() == [True, False, False, False]
+    assert x.duplicated(keep=False).tolist() == [True, False, True, False]
+
+    # R's mixtime method ignores fromLast; keep="last" is a Python extension.
+    with pytest.raises(ValueError, match="keep must be"):
+        x.duplicated(keep="middle")
+
+    assert mt.days([1, 2, 1]).unique().format() == ["1.0 days", "2.0 days"]
+    assert mt.yearmonth([]).unique().format() == []
+    assert mt.yearmonth([]).duplicated().tolist() == []
+
+
 NUMERIC_ARITHMETIC_INPUTS = {
     "duration_ratio_days": lambda: mt.days([3, 4]) / mt.days(2),
     "duration_ratio_hours": lambda: mt.hours(2) / mt.minutes(30),

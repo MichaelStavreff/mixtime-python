@@ -2726,5 +2726,84 @@
       "offset_before": [],
       "offset_after": []
     }
+  ],
+  "uniqueness": [
+    {
+      "name": "unique_months",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 649, 650],
+      "formatted": ["2024 Jan", "2024 Feb", "2024 Mar"]
+    },
+    {
+      "name": "unique_months_na",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, null],
+      "formatted": ["2024 Jan", "NA"]
+    },
+    {
+      "name": "unique_dates",
+      "kind": "linear",
+      "chronon": "day",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [19723, 19724],
+      "formatted": ["2024-01-01", "2024-01-02"]
+    },
+    {
+      "name": "unique_continuous",
+      "kind": "linear",
+      "chronon": "month",
+      "n": 1,
+      "cycle": null,
+      "cycle_n": null,
+      "calendar": "gregorian",
+      "discrete": false,
+      "values": [648.5, 649.5],
+      "formatted": ["2024 Jan 50.0%", "2024 Feb 50.0%"]
+    },
+    {
+      "name": "unique_cyclical",
+      "kind": "cyclical",
+      "chronon": "month",
+      "n": 1,
+      "cycle": "year",
+      "cycle_n": 1,
+      "calendar": "gregorian",
+      "discrete": true,
+      "values": [648, 650],
+      "formatted": ["Jan", "Mar"]
+    }
+  ],
+  "duplicates": [
+    {
+      "name": "duplicated_months",
+      "values": [false, false, true, false, true],
+      "formatted": ["FALSE", "FALSE", " TRUE", "FALSE", " TRUE"]
+    },
+    {
+      "name": "duplicated_na",
+      "values": [false, false, true, true],
+      "formatted": ["FALSE", "FALSE", " TRUE", " TRUE"]
+    },
+    {
+      "name": "duplicated_dates",
+      "values": [false, true, false],
+      "formatted": ["FALSE", " TRUE", "FALSE"]
+    }
   ]
 }

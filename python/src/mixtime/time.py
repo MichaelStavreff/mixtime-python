@@ -173,6 +173,48 @@ class TimeVector:
                 result = result[int(lag):] - result[:count]
         return result
 
+    def unique(self) -> "TimeVector":
+        """Return unique values in first-occurrence order.
+
+        Matches R's ``unique()`` for a single-chronon vector: missing values
+        count as one value and the vector's metadata is preserved. R's mixed
+        ``Mixtime`` deduplication is not ported because the vecvec
+        implementation loses parts; use the pandas extension for that.
+        """
+        seen: set[float | None] = set()
+        positions: list[int] = []
+        for position, value in enumerate(self.values):
+            key = _unique_key(value)
+            if key not in seen:
+                seen.add(key)
+                positions.append(position)
+        return self.take(positions)
+
+    def duplicated(self, keep: str | bool = "first") -> np.ndarray:
+        """Return a boolean mask of duplicate values.
+
+        ``keep="first"`` mirrors R's default ``duplicated()``. ``keep="last"``
+        follows base R's ``fromLast = TRUE`` semantics (mixtime's own method
+        ignores that argument), and ``keep=False`` marks every occurrence of a
+        duplicated value, as in pandas.
+        """
+        if keep not in ("first", "last", False):
+            raise ValueError("keep must be 'first', 'last', or False")
+        positions: dict[float | None, list[int]] = {}
+        for position, value in enumerate(self.values):
+            positions.setdefault(_unique_key(value), []).append(position)
+        result = np.zeros(len(self), dtype=bool)
+        for indices in positions.values():
+            if len(indices) < 2:
+                continue
+            if keep == "first":
+                result[indices[1:]] = True
+            elif keep == "last":
+                result[indices[:-1]] = True
+            else:
+                result[indices] = True
+        return result
+
     def _n_extreme(
         self, n: int, *, largest: bool, keep: str
     ) -> "TimeVector":
@@ -2234,6 +2276,12 @@ def _is_missing(value: Any) -> bool:
         return True
     # pandas NA / NaT without importing pandas.
     return type(value).__name__ in {"NAType", "NaTType"}
+
+
+def _unique_key(value: Any) -> float | None:
+    """Normalise a chronon value for equality, treating all NaNs as one."""
+    number = float(value)
+    return None if np.isnan(number) else number
 
 
 def _is_time_scalar(value: Any) -> bool:

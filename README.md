@@ -43,7 +43,8 @@ There are two layers:
   `time_cycle`, `time_calendar`, `is_mixtime`), timezone helpers (`tz_name`,
   `tz_abbreviation`, `tz_offset`, `tz_transitions`), scalar values
   (`TimeScalar`, `.scalar(i)`), predicates such as `time_is_determinate_at`
-  and `time_is_complete_at`, mixed-vector comparison/ordering
+  and `time_is_complete_at`, deduplication (`TimeVector.unique`, `duplicated`),
+  mixed-vector comparison/ordering
   (`Mixtime.sort`, `argsort`, `min`, `max`), and an optional pandas extension
   dtype.
 - **Rust kernel** — the low-level Gregorian chronon splits (`day_to_month`,

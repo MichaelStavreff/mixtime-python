@@ -16,6 +16,8 @@ low-level NumPy kernel.
 - `mixtime.mixtime(...)` combines vectors of different granularities.
 - `TimeVector.scalar(i)` and `Mixtime.scalar(i)` return a `TimeScalar` with its
   chronon metadata. `x[i]` still returns a length-one vector.
+- `TimeVector.unique()` and `duplicated()` deduplicate a single-chronon vector
+  while preserving order and metadata.
 - Optional pandas interop: `to_pandas_series()` and `MixtimeArray` expose time
   columns through the `"mixtime"` extension dtype, including Arrow/Parquet
   round-trips; pandas and pyarrow are not required by the core package.
@@ -245,6 +247,12 @@ Gregorian chronon values and default formatted output.
   different chronons raises, matching R's indeterminacy rule. Continuous
   differences use the finest common chronon (for example, month − day is a
   duration in days) and always return a continuous duration.
+- **Deduplication.** `TimeVector.unique()`/`duplicated()` match R's
+  single-chronon behavior, including missing values as one duplicate.
+  `duplicated(keep="last")` and `keep=False` are Python extensions because R's
+  mixtime method silently ignores `fromLast`. Mixed `Mixtime` deduplication is
+  not ported: R's vecvec implementation drops parts, so use the pandas
+  extension instead.
 - **Mixed subtraction symmetry.** `Mixtime - Mixtime`, `Mixtime - TimeVector`,
   and `TimeVector - Mixtime` are element-wise and recycle a length-one operand.
   The reverse form swaps operands but applies the same subtraction rules.

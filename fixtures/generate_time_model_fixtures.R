@@ -102,6 +102,14 @@ add_numeric_case <- function(section, name, value) {
   )
 }
 
+add_logical_case <- function(section, name, value) {
+  out[[section]][[length(out[[section]]) + 1L]] <<- list(
+    name = name,
+    values = as.logical(value),
+    formatted = as.character(format(value))
+  )
+}
+
 add_comparison <- function(name, value) {
   out$comparisons[[length(out$comparisons) + 1L]] <<- list(
     name = name,
@@ -442,6 +450,24 @@ add_case("operations", "time_minus_number", date(c("2024-01-01", "2024-01-02")) 
          "linear")
 add_case("operations", "number_minus_time", 1 - date(c("2024-01-01", "2024-01-02")),
          "linear")
+
+u <- yearmonth(c("2024-01", "2024-02", "2024-01", "2024-03", "2024-02"))
+add_case("uniqueness", "unique_months", unique(u), "linear")
+add_case("uniqueness", "unique_months_na",
+         unique(yearmonth(c("2024-01", NA, "2024-01", NA))), "linear")
+add_case("uniqueness", "unique_dates",
+         unique(date(c("2024-01-01", "2024-01-01", "2024-01-02"))), "linear")
+add_case("uniqueness", "unique_continuous",
+         unique(yearmonth(c(648.5, 648.5, 649.5))), "linear")
+add_case("uniqueness", "unique_cyclical",
+         unique(month_of_year(
+           as.Date(c("2024-01-15", "2024-01-15", "2024-03-15"))
+         )), "cyclical")
+add_logical_case("duplicates", "duplicated_months", duplicated(u))
+add_logical_case("duplicates", "duplicated_na",
+                 duplicated(yearmonth(c("2024-01", NA, "2024-01", NA))))
+add_logical_case("duplicates", "duplicated_dates",
+                 duplicated(date(c("2024-01-01", "2024-01-01", "2024-01-02"))))
 add_numeric_case("numeric_arithmetic", "duration_ratio_days",
                  days(c(3, 4)) / days(2))
 add_numeric_case("numeric_arithmetic", "duration_ratio_hours",
